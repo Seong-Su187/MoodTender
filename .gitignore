@@ -11,26 +11,26 @@ __pycache__/
 
 # ─── 모델 가중치 (용량 큼) ────────────────────────────────────
 # LivePortrait
-LivePortrait/pretrained_weights/liveportrait/
-LivePortrait/pretrained_weights/liveportrait_animals/
-LivePortrait/pretrained_weights/insightface/
-LivePortrait/pretrained_weights/.cache/
+backend/LivePortrait/pretrained_weights/liveportrait/
+backend/LivePortrait/pretrained_weights/liveportrait_animals/
+backend/LivePortrait/pretrained_weights/insightface/
+backend/LivePortrait/pretrained_weights/.cache/
 **/*.pth
 **/*.onnx
 **/*.pkl
 
 # MuseTalk
-MuseTalk/models/
-MuseTalk/config.py
+backend/MuseTalk/models/
+backend/MuseTalk/config.py
 
 # ─── 대용량 소스 파일 ─────────────────────────────────────────
-LivePortrait/source/
+backend/LivePortrait/source/
 
 # ─── 생성 결과물 ──────────────────────────────────────────────
-LivePortrait/animations/
-LivePortrait/tmp/
-LivePortrait/gradio_temp/
-MuseTalk/results/
+backend/LivePortrait/animations/
+backend/LivePortrait/tmp/
+backend/LivePortrait/gradio_temp/
+backend/MuseTalk/results/
 
 # ─── 미디어 파일 (영상/오디오) ────────────────────────────────
 *.mp4
