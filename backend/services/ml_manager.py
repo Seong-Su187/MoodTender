@@ -24,6 +24,7 @@ print(f"[서버] 디바이스: {device}")
 # ─── 모델 전역 상태 ───────────────────────────────────────────
 vae = unet = pe = timesteps = whisper = audio_processor = weight_dtype = fp = None
 avatar_short = avatar_long = custom_avatar = None
+taesd_decoder = None  # TAESD 경량 VAE 디코더
 CUSTOM_AVATAR_CACHE = f"./results/{args.version}/avatars/custom_avatar"
 
 models_ready        = False
@@ -77,6 +78,10 @@ def load_models():
         print("[서버] latent GPU 적재 완료")
 
         _try_load_custom_avatar_from_cache()
+
+        # GPU 웜업: CUDA 커널 사전 로딩으로 첫 추론 콜드 스타트 제거
+        _warmup_gpu()
+
         models_ready   = True
         loading_status = "준비 완료"
         print("[서버] 모델 준비 완료")
@@ -105,6 +110,42 @@ def _try_load_custom_avatar_from_cache():
         custom_avatar.input_latent_list_cycle = [t.to(device) for t in custom_avatar.input_latent_list_cycle]
     except Exception as e:
         print(f"[캐시] 커스텀 아바타 로드 실패: {e}")
+
+def _warmup_gpu():
+    """실제 파이프라인(UNet+VAE) 1배치 실행으로 CUDA 커널 사전 로딩"""
+    print("[서버] GPU 웜업 중...")
+    try:
+        import tempfile, os
+        import numpy as np
+        import soundfile as sf
+        from musetalk.utils.utils import datagen
+
+        # 0.5초 무음 WAV 생성
+        tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+        sf.write(tmp.name, np.zeros(8000, dtype=np.float32), 16000)
+        tmp.close()
+
+        with torch.inference_mode():
+            # 실제 오디오 → whisper → UNet → VAE 경로 웜업
+            feats, length = audio_processor.get_audio_feature(tmp.name, weight_dtype=weight_dtype)
+            chunks = audio_processor.get_whisper_chunk(
+                feats, device, weight_dtype, whisper, length,
+                fps=args.fps,
+                audio_padding_length_left=args.audio_padding_length_left,
+                audio_padding_length_right=args.audio_padding_length_right,
+            )
+            for w, l in datagen(chunks, avatar_long.input_latent_list_cycle, args.batch_size):
+                af  = pe(w.to(device))
+                lb  = l.to(dtype=unet.model.dtype)
+                out = unet.model(lb, timesteps, encoder_hidden_states=af).sample
+                _   = vae.vae.decode(out.to(vae.vae.dtype)).sample
+                break  # 첫 배치만
+            torch.cuda.synchronize()
+
+        os.unlink(tmp.name)
+        print("[서버] GPU 웜업 완료")
+    except Exception as e:
+        print(f"[서버] GPU 웜업 스킵: {e}")
 
 def offload_to_cpu():
     vae.vae = vae.vae.cpu(); unet.model = unet.model.cpu()

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MoodTender</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #121212;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    video {
+      max-height: 100vh;
+      max-width: 100%;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <video id="intro" autoplay muted playsinline>
+    <source src="/static/loading.mp4" type="video/mp4" />
+  </video>
+
+  <script>
+    const v = document.getElementById('intro');
+    v.addEventListener('ended', () => {
+      window.location.href = '/';
+    });
+    // 영상 로드 실패 시 바로 메인으로
+    v.addEventListener('error', () => {
+      window.location.href = '/';
+    });
+    // 최대 10초 후 강제 이동 (안전장치)
+    setTimeout(() => window.location.href = '/', 10000);
+  </script>
+</body>
+</html>

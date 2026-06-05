@@ -69,6 +69,8 @@ function applyModelState({ ready, status, error, loading }) {
     loadBtn.style.display = 'none';
     genBtn.disabled  = false;
     initBtn.disabled = false;
+    const initVideoBtn = document.getElementById('init-avatar-video-btn');
+    if (initVideoBtn) initVideoBtn.disabled = false;
   } else if (error) {
     statusEl.className  = 'error';
     loadBtn.disabled    = false;
@@ -221,6 +223,36 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl) {
   if (!appending && appendQueue.length === 0 && mediaSource.readyState === 'open') {
     try { mediaSource.endOfStream(); statusEl.textContent = '완료!'; } catch (_) {}
   }
+}
+
+// ── 아바타 탭 전환 ───────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-photo').style.display = tab === 'photo' ? 'flex' : 'none';
+  document.getElementById('tab-video').style.display = tab === 'video' ? 'flex' : 'none';
+}
+
+// ── 아바타 초기화 (영상 직접) ────────────────────────────────
+async function initAvatarVideo() {
+  const fileInput = document.getElementById('avatar-video-file');
+  if (!fileInput.files.length) { alert('영상을 선택해주세요.'); return; }
+
+  const btn      = document.getElementById('init-avatar-video-btn');
+  const statusEl = document.getElementById('avatar-status');
+
+  btn.disabled = true;
+
+  const form = new FormData();
+  form.append('file',       fileInput.files[0]);
+  form.append('bbox_shift', document.getElementById('bbox-shift-v').value);
+
+  await readSSE('/api/init_avatar_video', form, ({ status, error }) => {
+    if (status) statusEl.textContent = status;
+    if (error)  statusEl.textContent = `오류: ${error}`;
+  });
+
+  btn.disabled = false;
 }
 
 // ── 아바타 초기화 ────────────────────────────────────────────

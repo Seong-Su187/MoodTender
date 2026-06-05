@@ -96,7 +96,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     if (res.ok) {
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("username", username);
-      window.location.href = "/";
+      window.location.href = "/loading";
     } else {
       setMsg(loginMsg, "아이디 또는 비밀번호가 틀렸습니다.", false);
     }

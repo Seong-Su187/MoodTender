@@ -113,8 +113,31 @@ details summary {
 }
 details summary:hover { color: var(--text); }
 
+.avatar-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: auto;
+  transition: all 0.15s;
+}
+.tab-btn.active {
+  background: var(--accent);
+  color: #121212;
+  border-color: var(--accent);
+}
+
 .avatar-form {
-  margin-top: 10px;
   display: flex;
   flex-direction: column;
   gap: 7px;

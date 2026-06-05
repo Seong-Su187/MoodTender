@@ -40,6 +40,10 @@ async def index():
 async def login_page():
     return FileResponse(FRONTEND_DIR / "login.html")
 
+@app.get("/loading")
+async def loading_page():
+    return FileResponse(FRONTEND_DIR / "loading.html")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=7862, reload=False)

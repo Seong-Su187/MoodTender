@@ -161,6 +161,57 @@ async def init_avatar(
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
+@router.post("/init_avatar_video")
+async def init_avatar_video(
+    file: UploadFile = File(...),
+    bbox_shift: int = Form(0),
+):
+    """영상 직접 업로드 → LivePortrait 없이 바로 MuseTalk 아바타 생성"""
+    if not ml_manager.models_ready:
+        return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
+
+    loop = asyncio.get_event_loop()
+    q: asyncio.Queue = asyncio.Queue()
+
+    def push(data):
+        loop.call_soon_threadsafe(q.put_nowait, data)
+
+    tmp_dir     = tempfile.mkdtemp()
+    video_path  = os.path.join(tmp_dir, file.filename)
+    contents    = await file.read()
+    with open(video_path, "wb") as f:
+        f.write(contents)
+
+    def run():
+        t0 = time.time()
+        try:
+            push({"status": "아바타 준비 중..."})
+            if os.path.exists(ml_manager.CUSTOM_AVATAR_CACHE):
+                shutil.rmtree(ml_manager.CUSTOM_AVATAR_CACHE)
+
+            ml_manager.custom_avatar = Avatar(
+                avatar_id="custom_avatar", video_path=video_path,
+                bbox_shift=bbox_shift, batch_size=ml_manager.args.batch_size, preparation=True,
+            )
+            ml_manager.custom_avatar.input_latent_list_cycle = [
+                t.to(ml_manager.device) for t in ml_manager.custom_avatar.input_latent_list_cycle
+            ]
+            print(f"[시간] 영상 아바타 준비: {time.time()-t0:.1f}초")
+            push({"status": "아바타 준비 완료!", "done": True})
+        except Exception as e:
+            push({"error": str(e), "done": True})
+
+    threading.Thread(target=run, daemon=True).start()
+
+    async def stream():
+        while True:
+            item = await asyncio.wait_for(q.get(), timeout=300)
+            yield sse(item)
+            if item.get("done") or item.get("error"):
+                break
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
 @router.get("/video")
 async def serve_video(path: str):
     if not os.path.exists(path):
@@ -185,9 +236,19 @@ async def generate_stream(text: str = Form(...), voice: str = Form("ko-KR-SunHiN
         tmp_dir = tempfile.mkdtemp()
         t0 = time.time()
         try:
+            # TTS와 병렬로 GPU 웜업 (콜드 스타트 흡수)
+            import torch as _torch
             audio_path = os.path.join(tmp_dir, "tts.wav")
             tts(text, audio_path, voice)
             print(f"[Stream] TTS: {time.time()-t0:.1f}초")
+
+            # TTS 완료 직후 GPU 웜업 (CUDA 캐시 재로딩)
+            with _torch.inference_mode():
+                _dummy = _torch.zeros(8, 4, 32, 32,
+                                      dtype=ml_manager.vae.vae.dtype,
+                                      device=ml_manager.device)
+                _ = ml_manager.vae.vae.decode(_dummy).sample
+                _torch.cuda.synchronize()
 
             av    = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
             first = True
@@ -198,6 +259,7 @@ async def generate_stream(text: str = Form(...), voice: str = Form("ko-KR-SunHiN
                 ml_manager.weight_dtype, ml_manager.device,
                 ml_manager.args.audio_padding_length_left,
                 ml_manager.args.audio_padding_length_right,
+                taesd=ml_manager.taesd_decoder,
             ):
                 if first:
                     print(f"[Stream] 첫 청크: {time.time()-t0:.1f}초")
