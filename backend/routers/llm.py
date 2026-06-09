@@ -5,7 +5,7 @@ from jose import jwt, JWTError
 
 from backend.database import get_db
 from backend.models.domain import User
-from backend.models.schemas import LLMResponse
+from backend.models.schemas import LLMRequest, LLMResponse
 from backend.services.openai_llm import OpenAIError, generate_bartender_reply
 from backend.config import SECRET_KEY, ALGORITHM
 
@@ -27,15 +27,15 @@ async def _get_user_id(authorization: str = Header(None), db: AsyncSession = Dep
 
 @router.post("/llm/respond", response_model=LLMResponse)
 async def respond(
-    payload: dict,
+    payload: LLMRequest,
     user_id: int = Depends(_get_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    text = payload.get("text", "").strip()
+    text = payload.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="텍스트가 비어 있습니다.")
     try:
-        reply, emotion = await generate_bartender_reply(user_id, text, db)
+        reply, emotion = await generate_bartender_reply(user_id, text, db, speed=payload.speed)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
