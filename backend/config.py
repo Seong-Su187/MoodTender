@@ -1,11 +1,15 @@
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ─── 경로 설정 ────────────────────────────────────────────────
 BACKEND_DIR  = Path(__file__).resolve().parent
 MUSETALK_DIR = BACKEND_DIR / "MuseTalk"
 FRONTEND_DIR = BACKEND_DIR.parent / "frontend"
+VIDEO_DIR    = BACKEND_DIR / "video"
 
 sys.path.insert(0, str(MUSETALK_DIR))
 
@@ -29,6 +33,8 @@ os.environ["PATH"] = FFMPEG_PATH + ";" + os.environ.get("PATH", "")
 
 # ─── API & 인증 설정 ───────────────────────────────────────────
 ANTHROPIC_API_KEY          = os.environ.get("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY             = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL               = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
 SECRET_KEY                 = os.environ.get("SECRET_KEY", "change-me-in-production")
 ALGORITHM                  = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
@@ -44,8 +50,8 @@ LP_DRIVING_VIDEOS = {
 }
 
 VOICES = {
-    "ko-KR-SunHiNeural":  "한국어 여성 (SunHi)",
-    "ko-KR-InJoonNeural": "한국어 남성 (InJoon)",
-    "en-US-JennyNeural":  "영어 여성 (Jenny)",
-    "en-US-GuyNeural":    "영어 남성 (Guy)",
+    "onyx":   "Onyx (중후한 남성)",
+    "echo":   "Echo (남성)",
+    "fable":  "Fable (표현력 남성)",
+    "alloy":  "Alloy (중성)",
 }

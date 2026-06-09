@@ -156,6 +156,10 @@ def inference_stream(
                     break
                 bbox  = avatar.coord_list_cycle[idx % len(avatar.coord_list_cycle)]
                 ori   = avatar.frame_list_cycle[idx % len(avatar.frame_list_cycle)].copy()
+                if bbox is None:
+                    proc.stdin.write(ori.tobytes())
+                    idx += 1
+                    continue
                 x1, y1, x2, y2 = bbox
                 rf    = cv2.resize(raw.astype(np.uint8), (x2 - x1, y2 - y1))
                 mask  = avatar.mask_list_cycle[idx % len(avatar.mask_list_cycle)]

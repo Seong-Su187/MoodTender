@@ -11,6 +11,8 @@
 })();
 
 // Redis 블랙리스트 연동 로그아웃
+let isModelReady = false;
+
 async function logout() {
   const token = localStorage.getItem('access_token');
   if (token) {
@@ -31,9 +33,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-  await loadVoices();
+  await Promise.all([loadVoices(), loadAvatars()]);
   pollStatus();
 });
+
+// ── 아바타 영상 목록 ─────────────────────────────────────────
+async function loadAvatars() {
+  const sel = document.getElementById('avatar-select');
+  if (!sel) return;
+  try {
+    const res = await fetch('/api/avatars');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const avatars = await res.json();
+    avatars.forEach(({ name, label }) => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    console.error('아바타 목록 로드 실패:', e);
+  }
+
+  sel.addEventListener('change', () => {
+    if (!sel.value) return;
+    const statusEl = document.getElementById('avatar-status');
+    if (statusEl) statusEl.textContent = '아바타 준비 중...';
+
+    const form = new FormData();
+    form.append('avatar_name', sel.value);
+    readSSE('/api/prepare_avatar', form, ({ status, error, done }) => {
+      if (status && statusEl) statusEl.textContent = status;
+      if (error && statusEl)  statusEl.textContent = `오류: ${error}`;
+    }).catch(() => {});
+  });
+}
 
 // ── 목소리 목록 ──────────────────────────────────────────────
 async function loadVoices() {
@@ -82,24 +116,23 @@ function applyModelState({ ready, status, error, loading }) {
   const statusEl = document.getElementById('model-status-text');
   const loadBtn  = document.getElementById('load-model-btn');
   const genBtn   = document.getElementById('generate-btn');
-  const initBtn  = document.getElementById('init-avatar-btn');
 
+  isModelReady = Boolean(ready);
   statusEl.textContent = status;
 
   if (ready) {
     statusEl.className = 'ready';
     loadBtn.style.display = 'none';
     genBtn.disabled  = false;
-    initBtn.disabled = false;
-    const initVideoBtn = document.getElementById('init-avatar-video-btn');
-    if (initVideoBtn) initVideoBtn.disabled = false;
   } else if (error) {
     statusEl.className  = 'error';
     loadBtn.disabled    = false;
+    genBtn.disabled     = true;
     loadBtn.textContent = '재시도';
   } else if (loading) {
     statusEl.className  = '';
     loadBtn.disabled    = true;
+    genBtn.disabled     = true;
     loadBtn.textContent = '로딩 중...';
   }
 }
@@ -126,7 +159,7 @@ async function loadModel() {
 
 // ── 영상 생성 (스트리밍 MSE) ─────────────────────────────────
 async function generate() {
-  const text = document.getElementById('text-input').value.trim();
+  let text = document.getElementById('text-input').value.trim();
   if (!text) return;
 
   const genBtn      = document.getElementById('generate-btn');
@@ -136,6 +169,15 @@ async function generate() {
 
   genBtn.disabled      = true;
   statusEl.textContent = '생성 중...';
+
+  try {
+    statusEl.textContent = 'AI 답변 생성 중...';
+    text = await generateLLMReply(text);
+  } catch (e) {
+    statusEl.textContent = `OpenAI 오류: ${e.message}`;
+    genBtn.disabled = !isModelReady;
+    return;
+  }
 
   const form = new FormData();
   form.append('text',  text);
@@ -160,6 +202,106 @@ async function generate() {
   }
 
   genBtn.disabled = false;
+}
+
+async function generateLLMReply(text) {
+  const response = await fetch('/api/llm/respond', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ text })
+  });
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (_) {}
+
+  if (!response.ok) {
+    throw new Error(data.detail || '답변 생성에 실패했습니다.');
+  }
+
+  return data.reply;
+}
+
+async function generateChat() {
+  const input       = document.getElementById('text-input');
+  const genBtn      = document.getElementById('generate-btn');
+  const statusEl    = document.getElementById('gen-status');
+  const videoEl     = document.getElementById('video-output');
+  const placeholder = document.getElementById('video-placeholder');
+  const userText    = input.value.trim();
+
+  if (!userText || genBtn.disabled) return;
+
+  appendChatMessage('user', userText);
+  input.value = '';
+  genBtn.disabled = true;
+
+  try {
+    statusEl.textContent = 'AI 답변 생성 중...';
+    const reply = await generateLLMReply(userText);
+    appendChatMessage('assistant', reply);
+
+    statusEl.textContent = '아바타 영상 생성 중...';
+    const form = new FormData();
+    form.append('text', reply);
+    form.append('voice', document.getElementById('voice-select').value);
+    const speedSel = document.getElementById('speed-select');
+    if (speedSel) form.append('speed', speedSel.value);
+    const avatarSel = document.getElementById('avatar-select');
+    if (avatarSel && avatarSel.value) form.append('avatar_name', avatarSel.value);
+
+    const MIME   = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+    const useMSE = 'MediaSource' in window && MediaSource.isTypeSupported(MIME);
+
+    if (useMSE) {
+      await _generateStream(form, MIME, videoEl, placeholder, statusEl);
+    } else {
+      await readSSE('/api/generate', form, ({ status, error, video_path }) => {
+        if (status) statusEl.textContent = status;
+        if (error) {
+          statusEl.textContent = `오류: ${error}`;
+          appendChatMessage('system', error);
+        }
+        if (video_path) {
+          videoEl.src               = `/api/video?path=${encodeURIComponent(video_path)}`;
+          videoEl.style.display     = 'block';
+          placeholder.style.display = 'none';
+          videoEl.play();
+        }
+      });
+    }
+  } catch (e) {
+    statusEl.textContent = `오류: ${e.message}`;
+    appendChatMessage('system', e.message);
+  } finally {
+    genBtn.disabled = !isModelReady;
+    input.focus();
+  }
+}
+
+function appendChatMessage(role, text) {
+  const log = document.getElementById('chat-log');
+  if (!log) return;
+
+  const row = document.createElement('div');
+  row.className = `message-row ${role}`;
+
+  const time = document.createElement('div');
+  time.className = 'message-time';
+  time.textContent = '방금 전';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'message-bubble';
+  bubble.textContent = text;
+
+  row.appendChild(time);
+  row.appendChild(bubble);
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
 }
 
 async function _generateStream(form, mime, videoEl, placeholder, statusEl) {
@@ -321,6 +463,77 @@ async function initAvatar() {
 
   btn.disabled = false;
 }
+
+// ── 마이크 STT ───────────────────────────────────────────────
+(function setupMic() {
+  const btn    = document.getElementById('mic-btn');
+  const icon   = btn ? btn.querySelector('.icon-mic') : null;
+  if (!btn) return;
+
+  let mediaRecorder = null;
+  let chunks        = [];
+  let recording     = false;
+
+  btn.addEventListener('click', async () => {
+    if (!recording) {
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        alert('마이크 접근 권한이 필요합니다.');
+        return;
+      }
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+
+      chunks        = [];
+      mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        btn.disabled      = true;
+        btn.title         = '처리 중...';
+        if (icon) icon.textContent = '⏳';
+
+        const blob     = new Blob(chunks, { type: mimeType });
+        const formData = new FormData();
+        formData.append('audio', blob, 'audio.webm');
+
+        try {
+          const res  = await fetch('/api/stt', {
+            method:  'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
+            body:    formData,
+          });
+          const data = await res.json();
+          if (res.ok && data.text) {
+            document.getElementById('text-input').value = data.text;
+            generateChat();
+          } else {
+            alert(data.detail || 'STT 오류가 발생했습니다.');
+          }
+        } catch {
+          alert('서버와 통신 중 오류가 발생했습니다.');
+        } finally {
+          btn.disabled      = false;
+          btn.title         = '음성 입력';
+          if (icon) icon.textContent = '';
+          btn.classList.remove('recording');
+        }
+      };
+
+      mediaRecorder.start();
+      recording = true;
+      btn.classList.add('recording');
+      btn.title = '클릭하여 녹음 중지';
+    } else {
+      mediaRecorder.stop();
+      recording = false;
+    }
+  });
+})();
 
 // ── SSE 유틸 ─────────────────────────────────────────────────
 async function readSSE(url, formData, onMessage) {
