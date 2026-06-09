@@ -1,28 +1,45 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from jose import jwt, JWTError
 
-# 새로 구성한 backend 패키지 구조에 맞춰 import 경로를 조정했습니다
 from backend.database import get_db
-from backend.models.schemas import LLMRequest, LLMResponse
+from backend.models.domain import User
+from backend.models.schemas import LLMResponse
 from backend.services.openai_llm import OpenAIError, generate_bartender_reply
+from backend.config import SECRET_KEY, ALGORITHM
 
 router = APIRouter()
 
-@router.post("/llm/respond", response_model=LLMResponse)
-async def respond(payload: LLMRequest, db: AsyncSession = Depends(get_db)):
-    """
-    1. Depends(get_db)를 통해 비동기 DB 세션을 주입받습니다.
-    2. 생성된 db 세션과 payload의 user_id를 서비스 함수로 전달합니다.
-    """
+async def _get_user_id(authorization: str = Header(None), db: AsyncSession = Depends(get_db)) -> int:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="토큰이 없습니다.")
     try:
-        # 서비스 함수 호출 (db와 user_id 전달)
-        reply = await generate_bartender_reply(payload.user_id, payload.text, db)
-    
+        payload = jwt.decode(authorization.split(" ")[1], SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    return user.id
+
+@router.post("/llm/respond", response_model=LLMResponse)
+async def respond(
+    payload: dict,
+    user_id: int = Depends(_get_user_id),
+    db: AsyncSession = Depends(get_db)
+):
+    text = payload.get("text", "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="텍스트가 비어 있습니다.")
+    try:
+        reply, emotion = await generate_bartender_reply(user_id, text, db)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     except OpenAIError as exc:
         raise HTTPException(status_code=502, detail=f"OpenAI API error: {exc}")
-
-    return LLMResponse(reply=reply)
+    return LLMResponse(reply=reply, emotion=emotion)

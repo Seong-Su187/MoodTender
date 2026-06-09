@@ -2,7 +2,7 @@ import uuid
 import bcrypt as _bcrypt_lib
 from jose import jwt
 from datetime import datetime, timedelta
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from backend.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Redis 없을 때 in-memory 블랙리스트로 대체
 _token_blacklist: set = set()

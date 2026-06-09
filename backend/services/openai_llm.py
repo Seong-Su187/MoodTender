@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from sqlalchemy import desc
 
 # 기존 설정값 유지
-from config import OPENAI_API_KEY, OPENAI_MODEL
+from backend.config import OPENAI_API_KEY, OPENAI_MODEL
 from backend.models.domain import ChatMessage, UserMemory, EmotionDictionary
 
 # --- 기존 프롬프트 설정 유지 ---
@@ -70,12 +70,12 @@ async def _get_cocktail_data(db: AsyncSession, category: str) -> str:
 
 # --- 메인 실행 함수 ---
 
-async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSession) -> str:
+async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSession) -> tuple[str, str]:
     text = user_text.strip()
-    if not text: return "..."
+    if not text: return "...", "평온"
 
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-    
+
     # 1. DB에 유저 말 저장
     db.add(ChatMessage(user_id=user_id, role="user", content=text))
     await db.commit()
@@ -84,23 +84,23 @@ async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSessio
     history = await _get_chat_history(db, user_id)
     emotion_cat = await _get_emotion_category(client, history)
     cocktail_info = await _get_cocktail_data(db, emotion_cat)
-    
+
     # 3. 프롬프트 구성
     sys_prompt = _compose_system_prompt(DEFAULT_SYSTEM_PROMPT, history, cocktail_info)
-    
+
     try:
         response = await client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": text}]
         )
     except OpenAIError:
-        return "조금 쉬고 싶으신가요? 제가 곁에 있을게요."
+        return "조금 쉬고 싶으신가요? 제가 곁에 있을게요.", emotion_cat
 
     reply = _clean_reply(response.choices[0].message.content or "")
     reply = _limit_reply_sentences(reply, text)
-    
+
     # 4. 바텐더 말 저장
     db.add(ChatMessage(user_id=user_id, role="assistant", content=reply))
     await db.commit()
 
-    return reply
+    return reply, emotion_cat

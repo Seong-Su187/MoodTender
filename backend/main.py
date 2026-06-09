@@ -1,11 +1,21 @@
 # coding: utf-8
+import sys
+from pathlib import Path
+_here = Path(__file__).resolve().parent   # backend/
+_root = _here.parent                      # 프로젝트 루트
+# 프로젝트 루트 → from backend.xxx 동작
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+# backend/ → scripts/, musetalk/ 등 ML 라이브러리 동작
+if str(_here) not in sys.path:
+    sys.path.insert(1, str(_here))
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# 1. 경로 수정 (backend 폴더를 참조하도록 변경)
-from config import FRONTEND_DIR
+from backend.config import FRONTEND_DIR
 from backend.database import engine, Base
 # 🚀 수정 부분 1: health 라우터 import 추가
 from backend.routers import auth, generation, llm, model_status, stt, health 
@@ -13,7 +23,7 @@ from backend.routers import auth, generation, llm, model_status, stt, health
 # ─── FastAPI 앱 ───────────────────────────────────────────────
 app = FastAPI(title="MoodTender API")
 
-# 2. 비동기 DB 테이블 초기화 (서버 시작 시 실행)
+# 비동기 DB 테이블 초기화 (서버 시작 시 실행)
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
@@ -29,7 +39,6 @@ app.add_middleware(
 )
 
 # ─── 정적 파일 ───────────────────────────────────────────────
-# (config.py가 루트에 있다면 그대로 두시고, backend 안에 있다면 from backend.config import 로 수정하세요)
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 # ─── 라우터 ───────────────────────────────────────────────────
@@ -52,7 +61,10 @@ async def index():
 async def login_page():
     return FileResponse(FRONTEND_DIR / "login.html")
 
+@app.get("/loading")
+async def loading_page():
+    return FileResponse(FRONTEND_DIR / "loading.html")
+
 if __name__ == "__main__":
     import uvicorn
-    # 3. 포트 및 실행 옵션
-    uvicorn.run("main:app", host="127.0.0.1", port=7862, reload=False)
+    uvicorn.run("backend.main:app", host="127.0.0.1", port=7862, reload=False)

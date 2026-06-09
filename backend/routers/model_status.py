@@ -3,7 +3,7 @@ import threading
 import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from services import ml_manager
+from backend.services import ml_manager
 
 router = APIRouter()
 

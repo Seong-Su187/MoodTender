@@ -24,7 +24,8 @@ class LLMRequest(BaseModel):
 
 class LLMResponse(BaseModel):
     reply: str
-    
+    emotion: str = ""
+
 class ChatRequest(BaseModel):
     user_id: int
     text: str
