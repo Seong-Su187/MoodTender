@@ -4,7 +4,7 @@ import tempfile
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from openai import AsyncOpenAI, OpenAIError
 
-from config import OPENAI_API_KEY
+from backend.config import OPENAI_API_KEY
 
 router = APIRouter()
 

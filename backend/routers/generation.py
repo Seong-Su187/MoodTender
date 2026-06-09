@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import json
 import tempfile
@@ -6,15 +7,48 @@ import shutil
 import threading
 import asyncio
 import cv2
+from pathlib import Path
 from fastapi import APIRouter, Form, UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 
-from config import VOICES, LP_DRIVING_VIDEOS
-from services import ml_manager
-from services.video_audio import tts, get_audio_duration, trim_video, run_liveportrait
+from backend.config import VOICES, LP_DRIVING_VIDEOS, VIDEO_DIR
+from backend.services import ml_manager
+from backend.services.video_audio import tts, get_audio_duration, trim_video, run_liveportrait
 from scripts.realtime_inference import Avatar
 
 router = APIRouter()
+_avatar_load_lock = threading.Lock()
+
+
+def _get_video_avatar(avatar_name: str) -> Avatar:
+    """video_avatars 딕셔너리에서 반환. 없으면 lazy load로 폴백."""
+    av = ml_manager.video_avatars.get(avatar_name)
+    if av is not None:
+        return av
+
+    # startup 로드가 안 된 경우 폴백 (스레드 안전)
+    with _avatar_load_lock:
+        av = ml_manager.video_avatars.get(avatar_name)
+        if av is not None:
+            return av
+
+        video_path = str(VIDEO_DIR / avatar_name)
+        stem = Path(avatar_name).stem
+        avatar_id = "video_" + re.sub(r"[^\w]", "_", stem)[:40]
+
+        cache_info = Path(f"./results/{ml_manager.args.version}/avatars/{avatar_id}/avator_info.json")
+        preparation = not cache_info.exists()
+
+        av = Avatar(
+            avatar_id=avatar_id,
+            video_path=video_path,
+            bbox_shift=0,
+            batch_size=ml_manager.args.batch_size,
+            preparation=preparation,
+        )
+        av.input_latent_list_cycle = [t.to(ml_manager.device) for t in av.input_latent_list_cycle]
+        ml_manager.video_avatars[avatar_name] = av
+        return av
 
 def sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -23,8 +57,50 @@ def sse(data: dict) -> str:
 async def get_voices():
     return [{"id": k, "name": v} for k, v in VOICES.items()]
 
+@router.get("/avatars")
+async def list_avatars():
+    if not VIDEO_DIR.exists():
+        return []
+    result = []
+    for f in sorted(VIDEO_DIR.glob("*.mp4")):
+        label = f.stem.replace("_", " ")
+        label = re.sub(r"\s+\d{10,}$", "", label).strip()
+        result.append({"name": f.name, "label": label})
+    return result
+
+@router.post("/prepare_avatar")
+async def prepare_avatar(avatar_name: str = Form(...)):
+    """드롭다운 선택 시 미리 아바타 준비 (preparation=True → 캐시 저장)."""
+    if not ml_manager.models_ready:
+        return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
+
+    loop = asyncio.get_event_loop()
+    q: asyncio.Queue = asyncio.Queue()
+
+    def push(data):
+        loop.call_soon_threadsafe(q.put_nowait, data)
+
+    def run():
+        try:
+            push({"status": "아바타 준비 중..."})
+            _get_video_avatar(avatar_name)
+            push({"status": "준비 완료!", "done": True})
+        except Exception as e:
+            push({"error": str(e), "done": True})
+
+    threading.Thread(target=run, daemon=True).start()
+
+    async def stream():
+        while True:
+            item = await asyncio.wait_for(q.get(), timeout=300)
+            yield sse(item)
+            if item.get("done") or item.get("error"):
+                break
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
 @router.post("/generate")
-async def generate(text: str = Form(...), voice: str = Form("onyx")):
+async def generate(text: str = Form(...), voice: str = Form("onyx"), avatar_name: str = Form(None), speed: float = Form(1.0)):
     if not ml_manager.models_ready:
         return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
 
@@ -43,11 +119,14 @@ async def generate(text: str = Form(...), voice: str = Form("onyx")):
             out_name   = f"output_{int(time.time())}"
 
             t0 = time.time()
-            tts(text, audio_path, voice)
+            tts(text, audio_path, voice, speed)
             duration = get_audio_duration(audio_path)
             print(f"[시간] TTS:      {time.time()-t0:.1f}초 (음성 {duration:.1f}초)")
 
-            av = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
+            if avatar_name:
+                av = _get_video_avatar(avatar_name)
+            else:
+                av = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
             push({"status": f"영상 생성 중... (음성 {duration:.1f}초)"})
             t0 = time.time()
             av.inference(audio_path=audio_path, out_vid_name=out_name, fps=ml_manager.args.fps, skip_save_images=False)
@@ -161,6 +240,57 @@ async def init_avatar(
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
+@router.post("/init_avatar_video")
+async def init_avatar_video(
+    file: UploadFile = File(...),
+    bbox_shift: int = Form(0),
+):
+    """영상 직접 업로드 → LivePortrait 없이 바로 MuseTalk 아바타 생성"""
+    if not ml_manager.models_ready:
+        return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
+
+    loop = asyncio.get_event_loop()
+    q: asyncio.Queue = asyncio.Queue()
+
+    def push(data):
+        loop.call_soon_threadsafe(q.put_nowait, data)
+
+    tmp_dir     = tempfile.mkdtemp()
+    video_path  = os.path.join(tmp_dir, file.filename)
+    contents    = await file.read()
+    with open(video_path, "wb") as f:
+        f.write(contents)
+
+    def run():
+        t0 = time.time()
+        try:
+            push({"status": "아바타 준비 중..."})
+            if os.path.exists(ml_manager.CUSTOM_AVATAR_CACHE):
+                shutil.rmtree(ml_manager.CUSTOM_AVATAR_CACHE)
+
+            ml_manager.custom_avatar = Avatar(
+                avatar_id="custom_avatar", video_path=video_path,
+                bbox_shift=bbox_shift, batch_size=ml_manager.args.batch_size, preparation=True,
+            )
+            ml_manager.custom_avatar.input_latent_list_cycle = [
+                t.to(ml_manager.device) for t in ml_manager.custom_avatar.input_latent_list_cycle
+            ]
+            print(f"[시간] 영상 아바타 준비: {time.time()-t0:.1f}초")
+            push({"status": "아바타 준비 완료!", "done": True})
+        except Exception as e:
+            push({"error": str(e), "done": True})
+
+    threading.Thread(target=run, daemon=True).start()
+
+    async def stream():
+        while True:
+            item = await asyncio.wait_for(q.get(), timeout=300)
+            yield sse(item)
+            if item.get("done") or item.get("error"):
+                break
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
 @router.get("/video")
 async def serve_video(path: str):
     if not os.path.exists(path):
@@ -168,7 +298,7 @@ async def serve_video(path: str):
     return FileResponse(path, media_type="video/mp4")
 
 @router.post("/generate_stream")
-async def generate_stream(text: str = Form(...), voice: str = Form("onyx")):
+async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avatar_name: str = Form(None), speed: float = Form(1.0)):
     if not ml_manager.models_ready:
         return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
 
@@ -185,11 +315,16 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx")):
         tmp_dir = tempfile.mkdtemp()
         t0 = time.time()
         try:
+            # TTS와 병렬로 GPU 웜업 (콜드 스타트 흡수)
+            import torch as _torch
             audio_path = os.path.join(tmp_dir, "tts.wav")
-            tts(text, audio_path, voice)
+            tts(text, audio_path, voice, speed)
             print(f"[Stream] TTS: {time.time()-t0:.1f}초")
 
-            av    = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
+            if avatar_name:
+                av = _get_video_avatar(avatar_name)
+            else:
+                av = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
             first = True
             for chunk in _infer_stream(
                 av, audio_path, ml_manager.args.fps, FFMPEG_PATH,
@@ -198,6 +333,7 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx")):
                 ml_manager.weight_dtype, ml_manager.device,
                 ml_manager.args.audio_padding_length_left,
                 ml_manager.args.audio_padding_length_right,
+                taesd=ml_manager.taesd_decoder,
             ):
                 if first:
                     print(f"[Stream] 첫 청크: {time.time()-t0:.1f}초")

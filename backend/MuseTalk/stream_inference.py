@@ -18,6 +18,7 @@ def inference_stream(
     pe, unet, vae, timesteps,
     whisper_model, audio_processor, weight_dtype, device,
     audio_pad_left=2, audio_pad_right=2,
+    taesd=None,
 ):
     """
     MuseTalk 추론 결과를 프레임 단위로 FFmpeg에 파이프하고
@@ -86,17 +87,58 @@ def inference_stream(
     # GPU가 다음 배치를 처리하는 동안 CPU는 이전 배치 블렌딩
     blend_q: queue.Queue = queue.Queue(maxsize=64)
 
+    def _decode_fast(pred):
+        """VAE 디코딩: 홀수 프레임만 디코딩 후 짝수 프레임은 선형 보간
+        - VAE 연산 절반으로 줄임 (~3.5초 단축 예상)
+        - 인접 프레임 평균이라 립싱크 품질 영향 최소
+        """
+        latents = (1 / vae.scaling_factor) * pred
+        dtype   = vae.vae.dtype
+        n       = latents.shape[0]
+
+        if n >= 4:
+            # 키프레임(짝수 인덱스)만 VAE 디코딩
+            key_latents = latents[::2]
+            key_decoded = vae.vae.decode(key_latents.to(dtype)).sample  # n//2 프레임
+
+            # 벡터화 보간: 인접 키프레임의 평균
+            interp = (key_decoded[:-1] + key_decoded[1:]) / 2  # [k-1, C, H, W]
+
+            # 키프레임 + 보간 프레임 인터리브
+            k = key_decoded.shape[0]
+            pairs = min(k - 1, interp.shape[0])
+            merged = torch.stack([key_decoded[:pairs], interp[:pairs]], dim=1)
+            merged = merged.reshape(pairs * 2, *key_decoded.shape[1:])
+            # 마지막 키프레임 추가 후 정확한 n개로 자름
+            image = torch.cat([merged, key_decoded[pairs:]], dim=0)[:n]
+        else:
+            image = vae.vae.decode(latents.to(dtype)).sample
+
+        image = (image / 2 + 0.5).clamp(0, 1)
+        image = (image * 255).round().to(torch.uint8)
+        image = image[:, [2, 1, 0], :, :]
+        image = image.permute(0, 2, 3, 1)
+        return image.cpu().numpy()
+
     def _gpu_loop():
         """GPU 전용: 배치 추론 → raw 프레임을 blend_q에 적재"""
+        import time as _t
         gen = datagen(whisper_chunks, avatar.input_latent_list_cycle, avatar.batch_size)
+        batch_idx = 0
         try:
             for whisper_batch, latent_batch in gen:
-                with torch.no_grad():
+                b = whisper_batch.shape[0]
+                t0 = _t.perf_counter()
+                with torch.inference_mode():
                     af   = pe(whisper_batch.to(device))
-                    lb   = latent_batch.to(device=device, dtype=unet.model.dtype)
+                    lb   = latent_batch.to(dtype=unet.model.dtype)
                     pred = unet.model(lb, timesteps, encoder_hidden_states=af).sample
-                    pred = pred.to(device=device, dtype=vae.vae.dtype)
-                    recon = vae.decode_latents(pred)
+                t1 = _t.perf_counter()
+                with torch.inference_mode():
+                    recon = _decode_fast(pred)
+                t2 = _t.perf_counter()
+                print(f"  [배치{batch_idx:02d}] B={b:2d}  UNet={( t1-t0)*1000:5.0f}ms  VAE={(t2-t1)*1000:5.0f}ms  합={(t2-t0)*1000:5.0f}ms", flush=True)
+                batch_idx += 1
                 for raw in recon:
                     blend_q.put(raw)
         except Exception as e:
@@ -114,6 +156,10 @@ def inference_stream(
                     break
                 bbox  = avatar.coord_list_cycle[idx % len(avatar.coord_list_cycle)]
                 ori   = avatar.frame_list_cycle[idx % len(avatar.frame_list_cycle)].copy()
+                if bbox is None:
+                    proc.stdin.write(ori.tobytes())
+                    idx += 1
+                    continue
                 x1, y1, x2, y2 = bbox
                 rf    = cv2.resize(raw.astype(np.uint8), (x2 - x1, y2 - y1))
                 mask  = avatar.mask_list_cycle[idx % len(avatar.mask_list_cycle)]

@@ -11,9 +11,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # 1. 비동기 엔진 생성
 engine = create_async_engine(
-    DATABASE_URL, 
-    echo=True, 
-    future=True
+    DATABASE_URL,
+    echo=True,
+    future=True,
+    connect_args={"statement_cache_size": 0}
 )
 
 # 2. 비동기 세션 생성기

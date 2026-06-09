@@ -1,8 +1,10 @@
 import os
+import re
 import json
 import torch
 import traceback
 from argparse import Namespace
+from pathlib import Path
 
 import scripts.realtime_inference as rt
 from scripts.realtime_inference import Avatar
@@ -14,7 +16,7 @@ from transformers import WhisperModel
 args = Namespace(
     version="v15", extra_margin=10, parsing_mode="jaw",
     left_cheek_width=40, right_cheek_width=40, batch_size=16, fps=25,
-    audio_padding_length_left=1, audio_padding_length_right=1,
+    audio_padding_length_left=1, audio_padding_length_right=6,
     skip_save_images=False, result_dir="./results",
 )
 rt.args = args
@@ -25,6 +27,8 @@ print(f"[서버] 디바이스: {device}")
 # ─── 모델 전역 상태 ───────────────────────────────────────────
 vae = unet = pe = timesteps = whisper = audio_processor = weight_dtype = fp = None
 avatar_short = avatar_long = custom_avatar = None
+video_avatars: dict = {}   # { filename: Avatar } — backend/video/ 사전 로드
+taesd_decoder = None  # TAESD 경량 VAE 디코더
 CUSTOM_AVATAR_CACHE = f"./results/{args.version}/avatars/custom_avatar"
 
 models_ready        = False
@@ -34,7 +38,7 @@ loading_in_progress = False
 
 def load_models():
     global vae, unet, pe, timesteps, whisper, audio_processor, weight_dtype, fp
-    global avatar_short, avatar_long, models_ready, loading_status, loading_error, loading_in_progress
+    global avatar_short, avatar_long, video_avatars, models_ready, loading_status, loading_error, loading_in_progress
     try:
         loading_status = "MuseTalk 모델 로딩 중..."
         vae, unet, pe = load_all_model(
@@ -77,7 +81,12 @@ def load_models():
         avatar_long.input_latent_list_cycle  = [t.to(device) for t in avatar_long.input_latent_list_cycle]
         print("[서버] latent GPU 적재 완료")
 
+        _load_video_avatars()
         _try_load_custom_avatar_from_cache()
+
+        # GPU 웜업: CUDA 커널 사전 로딩으로 첫 추론 콜드 스타트 제거
+        _warmup_gpu()
+
         models_ready   = True
         loading_status = "준비 완료"
         print("[서버] 모델 준비 완료")
@@ -88,6 +97,58 @@ def load_models():
         traceback.print_exc()
     finally:
         loading_in_progress = False
+
+def _smooth_avatar_coords(av, window: int = 7):
+    """coord_list_cycle을 이동 평균으로 스무딩해 bbox 지터 제거."""
+    coords = av.coord_list_cycle
+    n = len(coords)
+    if n == 0:
+        return
+    half = window // 2
+    smoothed = []
+    for i, c in enumerate(coords):
+        if c is None:
+            smoothed.append(None)
+            continue
+        neighbors = [
+            coords[j] for j in range(max(0, i - half), min(n, i + half + 1))
+            if coords[j] is not None
+        ]
+        avg = tuple(int(sum(x[k] for x in neighbors) / len(neighbors)) for k in range(4))
+        smoothed.append(avg)
+    av.coord_list_cycle = smoothed
+
+def _load_video_avatars():
+    """backend/video/ 폴더의 MP4를 모두 Avatar로 로드해 video_avatars에 저장."""
+    from backend.config import VIDEO_DIR
+    global video_avatars
+    if not VIDEO_DIR.exists():
+        return
+    files = sorted(VIDEO_DIR.glob("*.mp4"))
+    if not files:
+        return
+    loading_status_ref = "video/ 아바타 로딩 중..."
+    print(f"[서버] backend/video/ 영상 {len(files)}개 로딩 시작")
+    for f in files:
+        stem = f.stem
+        avatar_id = "video_" + re.sub(r"[^\w]", "_", stem)[:40]
+        cache_info = Path(f"./results/{args.version}/avatars/{avatar_id}/avator_info.json")
+        preparation = not cache_info.exists()
+        try:
+            av = Avatar(
+                avatar_id=avatar_id,
+                video_path=str(f),
+                bbox_shift=0,
+                batch_size=args.batch_size,
+                preparation=preparation,
+            )
+            av.input_latent_list_cycle = [t.to(device) for t in av.input_latent_list_cycle]
+            _smooth_avatar_coords(av)
+            video_avatars[f.name] = av
+            print(f"[서버] 로드 완료: {f.name} (preparation={preparation})")
+        except Exception as e:
+            print(f"[서버] 로드 실패: {f.name} — {e}")
+    print(f"[서버] video/ 아바타 로딩 완료 ({len(video_avatars)}/{len(files)}개)")
 
 def _try_load_custom_avatar_from_cache():
     global custom_avatar
@@ -107,6 +168,36 @@ def _try_load_custom_avatar_from_cache():
         custom_avatar.input_latent_list_cycle = [t.to(device) for t in custom_avatar.input_latent_list_cycle]
     except Exception as e:
         print(f"[캐시] 커스텀 아바타 로드 실패: {e}")
+
+def _warmup_gpu():
+    """UNet+VAE CUDA 커널 사전 컴파일.
+    batch=16(정상 배치) + 소배치 4/8/12(마지막 배치 후보)를 모두 실행해
+    실제 추론 시 알고리즘 탐색 없이 바로 캐시된 커널을 사용하게 함."""
+    print("[서버] GPU 웜업 중...")
+    try:
+        with torch.inference_mode():
+            # batch=16 정상 경로 (frame interpolation과 동일하게 out[::2] 사용)
+            _w16 = torch.zeros(16, 5, 384, dtype=weight_dtype, device=device)
+            _l16 = torch.zeros(16, 8, 32, 32, dtype=weight_dtype, device=device)
+            _o16 = unet.model(_l16, timesteps, encoder_hidden_states=pe(_w16)).sample
+            vae.vae.decode(_o16[::2].to(vae.vae.dtype))
+            torch.cuda.synchronize()
+            print("[서버] 웜업 batch=16 완료")
+
+            # 소배치 1~15: 마지막 배치 크기가 어떤 값이든 CUDA 커널 탐색 없이 즉시 실행
+            for b in range(1, 16):
+                _w = torch.zeros(b, 5, 384, dtype=weight_dtype, device=device)
+                _l = torch.zeros(b, 8, 32, 32, dtype=weight_dtype, device=device)
+                _o = unet.model(_l, timesteps, encoder_hidden_states=pe(_w)).sample
+                key = _o[::2]
+                if key.shape[0] >= 1:
+                    vae.vae.decode(key.to(vae.vae.dtype))
+                torch.cuda.synchronize()
+            print("[서버] 웜업 batch=1~15 완료")
+
+        print("[서버] GPU 웜업 완료")
+    except Exception as e:
+        print(f"[서버] GPU 웜업 스킵: {e}")
 
 def offload_to_cpu():
     vae.vae = vae.vae.cpu(); unet.model = unet.model.cpu()

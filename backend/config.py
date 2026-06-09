@@ -9,6 +9,7 @@ load_dotenv()
 BACKEND_DIR  = Path(__file__).resolve().parent
 MUSETALK_DIR = BACKEND_DIR / "MuseTalk"
 FRONTEND_DIR = BACKEND_DIR.parent / "frontend"
+VIDEO_DIR    = BACKEND_DIR / "video"
 
 sys.path.insert(0, str(MUSETALK_DIR))
 

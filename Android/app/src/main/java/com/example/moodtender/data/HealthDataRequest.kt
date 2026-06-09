@@ -1,5 +1,7 @@
 package com.example.moodtender.data
 
+import com.google.gson.annotations.SerializedName
+
 data class HealthDataRequest(
     @SerializedName("record_date")
     val recordDate: String,
