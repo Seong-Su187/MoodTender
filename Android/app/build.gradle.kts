@@ -5,15 +5,11 @@ plugins {
 
 android {
     namespace = "com.example.moodtender"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.moodtender"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -55,17 +51,21 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    implementation("androidx.appcompat:appcompat:1.7.0")
 
-    // 서버 통신 (Retrofit & Gson)
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    // ⬇️ 헬스 커넥트 (걸음수, 수면)
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha06")
+
+    // ⬇️ 서버 통신 (Retrofit & Gson)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // 비동기 처리
+    // ⬇️ 비동기 처리
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // 라이프사이클 처리
+    // ⬇️ 라이프사이클 처리
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2")
 }

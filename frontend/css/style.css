@@ -215,6 +215,26 @@ main {
   transform: none;
 }
 
+.btn-dashboard {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  background: rgba(124, 77, 255, 0.15);
+  color: #cbb5ff;
+  border: 1px solid rgba(124, 77, 255, 0.4);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-dashboard:hover {
+  background: rgba(124, 77, 255, 0.3);
+  border-color: rgba(124, 77, 255, 0.8);
+  color: #ffffff;
+}
+
+
 .hamburger-icon {
   position: relative;
   display: block;

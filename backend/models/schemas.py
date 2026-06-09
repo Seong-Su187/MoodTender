@@ -19,8 +19,8 @@ class Token(BaseModel):
 
 # --- 기존 LLM 및 대화 스키마 ---
 class LLMRequest(BaseModel):
-    user_id: int
     text: str
+    speed: float = 1.0
 
 class LLMResponse(BaseModel):
     reply: str

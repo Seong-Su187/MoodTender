@@ -244,14 +244,14 @@ async function generate() {
   genBtn.disabled = false;
 }
 
-async function generateLLMReply(text) {
+async function generateLLMReply(text, speed = '1.0') {
   const response = await fetch('/api/llm/respond', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ text })
+    body: JSON.stringify({ text, speed: Number(speed) })
   });
 
   let data = {};
@@ -283,15 +283,16 @@ async function generateChat() {
 
   try {
     statusEl.textContent = 'AI 답변 생성 중...';
-    const reply = await generateLLMReply(userText);
+    const speedSel = document.getElementById('speed-select');
+    const speed = speedSel ? speedSel.value : '1.0';
+    const reply = await generateLLMReply(userText, speed);
     appendChatMessage('assistant', reply);
 
     statusEl.textContent = '아바타 영상 생성 중...';
     const form = new FormData();
     form.append('text', reply);
     form.append('voice', document.getElementById('voice-select').value);
-    const speedSel = document.getElementById('speed-select');
-    if (speedSel) form.append('speed', speedSel.value);
+    form.append('speed', speed);
     const avatarSel = document.getElementById('avatar-select');
     if (avatarSel && avatarSel.value) form.append('avatar_name', avatarSel.value);
 
