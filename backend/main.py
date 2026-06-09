@@ -65,6 +65,10 @@ async def login_page():
 async def loading_page():
     return FileResponse(FRONTEND_DIR / "loading.html")
 
+@app.get("/dashboard")
+async def dashboard_page():
+    return FileResponse(FRONTEND_DIR / "dashboard.html")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.main:app", host="127.0.0.1", port=7862, reload=False)
