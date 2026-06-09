@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.config import FRONTEND_DIR
+from backend.config import FRONTEND_DIR, VIDEO_DIR
 from backend.database import engine, Base
 # 🚀 수정 부분 1: health 라우터 import 추가
 from backend.routers import auth, generation, llm, model_status, stt, health 
@@ -39,6 +39,7 @@ app.add_middleware(
 )
 
 # ─── 정적 파일 ───────────────────────────────────────────────
+app.mount("/static/video", StaticFiles(directory=str(VIDEO_DIR)), name="video")
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 # ─── 라우터 ───────────────────────────────────────────────────

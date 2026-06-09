@@ -13,6 +13,37 @@
 // Redis 블랙리스트 연동 로그아웃
 let isModelReady = false;
 
+// ── 영상 상태 관리 ────────────────────────────────────────────
+const VIDEO_IDLE    = '/static/loop_bg.webm';
+const VIDEO_LOADING = '/static/loading.mp4';
+
+let currentIdleUrl = VIDEO_IDLE;
+
+function playIdle(url = currentIdleUrl) {
+  const videoEl     = document.getElementById('video-output');
+  const loadingEl   = document.getElementById('loading-video');
+  const placeholder = document.getElementById('video-placeholder');
+
+  if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
+
+  videoEl.classList.remove('luma-key');
+  videoEl.removeAttribute('controls');
+  videoEl.muted         = true;
+  videoEl.loop          = true;
+  videoEl.src           = url;
+  videoEl.style.display = 'block';
+  if (placeholder) placeholder.style.display = 'none';
+  videoEl.play().catch(() => {});
+}
+
+function playLoading() {
+  const loadingEl = document.getElementById('loading-video');
+  if (!loadingEl) return;
+  loadingEl.src           = VIDEO_LOADING;
+  loadingEl.style.display = 'block';
+  loadingEl.play().catch(() => {});
+}
+
 async function logout() {
   const token = localStorage.getItem('access_token');
   if (token) {
@@ -35,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await Promise.all([loadVoices(), loadAvatars()]);
   pollStatus();
+  playIdle();
 });
 
 // ── 아바타 영상 목록 ─────────────────────────────────────────
@@ -56,13 +88,21 @@ async function loadAvatars() {
   }
 
   sel.addEventListener('change', () => {
-    if (!sel.value) return;
     const statusEl = document.getElementById('avatar-status');
-    if (statusEl) statusEl.textContent = '아바타 준비 중...';
 
+    if (!sel.value) {
+      currentIdleUrl = VIDEO_IDLE;
+      playIdle(VIDEO_IDLE);
+      return;
+    }
+
+    currentIdleUrl = `/static/video/${sel.value}`;
+    playIdle(currentIdleUrl);
+
+    if (statusEl) statusEl.textContent = '아바타 준비 중...';
     const form = new FormData();
     form.append('avatar_name', sel.value);
-    readSSE('/api/prepare_avatar', form, ({ status, error, done }) => {
+    readSSE('/api/prepare_avatar', form, ({ status, error }) => {
       if (status && statusEl) statusEl.textContent = status;
       if (error && statusEl)  statusEl.textContent = `오류: ${error}`;
     }).catch(() => {});
@@ -239,6 +279,7 @@ async function generateChat() {
   appendChatMessage('user', userText);
   input.value = '';
   genBtn.disabled = true;
+  playLoading();
 
   try {
     statusEl.textContent = 'AI 답변 생성 중...';
@@ -255,29 +296,34 @@ async function generateChat() {
     const avatarSel = document.getElementById('avatar-select');
     if (avatarSel && avatarSel.value) form.append('avatar_name', avatarSel.value);
 
-    const MIME   = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
-    const useMSE = 'MediaSource' in window && MediaSource.isTypeSupported(MIME);
-
-    if (useMSE) {
-      await _generateStream(form, MIME, videoEl, placeholder, statusEl);
-    } else {
-      await readSSE('/api/generate', form, ({ status, error, video_path }) => {
-        if (status) statusEl.textContent = status;
-        if (error) {
-          statusEl.textContent = `오류: ${error}`;
-          appendChatMessage('system', error);
-        }
-        if (video_path) {
-          videoEl.src               = `/api/video?path=${encodeURIComponent(video_path)}`;
-          videoEl.style.display     = 'block';
-          placeholder.style.display = 'none';
-          videoEl.play();
-        }
-      });
-    }
+    // WebM VP9 알파 방식: 루프와 동일하게 CSS bar-background 투과 재생
+    await readSSE('/api/generate_webm', form, ({ status, error, video_path }) => {
+      if (status) statusEl.textContent = status;
+      if (error) {
+        statusEl.textContent = `오류: ${error}`;
+        appendChatMessage('system', error);
+        return;
+      }
+      if (video_path) {
+        const url = `/api/video?path=${encodeURIComponent(video_path)}`;
+        videoEl.muted = false;
+        videoEl.loop  = false;
+        videoEl.setAttribute('controls', '');
+        videoEl.src               = url;
+        videoEl.style.display     = 'block';
+        placeholder.style.display = 'none';
+        videoEl.play().catch(() => {});
+        videoEl.addEventListener('play', () => {
+          const loadingEl = document.getElementById('loading-video');
+          if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
+        }, { once: true });
+        videoEl.addEventListener('ended', () => playIdle(), { once: true });
+      }
+    });
   } catch (e) {
     statusEl.textContent = `오류: ${e.message}`;
     appendChatMessage('system', e.message);
+    playIdle();
   } finally {
     genBtn.disabled = !isModelReady;
     input.focus();
@@ -305,7 +351,7 @@ function appendChatMessage(role, text) {
   log.scrollTop = log.scrollHeight;
 }
 
-async function _generateStream(form, mime, videoEl, placeholder, statusEl) {
+async function _generateStream(form, mime, videoEl, placeholder, statusEl, onEnded) {
   const mediaSource = new MediaSource();
   const objectURL   = URL.createObjectURL(mediaSource);
 
@@ -338,10 +384,20 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl) {
   });
   sb.addEventListener('error', e => console.error('[MSE]', e));
 
+  videoEl.addEventListener('play', () => {
+    const loadingEl = document.getElementById('loading-video');
+    if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
+  }, { once: true });
+
+  // 영상 종료 시 모니터 정리 후 idle로 복귀
+  videoEl.addEventListener('ended', () => {
+    clearTimeout(monitorId);
+    if (onEnded) onEnded();
+  }, { once: true });
+
   // 버퍼 직접 모니터링
-  const INITIAL_WAIT     = 0;
-  const PAUSE_THRESHOLD  = 0.3;
-  const RESUME_THRESHOLD = 3.0;  // 3초 확보 (드레인 2.46초 + 안전마진 0.54초)
+  const PAUSE_THRESHOLD  = 0.05;
+  const RESUME_THRESHOLD = 1.0;
   let monitorId  = null;
   let started    = false;
   let playAllowed = false;
@@ -360,8 +416,8 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl) {
           videoEl.play().catch(() => {});
           statusEl.textContent = '재생 중...';
         }
-      } else if (videoEl.paused && playAllowed && ahead > 0) {
-        // 스트림 완료 후: 남은 프레임이 1개라도 있으면 바로 재생
+      } else if (videoEl.paused && playAllowed) {
+        // 스트림 완료 후: paused 상태면 무조건 재생해서 ended 이벤트 발생시킴
         videoEl.play().catch(() => {});
         statusEl.textContent = '완료!';
       }
@@ -387,7 +443,7 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl) {
       started = true;
       statusEl.textContent = '버퍼링 중...';
       monitorBuffer();
-      setTimeout(() => { playAllowed = true; }, INITIAL_WAIT);
+      playAllowed = true;
     }
   }
 

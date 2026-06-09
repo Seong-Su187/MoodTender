@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Python = Join-Path $Root "LivePortrait\venv\Scripts\python.exe"
+$Python = Join-Path $Root "backend\MuseTalk\venv\Scripts\python.exe"
 $App = Join-Path $Root "backend\main.py"
 $EnvFile = Join-Path $Root ".env"
 $Port = 7862

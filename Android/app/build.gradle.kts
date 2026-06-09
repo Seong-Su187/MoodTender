@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.example.moodtender"
-    compileSdk = 34 // 👈 에러를 일으키던 복잡한 코드를 가장 안정적인 표준 문법으로 고쳤습니다!
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.moodtender"
         minSdk = 26
-        targetSdk = 34 // 👈 타겟 버전도 안정적인 34로 맞췄습니다!
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -52,9 +52,10 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     // ⬇️ 헬스 커넥트 (걸음수, 수면)
-    implementation("androidx.health.connect:health-connect-client:1.1.0-alpha06")
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha06")
 
     // ⬇️ 서버 통신 (Retrofit & Gson)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
