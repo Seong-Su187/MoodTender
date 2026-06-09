@@ -13,6 +13,14 @@ from backend.models.domain import ChatMessage, UserMemory, EmotionDictionary
 BASE_DIR = Path(__file__).resolve().parents[2]
 AGENT_PROMPT_PATHS = (BASE_DIR / "agent_ko.md", BASE_DIR / "agent.md")
 
+def _load_agent_prompt() -> str:
+    for path in AGENT_PROMPT_PATHS:
+        if path.exists():
+            prompt = path.read_text(encoding="utf-8").strip()
+            if prompt:
+                return prompt
+    return DEFAULT_SYSTEM_PROMPT
+
 DEFAULT_SYSTEM_PROMPT = """너는 MoodTender다. 사용자의 지친 마음을 위로하는 따뜻한 한국어 AI 바텐더다."""
 ENDPOINT_SYSTEM_PROMPT = """
 [필수 규칙]
@@ -107,7 +115,8 @@ async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSessio
     cocktail_info = await _get_cocktail_data(db, emotion_cat)
 
     # 3. 프롬프트 구성
-    sys_prompt = _compose_system_prompt(DEFAULT_SYSTEM_PROMPT, history, cocktail_info, speed)
+    agent_prompt = _load_agent_prompt()
+    sys_prompt = _compose_system_prompt(agent_prompt, history, cocktail_info, speed)
 
     try:
         response = await client.chat.completions.create(

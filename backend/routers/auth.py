@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 from jose import jwt, JWTError
 from datetime import datetime
 
@@ -19,7 +19,7 @@ def get_current_user_token(authorization: str = Header(None)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         jti = payload.get("jti")
-        if is_token_blocked(jti):
+        if jti and is_token_blocked(jti):
             raise HTTPException(status_code=401, detail="로그아웃된 토큰입니다.")
         return payload
     except JWTError:
