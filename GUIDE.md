@@ -7,7 +7,7 @@
 ```
 [사용자 텍스트 입력]
         ↓
-[Claude Haiku — 바텐더 응답 생성]
+[OpenAI — 바텐더 응답 생성]
         ↓
 [Edge TTS — 텍스트를 음성(wav)으로 변환]
         ↓
@@ -15,7 +15,7 @@
         ↓
 [FFmpeg — 음성 길이에 맞게 영상 트리밍]
         ↓
-[Gradio UI에 영상 출력]
+[웹 UI에 영상 출력]
 ```
 
 커스텀 아바타 사용 시 (사진 업로드):
@@ -33,12 +33,13 @@
 
 ## 각 컴포넌트 설명
 
-### Claude Haiku (LLM)
+### OpenAI (LLM)
 
-- 사용 모델: `claude-haiku-4-5-20251001`
+- 기본 모델: `gpt-4.1-mini`
+- 설정 위치: `backend/config.py`의 `OPENAI_MODEL`
 - 역할: 사용자의 감정 텍스트를 받아 바텐더 말투로 2~3문장 응답 생성 + 칵테일 추천
-- 스트리밍 방식으로 응답을 받아 화면에 실시간 표시
-- API 키: 환경변수 `ANTHROPIC_API_KEY`
+- 호출 방식: `backend/services/openai_llm.py`에서 OpenAI Responses API 사용
+- API 키: 환경변수 `OPENAI_API_KEY`
 
 ### Edge TTS
 
@@ -92,7 +93,7 @@
 5. Warping Network로 소스의 외형을 드라이빙 모션에 맞게 변형
 6. SPADE Generator로 최종 영상 합성
 
-**주요 파라미터 (moodtender_app.py UI에서 조정 가능):**
+**주요 파라미터 (메인 웹 UI에서 조정 가능):**
 
 | 파라미터 | 설명 |
 |----------|------|
@@ -100,7 +101,7 @@
 | `animation_region` | 애니메이션 범위. `all` / `exp`(표정만) / `lip`(입만) 등 |
 | `bbox_shift` | MuseTalk 입 위치 보정. 얼굴 크기에 따라 ±조정 |
 
-### VRAM 관리 (moodtender_app.py)
+### VRAM 관리 (`backend/services/ml_manager.py`)
 
 LivePortrait와 MuseTalk를 동시에 GPU에 올리면 VRAM 부족이 발생할 수 있어, 순서에 따라 CPU ↔ GPU 간 모델을 이동합니다:
 
@@ -114,9 +115,9 @@ MuseTalk 실행
 
 ## 앱 비교
 
-| 항목 | moodtender_app.py | persona_app.py |
+| 항목 | backend/main.py | backend/MuseTalk/persona_app.py |
 |------|-------------------|----------------|
-| LLM (Claude) | O | X |
+| LLM (OpenAI) | O | X |
 | LivePortrait | O (선택적) | X |
 | MuseTalk | O | O |
 | 포트 | 7862 | 7861 |
@@ -127,20 +128,27 @@ MuseTalk 실행
 ## 폴더 구조
 
 ```
-2차 프로젝트/
-├── LivePortrait/               # 얼굴 애니메이션 모델
-│   ├── src/                    # 핵심 모듈
-│   ├── pretrained_weights/     # 모델 가중치 (gitignore)
-│   └── venv/                   # Python 가상환경 (gitignore)
+MoodTender/
+├── backend/
+│   ├── main.py                 # 메인 FastAPI 앱 (7862)
+│   ├── services/
+│   │   ├── openai_llm.py       # OpenAI 바텐더 응답 생성
+│   │   └── ml_manager.py       # MuseTalk 모델 로딩/VRAM 관리
+│   ├── LivePortrait/           # 얼굴 애니메이션 모델
+│   │   ├── src/                # 핵심 모듈
+│   │   ├── pretrained_weights/ # 모델 가중치 (gitignore)
+│   │   └── venv/               # Python 가상환경 (gitignore)
+│   │
+│   └── MuseTalk/               # 립싱크 모델
+│       ├── app.py              # MuseTalk Gradio 앱
+│       ├── persona_app.py      # 단순 TTS + 립싱크 앱 (7861)
+│       ├── config_example.py   # config 템플릿
+│       ├── config.py           # 개인 경로 설정 (gitignore)
+│       ├── scripts/            # 추론 스크립트
+│       ├── musetalk/           # 모델 유틸리티
+│       ├── models/             # 모델 가중치 (gitignore)
+│       ├── data/audio/         # 테스트용 오디오
+│       └── venv/               # Python 가상환경 (gitignore)
 │
-└── MuseTalk/                   # 립싱크 모델
-    ├── moodtender_app.py       # 메인 앱 (Claude + LP + MT)
-    ├── persona_app.py          # 단순 TTS + 립싱크 앱
-    ├── config_example.py       # config 템플릿
-    ├── config.py               # 개인 경로 설정 (gitignore)
-    ├── scripts/                # 추론 스크립트
-    ├── musetalk/               # 모델 유틸리티
-    ├── models/                 # 모델 가중치 (gitignore)
-    ├── data/audio/             # 테스트용 오디오
-    └── venv/                   # Python 가상환경 (gitignore)
+└── frontend/                   # 정적 웹 UI
 ```
