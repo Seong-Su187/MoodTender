@@ -3,7 +3,7 @@
 사용자가 텍스트로 감정을 입력하면, AI 바텐더가 공감 응답을 생성하고 아바타 영상으로 보여주는 프로젝트입니다.
 
 ```
-텍스트 입력 → Claude(LLM) → Edge TTS → MuseTalk 립싱크 영상
+텍스트 입력 → OpenAI(LLM) → Edge TTS → MuseTalk 립싱크 영상
                     ↑ 선택
            사진 업로드 → LivePortrait → 커스텀 아바타 생성
 ```
@@ -14,8 +14,8 @@
 
 | 파일 | 포트 | 설명 |
 |------|------|------|
-| `MuseTalk/moodtender_app.py` | 7862 | 메인 앱. Claude 응답 + LivePortrait + MuseTalk |
-| `MuseTalk/persona_app.py` | 7861 | 간단 버전. 텍스트 → TTS → MuseTalk |
+| `backend/main.py` | 7862 | 메인 FastAPI 앱. OpenAI 응답 + LivePortrait + MuseTalk |
+| `backend/MuseTalk/persona_app.py` | 7861 | 간단 버전. 텍스트 → TTS → MuseTalk |
 
 ---
 
@@ -25,7 +25,7 @@
 - Python 3.10 또는 3.11
 - CUDA 11.8 이상
 - [FFmpeg](https://ffmpeg.org/download.html) (bin 경로 필요)
-- Anthropic API 키 (moodtender_app.py 전용)
+- OpenAI API 키 (`backend/services/openai_llm.py` 전용)
 
 ---
 
@@ -34,7 +34,7 @@
 ### 1. LivePortrait 가상환경
 
 ```powershell
-cd LivePortrait
+cd backend\LivePortrait
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -43,7 +43,7 @@ pip install -r requirements.txt
 모델 다운로드 — [KwaiVGI/LivePortrait HuggingFace](https://huggingface.co/KwaiVGI/LivePortrait) 에서 받아 아래 구조로 배치:
 
 ```
-LivePortrait/pretrained_weights/
+backend/LivePortrait/pretrained_weights/
 ├── insightface/models/buffalo_l/
 └── liveportrait/
     ├── base_models/
@@ -53,7 +53,7 @@ LivePortrait/pretrained_weights/
 ### 2. MuseTalk 가상환경
 
 ```powershell
-cd MuseTalk
+cd backend\MuseTalk
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -62,7 +62,7 @@ pip install -r requirements.txt
 모델 다운로드 — `download_weights.bat` 실행 또는 수동으로 아래 구조로 배치:
 
 ```
-MuseTalk/models/
+backend/MuseTalk/models/
 ├── musetalkV15/
 │   ├── unet.pth
 │   └── musetalk.json
@@ -75,7 +75,7 @@ MuseTalk/models/
 ### 3. config.py 생성
 
 ```powershell
-cd MuseTalk
+cd backend\MuseTalk
 copy config_example.py config.py
 ```
 
@@ -83,14 +83,17 @@ copy config_example.py config.py
 
 ```python
 FFMPEG_PATH = r"C:\...\ffmpeg\bin"
-LP_DIR      = r"C:\...\LivePortrait"
-LP_PYTHON   = r"C:\...\LivePortrait\venv\Scripts\python.exe"
+LP_DIR      = r"C:\...\MoodTender\backend\LivePortrait"
+LP_PYTHON   = r"C:\...\MoodTender\backend\LivePortrait\venv\Scripts\python.exe"
 ```
 
 ### 4. 환경변수 설정
 
 ```powershell
-$env:ANTHROPIC_API_KEY = "sk-ant-..."
+$env:OPENAI_API_KEY = "sk-..."
+
+# 선택 사항. 기본값은 gpt-4.1-mini
+$env:OPENAI_MODEL = "gpt-4.1-mini"
 ```
 
 ---
@@ -98,24 +101,28 @@ $env:ANTHROPIC_API_KEY = "sk-ant-..."
 ## 실행
 
 ```powershell
-cd MuseTalk
+cd backend
+python main.py
+```
+
+브라우저에서 `http://127.0.0.1:7862` 접속.
+
+간단 버전만 실행하려면:
+
+```powershell
+cd backend\MuseTalk
 .\venv\Scripts\Activate.ps1
-
-# 메인 앱 (Claude + LivePortrait 포함)
-python moodtender_app.py
-
-# 간단 버전 (TTS + MuseTalk만)
 python persona_app.py
 ```
 
-브라우저에서 `http://127.0.0.1:7862` (또는 7861) 접속.
+브라우저에서 `http://127.0.0.1:7861` 접속.
 
 ---
 
 ## 데이터 구성
 
 ```
-MuseTalk/data/
+backend/MuseTalk/data/
 ├── audio/        # TTS 테스트용 wav 파일
 └── video/        # 아바타 소스 영상 (bartender.mp4 등)
 ```
