@@ -7,6 +7,39 @@
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
+  
+  <div id="pairing-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(13, 11, 19, 0.95); backdrop-filter: blur(16px); transition: opacity 0.5s ease;">
+    
+    <div id="locked-state" style="text-align: center; padding: 40px 60px; border: 1px solid rgba(124, 77, 255, 0.3); border-radius: 16px; background: #18151f; box-shadow: 0 0 60px rgba(124, 77, 255, 0.15);">
+      <div style="font-size: 64px; margin-bottom: 16px;">🔒</div>
+      <h2 style="font-size: 1.6rem; font-weight: bold; color: #f4f1f7; margin-bottom: 8px;">우선 디바이스를 먼저 연결해주세요!</h2>
+      <p style="color: #a8a1b3; font-size: 0.95rem;">좌측 상단의 메뉴(☰)를 열어 <strong>[회원 정보] > [디바이스 연동 📱]</strong> 버튼을 클릭해주세요.</p>
+    </div>
+
+    <div id="pin-state" style="display: none; text-align: center; padding: 40px 60px; border: 1px solid rgba(124, 77, 255, 0.6); border-radius: 16px; background: #18151f; box-shadow: 0 0 80px rgba(124, 77, 255, 0.25);">
+      <div style="font-size: 50px; margin-bottom: 16px;">📱</div>
+      <h2 style="font-size: 1.4rem; font-weight: bold; color: #f4f1f7; margin-bottom: 8px;">모바일 기기와 연결 대기 중</h2>
+      <p style="color: #a8a1b3; margin-bottom: 32px; font-size: 0.9rem;">모바일 앱에 동일한 계정으로 로그인 후 아래 핀 번호를 입력하세요.</p>
+      <div id="pin-display" style="font-size: 4rem; font-family: monospace; font-weight: bold; color: #3dd6c6; letter-spacing: 0.25em; text-shadow: 0 0 20px rgba(61, 214, 198, 0.4);">
+        ------
+      </div>
+    </div>
+  </div>
+
+  <div id="history-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); justify-content: center; align-items: center;">
+    <div style="width: 90%; max-width: 700px; height: 80vh; background: #18151f; border: 1px solid rgba(61, 214, 198, 0.3); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+      <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03);">
+        <h2 style="color: #f4f1f7; font-size: 1.2rem; font-weight: bold;">📜 지난 대화 기록</h2>
+        <button onclick="closeHistoryModal()" style="background: transparent; color: #a8a1b3; font-size: 1.5rem; border: none; cursor: pointer; transition: color 0.2s;">✕</button>
+      </div>
+      <div id="history-content" style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="text-align: center; color: #a8a1b3; margin-top: 50px;">
+          데이터를 불러오는 중입니다...
+        </div>
+      </div>
+    </div>
+  </div>
+
   <header></header>
 
   <main>
@@ -47,6 +80,22 @@
         </button>
       </div>
 
+      <div class="panel">
+        <div class="panel-header">회원 정보</div>
+        <p class="status-text">현재 로그인: 사용자님</p>
+        <button class="btn-dashboard" type="button" onclick="startPairing()" style="margin-top:4px;">
+          디바이스 연동 📱
+        </button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">대화 기록</div>
+        <p class="status-text">이전 대화 내역 모아보기</p>
+        <button class="btn-dashboard" type="button" onclick="openHistoryModal()" style="margin-top:4px; background: rgba(61, 214, 198, 0.15); border-color: rgba(61, 214, 198, 0.4); color: #3dd6c6;">
+          과거 대화 기록 열람 📜
+        </button>
+      </div>
+
       <div class="sidebar-footer">
         <span id="username-badge" class="username-badge"></span>
         <div class="model-bar">
@@ -62,8 +111,6 @@
       <div class="ambient ambient-two"></div>
 
       <div class="chat-layout">
-
-        <!-- 좌 2/3 : 아바타 영상 -->
         <div class="avatar-panel">
           <div class="stage-top">
             <div class="stage-title">
@@ -81,7 +128,6 @@
           </div>
         </div>
 
-        <!-- 우 1/3 : 채팅 -->
         <div class="chat-panel">
           <div class="chat-top-space">
             <span class="chat-kicker">MoodTender Live Bar</span>
@@ -105,7 +151,6 @@
             </button>
           </form>
         </div>
-
       </div>
     </section>
   </main>
@@ -118,6 +163,120 @@
     function closeSidebar() {
       document.getElementById('sidebar').classList.remove('open');
       document.getElementById('sidebar-overlay').classList.remove('show');
+    }
+
+    // ---------------------------------------------------------
+    // 🚀 실시간 기기 연동 (WebSocket) 제어 로직
+    // ---------------------------------------------------------
+    let pairingSocket = null;
+    const currentWebUserId = 1; // 🚨 임시: 향후 연동될 실제 유저 ID
+
+    function startPairing() {
+      document.getElementById('locked-state').style.display = 'none';
+      document.getElementById('pin-state').style.display = 'block';
+      closeSidebar();
+
+      pairingSocket = new WebSocket(`ws://${window.location.host}/api/pairing/ws/${currentWebUserId}`);
+
+      pairingSocket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.type === 'pin_generated') {
+          document.getElementById('pin-display').innerText = data.pin;
+        } else if (data.type === 'pairing_success') {
+          unlockScreen(); 
+        }
+      };
+
+      pairingSocket.onclose = function() {
+        console.log('페어링 소켓 연결이 종료되었습니다.');
+      };
+    }
+
+    function unlockScreen() {
+      const overlay = document.getElementById('pairing-overlay');
+      overlay.style.opacity = '0'; 
+      setTimeout(() => {
+        overlay.style.display = 'none'; 
+        console.log("✅ 기기 연결 완료! 이제 원할 때 언제든 과거 대화를 열람할 수 있습니다.");
+      }, 500); 
+    }
+
+    // ---------------------------------------------------------
+    // 📜 과거 대화 기록(History) 하루 단위 모달 제어 로직
+    // ---------------------------------------------------------
+    async function openHistoryModal() {
+      document.getElementById('history-modal').style.display = 'flex';
+      closeSidebar();
+
+      const contentDiv = document.getElementById('history-content');
+      contentDiv.innerHTML = '<div style="text-align: center; color: #a8a1b3; margin-top: 50px;">데이터를 불러오는 중입니다...</div>';
+
+      try {
+        const response = await fetch(`/api/chat/history/${currentWebUserId}`);
+        const data = await response.json();
+        
+        contentDiv.innerHTML = ''; 
+
+        if (!data.history || Object.keys(data.history).length === 0) {
+          contentDiv.innerHTML = '<div style="text-align: center; color: #a8a1b3; margin-top: 50px;">과거 대화 기록이 없습니다.</div>';
+          return;
+        }
+
+        const sortedDates = Object.keys(data.history).sort();
+
+        sortedDates.forEach(dateStr => {
+          const dateObj = new Date(dateStr);
+          const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' };
+          const formattedDate = dateObj.toLocaleDateString('ko-KR', options); 
+
+          const dateDividerHtml = `
+            <div style="display: flex; align-items: center; justify-content: center; margin: 24px 0 12px 0; width: 100%;">
+              <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.08);"></div>
+              <div style="background: rgba(124, 77, 255, 0.15); color: #cbb5ff; border: 1px solid rgba(124, 77, 255, 0.3); padding: 4px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.05em; margin: 0 16px;">
+                📅 ${formattedDate}
+              </div>
+              <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.08);"></div>
+            </div>
+          `;
+          contentDiv.innerHTML += dateDividerHtml;
+
+          const messages = data.history[dateStr];
+          messages.forEach(msg => {
+            const isUser = msg.role === 'user';
+            const alignSelf = isUser ? 'flex-end' : 'flex-start';
+            const bgColor = isUser ? 'rgba(88, 44, 6, 0.84)' : 'rgba(252, 241, 210, 0.9)';
+            const textColor = isUser ? '#f5e8c5' : '#3a1c05';
+            const borderRadius = isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px';
+
+            const bubbleHtml = `
+              <div style="align-self: ${alignSelf}; max-width: 80%; margin-bottom: 6px;">
+                <div style="font-size: 0.75rem; color: #a8a1b3; margin-bottom: 3px; text-align: ${isUser ? 'right' : 'left'}; font-weight: 600;">
+                  ${isUser ? '나' : 'AI 바텐더'}
+                </div>
+                <div style="display: flex; align-items: flex-end; gap: 6px; flex-direction: ${isUser ? 'row-reverse' : 'row'};">
+                  <div style="background: ${bgColor}; color: ${textColor}; padding: 12px 16px; border-radius: ${borderRadius}; font-size: 0.9rem; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.2); word-break: keep-all;">
+                    ${msg.content}
+                  </div>
+                  <span style="font-size: 0.68rem; color: rgba(244, 241, 247, 0.4); min-width: max-content; margin-bottom: 2px;">
+                    ${msg.time || ""}
+                  </span>
+                </div>
+              </div>
+            `;
+            contentDiv.innerHTML += bubbleHtml;
+          });
+        });
+
+        contentDiv.scrollTop = contentDiv.scrollHeight;
+
+      } catch (error) {
+        console.error("하루 단위 기록 불러오기 실패:", error);
+        contentDiv.innerHTML = '<div style="text-align: center; color: #ff6b7a; margin-top: 50px;">기록을 불러오는데 실패했습니다.</div>';
+      }
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('history-modal').style.display = 'none';
     }
   </script>
   <script src="/static/js/app.js"></script>

@@ -9,6 +9,7 @@ import android.os.Process
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent // 🚀 [추가] 화면을 그리기 위한 필수 import
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
@@ -38,9 +39,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1단계에서 만든 앱 사용량 권한이 있는지 체크
+        // 🚀 [추가] 앱이 켜지면 가장 먼저 핀 번호 입력 화면을 화면에 띄웁니다!
+        setContent {
+            PairingScreen()
+        }
+
+        // [기존 유지] 그 뒤에서 조용히 건강 데이터 권한을 체크하고 전송을 시작합니다.
         if (hasUsageStatsPermission()) {
-            // 권한이 있다면 ➡️ 이제 헬스 커넥트 데이터까지 묶어서 처리 시작!
             checkHealthConnectAndProcess()
         } else {
             requestUsageStatsPermission()
@@ -65,18 +70,14 @@ class MainActivity : ComponentActivity() {
         val status = HealthConnectClient.getSdkStatus(this, providerPackageName)
 
         if (status == HealthConnectClient.SDK_AVAILABLE) {
-            // 헬스 커넥트가 폰에 설치되어 사용 가능한 상태라면 권한 확인 후 데이터 추출
             lifecycleScope.launch {
                 val healthConnectClient = HealthConnectClient.getOrCreate(this@MainActivity)
                 val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
 
                 if (grantedPermissions.containsAll(healthPermissions)) {
-                    // 모든 건강 권한이 허용되어 있다면 진짜 데이터 추출 실행!
                     extractAllRealData(healthConnectClient)
                 } else {
-                    // 건강 권한이 없다면 권한 요청창 띄우기 가이드 로그 출력
                     Log.d("통신테스트", "📢 헬스 커넥트 읽기 권한이 필요합니다. 에뮬레이터 내 Health Connect 앱에서 권한을 켜주세요.")
-                    // 테스트 편의상 권한이 없어도 진행할 수 있게 임시 실행 처리
                     extractAllRealData(healthConnectClient)
                 }
             }
@@ -89,7 +90,6 @@ class MainActivity : ComponentActivity() {
     // 📊 [핵심 통합 함수] 앱 사용량 + 실제 걸음수 + 실제 수면 시간 추출
     private fun extractAllRealData(healthConnectClient: HealthConnectClient?) {
         lifecycleScope.launch {
-            // [시간 계산] 오늘 자정 ~ 현재
             val calendar = Calendar.getInstance()
             val endTime = calendar.timeInMillis
             calendar.set(Calendar.HOUR_OF_DAY, 0)
@@ -98,7 +98,6 @@ class MainActivity : ComponentActivity() {
             calendar.set(Calendar.MILLISECOND, 0)
             val startTime = calendar.timeInMillis
 
-            // 1. 실제 앱 사용 시간 추출 (1보 로직)
             val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val queryUsageStats = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
             val appUsageMap = mutableMapOf("kakao" to 0, "youtube" to 0)
@@ -114,13 +113,11 @@ class MainActivity : ComponentActivity() {
             }
             val totalScreenTime = (appUsageMap["kakao"] ?: 0) + (appUsageMap["youtube"] ?: 0)
 
-            // 2. 헬스 커넥트에서 진짜 건강 데이터 읽어오기
             var realSteps = 0
             var realSleepMinutes = 0
 
             if (healthConnectClient != null) {
                 try {
-                    // 🏃‍♂️ 진짜 걸음수 읽기 (오늘 자정부터 현재까지)
                     val startInstant = Instant.ofEpochMilli(startTime)
                     val endInstant = Instant.ofEpochMilli(endTime)
 
@@ -132,7 +129,6 @@ class MainActivity : ComponentActivity() {
                     )
                     realSteps = stepsResponse.records.sumOf { it.count }.toInt()
 
-                    // 😴 진짜 수면 시간 읽기 (최근 24시간 내 수면 기록 조회)
                     val sleepResponse = healthConnectClient.readRecords(
                         ReadRecordsRequest(
                             recordType = SleepSessionRecord::class,
@@ -149,18 +145,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 만약 실제 값이 0으로 나오면 에뮬레이터 테스트용 기본 샘플값 부여
             if (realSteps == 0) realSteps = 4500
             if (realSleepMinutes == 0) realSleepMinutes = 480
 
-            // 오늘 날짜 문자열 변환
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().time)
 
-            // 3. 완전히 새로 태어난 진짜 종합 데이터 그릇 완성!
             val finalData = HealthDataRequest(
                 recordDate = todayStr,
-                stepCount = realSteps,             // 🔗 진짜 걸음수 매칭 완료!
-                sleepMinutes = realSleepMinutes,   // 🔗 진짜 수면 시간 매칭 완료!
+                stepCount = realSteps,
+                sleepMinutes = realSleepMinutes,
                 screenTimeMinutes = totalScreenTime,
                 appUsageJson = appUsageMap,
                 depressionScore = 0
@@ -168,16 +161,17 @@ class MainActivity : ComponentActivity() {
 
             Log.d("통신테스트", "🚀 [2보 완수] 서버로 보낼 최종 융합 데이터: $finalData")
 
-            // 서버로 최종 전송
-            RetrofitClient.instance.sendHealthData(finalData).enqueue(object : Callback<Map<String, String>> {
-                override fun onResponse(call: Call<Map<String, String>>, response: Response<Map<String, String>>) {
+            // RetrofitClient의 인스턴스가 호출될 때 HealthDataRequest의 형식이 맞아야 합니다.
+            // (이전에 작성하신 ApiService.kt가 잘 저장되어 있어야 합니다.)
+            RetrofitClient.instance.sendHealthData(finalData).enqueue(object : Callback<Any> {
+                override fun onResponse(call: Call<Any>, response: Response<Any>) {
                     if (response.isSuccessful) {
-                        Log.d("통신테스트", "✅ [2보 완수] 실제 건강+앱 데이터 전송 대성공!: ${response.body()}")
+                        Log.d("통신테스트", "✅ [2보 완수] 실제 건강+앱 데이터 전송 대성공!")
                     } else {
                         Log.e("통신테스트", "❌ 서버 거절 (에러코드: ${response.code()})")
                     }
                 }
-                override fun onFailure(call: Call<Map<String, String>>, t: Throwable) {
+                override fun onFailure(call: Call<Any>, t: Throwable) {
                     Log.e("통신테스트", "💥 서버 접속 실패: ${t.message}")
                 }
             })
