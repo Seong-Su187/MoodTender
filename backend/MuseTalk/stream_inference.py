@@ -67,7 +67,8 @@ def _black_bg_alpha(frame: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     """검정 배경 아바타에서 캐릭터 알파 마스크 생성 (RGB max-value 임계값 방식)."""
     max_rgb = frame.max(axis=2)                              # (H, W) 각 픽셀의 최대 채널값
     a = np.where(max_rgb > 12, np.uint8(255), np.uint8(0))  # 검정 배경(≤12) = 투명
-    a = cv2.dilate(a, kernel, iterations=2)                  # 엣지 조금 확장
+    a = cv2.morphologyEx(a, cv2.MORPH_CLOSE, kernel, iterations=2)  # 옷 안의 작은 구멍 메우기 (윤곽선 위치는 유지)
+    a = cv2.erode(a, kernel, iterations=1)                  # 가장자리 흰 fringe 1px 제거
     a = cv2.GaussianBlur(a, (7, 7), 0)                      # 엣지 부드럽게
     return a
 

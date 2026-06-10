@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import FRONTEND_DIR, VIDEO_DIR
 from backend.database import engine, Base
+from backend.routers import chat
 # 🚀 수정 부분 1: health 라우터 import 추가
 from backend.routers import auth, generation, llm, model_status, stt, health, pairing
 # ─── FastAPI 앱 ───────────────────────────────────────────────
@@ -48,6 +49,7 @@ app.include_router(generation.router,   prefix="/api", tags=["Generation"])
 app.include_router(llm.router,          prefix="/api", tags=["LLM"])
 app.include_router(stt.router,          prefix="/api", tags=["STT"])
 app.include_router(pairing.router)
+app.include_router(chat.router) 
 
 # 🚀 수정 부분 2: 모바일 건강 데이터 라우터 등록
 # (health.py 내부에 이미 prefix="/api/mobile"이 설정되어 있습니다)
