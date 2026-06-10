@@ -4,16 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MoodTender</title>
-  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
   
-  <div id="pairing-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(13, 11, 19, 0.95); backdrop-filter: blur(16px); transition: opacity 0.5s ease;">
+  <div id="pairing-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(13, 11, 19, 0.95); backdrop-filter: blur(16px); transition: opacity 0.5s ease;">
     
     <div id="locked-state" style="text-align: center; padding: 40px 60px; border: 1px solid rgba(124, 77, 255, 0.3); border-radius: 16px; background: #18151f; box-shadow: 0 0 60px rgba(124, 77, 255, 0.15);">
       <div style="font-size: 64px; margin-bottom: 16px;">🔒</div>
       <h2 style="font-size: 1.6rem; font-weight: bold; color: #f4f1f7; margin-bottom: 8px;">우선 디바이스를 먼저 연결해주세요!</h2>
-      <p style="color: #a8a1b3; font-size: 0.95rem;">좌측 상단의 메뉴(☰)를 열어 <strong>[회원 정보] > [디바이스 연동 📱]</strong> 버튼을 클릭해주세요.</p>
+      <p style="color: #a8a1b3; font-size: 0.95rem; margin-bottom: 24px;">좌측 상단의 메뉴(☰)를 열어 <strong>[회원 정보] > [디바이스 연동 📱]</strong> 버튼을 클릭하시거나,<br>아래 버튼을 눌러주세요.</p>
+      
+      <button class="btn-dashboard" type="button" onclick="startPairing()" style="width: auto; padding: 12px 32px; font-size: 1rem;">
+        바로 디바이스 연동하기 📱
+      </button>
     </div>
 
     <div id="pin-state" style="display: none; text-align: center; padding: 40px 60px; border: 1px solid rgba(124, 77, 255, 0.6); border-radius: 16px; background: #18151f; box-shadow: 0 0 80px rgba(124, 77, 255, 0.25);">
@@ -279,6 +283,6 @@
       document.getElementById('history-modal').style.display = 'none';
     }
   </script>
-  <script src="/static/js/app.js"></script>
+  <script src="/js/app.js"></script>
 </body>
 </html>

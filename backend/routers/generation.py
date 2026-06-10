@@ -299,77 +299,6 @@ async def serve_video(path: str):
     mime = "video/webm" if path.lower().endswith(".webm") else "video/mp4"
     return FileResponse(path, media_type=mime)
 
-_WEBM_OUT_DIR = Path("./results/webm_live")
-_WEBM_OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-@router.post("/generate_webm")
-async def generate_webm(text: str = Form(...), voice: str = Form("onyx"), avatar_name: str = Form(None), speed: float = Form(1.0)):
-    """VP9 WebM (알파 채널) 생성 → 파일 URL 반환. 브라우저에서 루프처럼 투과 재생."""
-    if not ml_manager.models_ready:
-        return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
-
-    from stream_inference import inference_webm as _infer_webm
-    from config import FFMPEG_PATH
-
-    loop = asyncio.get_event_loop()
-    q: asyncio.Queue = asyncio.Queue()
-
-    def push(data):
-        loop.call_soon_threadsafe(q.put_nowait, data)
-
-    def run():
-        tmp_dir = tempfile.mkdtemp()
-        t0 = time.time()
-        try:
-            push({"status": "TTS 변환 중..."})
-            audio_path = os.path.join(tmp_dir, "tts.wav")
-            tts(text, audio_path, voice, speed)
-            print(f"[WebM] TTS: {time.time()-t0:.1f}초")
-
-            if avatar_name:
-                av = _get_video_avatar(avatar_name)
-            else:
-                av = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
-
-            out_webm = str(_WEBM_OUT_DIR / f"out_{int(time.time()*1000)}.webm")
-            push({"status": "영상 생성 중..."})
-            t1 = time.time()
-            _infer_webm(
-                av, audio_path, ml_manager.args.fps, FFMPEG_PATH,
-                ml_manager.pe, ml_manager.unet, ml_manager.vae, ml_manager.timesteps,
-                ml_manager.whisper, ml_manager.audio_processor,
-                ml_manager.weight_dtype, ml_manager.device,
-                output_path=out_webm,
-                audio_pad_left=ml_manager.args.audio_padding_length_left,
-                audio_pad_right=ml_manager.args.audio_padding_length_right,
-            )
-            print(f"[WebM] 생성+인코딩: {time.time()-t1:.1f}초 / 합계: {time.time()-t0:.1f}초")
-
-            # 오래된 파일 정리 (최근 20개만 유지)
-            old = sorted(_WEBM_OUT_DIR.glob("*.webm"), key=lambda f: f.stat().st_mtime)[:-20]
-            for f in old:
-                f.unlink(missing_ok=True)
-
-            if os.path.exists(out_webm):
-                push({"status": "완료!", "done": True, "video_path": out_webm})
-            else:
-                push({"error": "WebM 생성 실패", "done": True})
-        except Exception as e:
-            push({"error": str(e), "done": True})
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-
-    threading.Thread(target=run, daemon=True).start()
-
-    async def stream():
-        while True:
-            item = await asyncio.wait_for(q.get(), timeout=300)
-            yield sse(item)
-            if item.get("done") or item.get("error"):
-                break
-
-    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
-
 @router.post("/generate_stream")
 async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avatar_name: str = Form(None), speed: float = Form(1.0)):
     if not ml_manager.models_ready:
@@ -396,8 +325,10 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
 
             if avatar_name:
                 av = _get_video_avatar(avatar_name)
+                composite_bg = False  # 영상 아바타는 배경이 이미 합성되어 있음
             else:
                 av = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
+                composite_bg = True
             first = True
             for chunk in _infer_stream(
                 av, audio_path, ml_manager.args.fps, FFMPEG_PATH,
@@ -407,6 +338,7 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
                 ml_manager.args.audio_padding_length_left,
                 ml_manager.args.audio_padding_length_right,
                 taesd=ml_manager.taesd_decoder,
+                composite_bg=composite_bg,
             ):
                 if first:
                     print(f"[Stream] 첫 청크: {time.time()-t0:.1f}초")

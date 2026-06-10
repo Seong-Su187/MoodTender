@@ -135,7 +135,7 @@ def _load_video_avatars():
     global video_avatars
     if not VIDEO_DIR.exists():
         return
-    files = sorted(VIDEO_DIR.glob("*.webm"))
+    files = sorted(VIDEO_DIR.glob("*.mp4"))
     if not files:
         return
     loading_status_ref = "video/ 아바타 로딩 중..."

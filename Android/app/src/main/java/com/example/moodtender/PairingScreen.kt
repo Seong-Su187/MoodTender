@@ -81,7 +81,7 @@ fun PairingScreen() {
             ),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(0.8f),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
+            colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFF7C4DFF), // 보라색 포인트
                 unfocusedBorderColor = Color.DarkGray
             )

@@ -23,7 +23,7 @@ async def pairing_websocket(websocket: WebSocket, user_id: int):
     
     # 발급한 PIN과 현재 접속한 웹 화면(websocket), 그리고 유저 ID를 매칭해 저장
     active_connections[pin] = {"websocket": websocket, "user_id": user_id}
-    print(f"🔗 [웹소켓] 웹 유저({user_id})가 기기 연동 요청 (PIN: {pin})")
+    print(f"[웹소켓] 웹 유저({user_id})가 기기 연동 요청 (PIN: {pin})")
 
     try:
         await websocket.send_json({"type": "pin_generated", "pin": pin})
@@ -33,7 +33,7 @@ async def pairing_websocket(websocket: WebSocket, user_id: int):
     except WebSocketDisconnect:
         if pin in active_connections:
             del active_connections[pin]
-            print(f"❌ [웹소켓 끊김] PIN 폐기: {pin}")
+            print(f"[웹소켓 끊김] PIN 폐기: {pin}")
 
 # ---------------------------------------------------------
 # 📱 2. [모바일] PIN 번호 및 동일 계정 검증
@@ -57,7 +57,7 @@ async def verify_pairing(data: VerifyRequest):
         })
         
         del active_connections[data.pin]
-        print(f"✅ [기기 연동 성공] User {data.user_id}의 웹-모바일 동기화 완료!")
+        print(f"[기기 연동 성공] User {data.user_id}의 웹-모바일 동기화 완료!")
         
         return {"status": "success", "message": "웹 화면 잠금이 해제되었습니다."}
         
