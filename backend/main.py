@@ -39,8 +39,7 @@ app.add_middleware(
 )
 
 # ─── 정적 파일 ───────────────────────────────────────────────
-app.mount("/static/video", StaticFiles(directory=str(VIDEO_DIR)), name="video")
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+app.mount("/video", StaticFiles(directory=str(VIDEO_DIR)), name="video")
 
 # ─── 라우터 ───────────────────────────────────────────────────
 app.include_router(auth.router,         prefix="/api", tags=["Auth"])
@@ -72,6 +71,9 @@ async def loading_page():
 async def dashboard_page():
     return FileResponse(FRONTEND_DIR / "dashboard.html")
 
+# frontend/ 폴더를 루트 경로에 마운트 (위 페이지 라우트가 우선 매칭됨)
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=7862, reload=False)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=7862, reload=False)
