@@ -21,6 +21,10 @@ args = Namespace(
 )
 rt.args = args
 
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+DEFAULT_AVATAR_VIDEO = BACKEND_DIR / "data" / "video" / "bartender.mp4"
+LONG_AVATAR_VIDEO = BACKEND_DIR / "data" / "video" / "Bartender_long.mp4"
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"[서버] 디바이스: {device}")
 
@@ -73,8 +77,15 @@ def load_models():
         rt.weight_dtype = weight_dtype; rt.device = device; rt.fp = fp
 
         loading_status = "아바타 준비 중..."
-        avatar_short = Avatar(avatar_id="bartender",      video_path="data/video/bartender.mp4",      bbox_shift=0, batch_size=args.batch_size, preparation=True)
-        avatar_long  = Avatar(avatar_id="bartender_long", video_path="data/video/Bartender_long.mp4", bbox_shift=0, batch_size=args.batch_size, preparation=True)
+        if not DEFAULT_AVATAR_VIDEO.exists():
+            raise FileNotFoundError(f"Default avatar source video not found: {DEFAULT_AVATAR_VIDEO}")
+
+        long_avatar_video = LONG_AVATAR_VIDEO if LONG_AVATAR_VIDEO.exists() else DEFAULT_AVATAR_VIDEO
+        if long_avatar_video == DEFAULT_AVATAR_VIDEO:
+            print(f"[Avatar] long avatar video not found, reusing default: {LONG_AVATAR_VIDEO}")
+
+        avatar_short = Avatar(avatar_id="bartender",      video_path=str(DEFAULT_AVATAR_VIDEO), bbox_shift=0, batch_size=args.batch_size, preparation=True)
+        avatar_long  = Avatar(avatar_id="bartender_long", video_path=str(long_avatar_video),    bbox_shift=0, batch_size=args.batch_size, preparation=True)
 
         # latent를 GPU에 사전 적재 (추론 시 CPU→GPU 전송 제거)
         avatar_short.input_latent_list_cycle = [t.to(device) for t in avatar_short.input_latent_list_cycle]
