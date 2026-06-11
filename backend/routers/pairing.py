@@ -28,7 +28,7 @@ async def pairing_websocket(websocket: WebSocket, user_id: int):
     
     # 발급한 PIN과 현재 접속한 웹 화면(websocket), 그리고 유저 ID를 매칭해 저장
     active_connections[pin] = {"websocket": websocket, "user_id": user_id}
-    print(f"🔗 [웹소켓] 웹 유저({user_id})가 기기 연동 요청 (PIN: {pin})")
+    print(f"[웹소켓] 웹 유저({user_id})가 기기 연동 요청 (PIN: {pin})")
 
     try:
         await websocket.send_json({"type": "pin_generated", "pin": pin})
@@ -38,7 +38,7 @@ async def pairing_websocket(websocket: WebSocket, user_id: int):
     except WebSocketDisconnect:
         if pin in active_connections:
             del active_connections[pin]
-            print(f"❌ [웹소켓 끊김] PIN 폐기: {pin}")
+            print(f"[웹소켓 끊김] PIN 폐기: {pin}")
 
 # ---------------------------------------------------------
 # 📱 2. [모바일] PIN 번호 검증 및 DB 연동 상태 영구 저장
