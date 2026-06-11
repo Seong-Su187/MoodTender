@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PairingScreen() {
+fun PairingScreen(currentUserId: Int) { // 🚀 1. 파라미터 추가 완료
     // 사용자가 입력할 6자리 핀 번호 상태
     var pinText by remember { mutableStateOf("") }
     // 결과 메시지 (성공/실패)
@@ -92,11 +92,10 @@ fun PairingScreen() {
         // 연동 버튼
         Button(
             onClick = {
-                // 버튼 누르면 서버로 전송
                 coroutineScope.launch {
                     try {
-                        // 🚨 임시: 웹 테스트와 맞추기 위해 user_id 1로 고정
-                        val request = VerifyRequest(pin = pinText, user_id = 1)
+                        // 🚀 2. 고정된 1 대신 전달받은 currentUserId를 사용하여 요청
+                        val request = VerifyRequest(pin = pinText, user_id = currentUserId)
 
                         // 백그라운드 스레드에서 네트워크 통신
                         val response = withContext(Dispatchers.IO) {
