@@ -33,8 +33,8 @@ interface ApiService {
     fun verifyPairing(@Body request: VerifyRequest): Call<VerifyResponse>
 
     // 🚀 채팅 기능 (새로 추가)
-    @POST("/api/chat")
-    fun postChat(@Body request: ChatRequest): Call<LLMResponse>
+    @POST("/api/llm/respond")
+    fun postChat(@Header("Authorization") token: String, @Body request: ChatRequest): Call<LLMResponse>
 
     @GET("/api/chat/history")
     fun getChatHistory(@Header("Authorization") token: String): Call<Map<String, Any>>
