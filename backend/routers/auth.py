@@ -42,8 +42,15 @@ async def login(user: UserCreate, db: AsyncSession = Depends(get_db)):
     db_user = result.scalars().first()
     if not db_user or not verify_pw(user.password, db_user.password_hash):
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 틀렸습니다.")
+    
     token_data = create_access_token(db_user.username)
-    return {"access_token": token_data["access_token"], "token_type": token_data["token_type"]}
+    
+    # 🚀 로그인 성공 시 Token 모델(access_token, token_type, id)을 반환
+    return {
+        "access_token": token_data["access_token"], 
+        "token_type": token_data["token_type"],
+        "id": db_user.id  # 👈 핵심: 앱에서 유저 ID를 저장할 수 있도록 반환
+    }
 
 @router.post("/logout")
 def logout(token_payload: dict = Depends(get_current_user_token)):
@@ -62,9 +69,6 @@ async def check_username(username: str, db: AsyncSession = Depends(get_db)):
         return {"is_available": False, "message": "이미 사용 중인 아이디입니다."}
     return {"is_available": True, "message": "사용 가능한 아이디입니다."}
 
-# ---------------------------------------------------------
-# 🚀 수정된 API: 토큰을 통해 '내' 연동 상태와 ID를 정확히 가져오기
-# ---------------------------------------------------------
 @router.get("/users/me/status")
 async def get_my_pairing_status(
     token_payload: dict = Depends(get_current_user_token), 
