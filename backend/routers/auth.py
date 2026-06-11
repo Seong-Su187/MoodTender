@@ -61,3 +61,16 @@ async def check_username(username: str, db: AsyncSession = Depends(get_db)):
     if result.scalars().first():
         return {"is_available": False, "message": "이미 사용 중인 아이디입니다."}
     return {"is_available": True, "message": "사용 가능한 아이디입니다."}
+
+# ---------------------------------------------------------
+# 🚀 새로 추가된 API: 유저의 기기 연동 상태(is_device_paired) 확인
+# ---------------------------------------------------------
+@router.get("/users/{user_id}/status")
+async def get_user_pairing_status(user_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
+        
+    return {"is_device_paired": user.is_device_paired}
