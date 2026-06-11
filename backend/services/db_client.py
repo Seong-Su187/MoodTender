@@ -118,24 +118,31 @@ async def retrieve_similar_user_memories(
 # ==========================================
 async def retrieve_similar_chat_messages(
     user_id: int,
+    query_text: str,
     limit: int = 3,
 ) -> list[dict]:
+    query_embedding = await create_embedding(query_text)
+    query_vector = to_vector_literal(query_embedding)
+
     conn = await get_conn()
     try:
         rows = await conn.fetch("""
             SELECT
+                id,
                 role,
                 content,
-                created_at
+                created_at,
+                embedding <=> $1::vector AS distance
             FROM chat_messages
-            WHERE user_id = $1
-            ORDER BY created_at DESC
-            LIMIT $2
-        """, user_id, limit)
+            WHERE user_id = $2
+              AND embedding IS NOT NULL
+            ORDER BY embedding <=> $1::vector
+            LIMIT $3
+        """, query_vector, user_id, limit)
+
         return [dict(row) for row in rows]
     finally:
         await conn.close()
-
 
 # ==========================================
 # 기억 저장
@@ -193,6 +200,8 @@ async def save_emotion_receipt(
                 recommended_cocktail,
                 summary_note
             ) VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, receipt_date)
+            DO NOTHING
         """,
             user_id,
             weather,
@@ -203,7 +212,6 @@ async def save_emotion_receipt(
     finally:
         await conn.close()
 
-
 # ==========================================
 # 대화 저장 (chat_messages)
 # ==========================================
@@ -212,14 +220,30 @@ async def save_chat_message(
     role: str,
     content: str,
 ) -> None:
+    embedding_vector = None
+
+    if content and content.strip():
+        embedding = await create_embedding(content)
+        embedding_vector = to_vector_literal(embedding)
+
     conn = await get_conn()
     try:
-        await conn.execute("""
-            INSERT INTO chat_messages (
-                user_id,
-                role,
-                content
-            ) VALUES ($1, $2, $3)
-        """, user_id, role, content)
+        if embedding_vector:
+            await conn.execute("""
+                INSERT INTO chat_messages (
+                    user_id,
+                    role,
+                    content,
+                    embedding
+                ) VALUES ($1, $2, $3, $4::vector)
+            """, user_id, role, content, embedding_vector)
+        else:
+            await conn.execute("""
+                INSERT INTO chat_messages (
+                    user_id,
+                    role,
+                    content
+                ) VALUES ($1, $2, $3)
+            """, user_id, role, content)
     finally:
         await conn.close()

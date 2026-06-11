@@ -99,15 +99,16 @@ async def _get_cocktail_data(db: AsyncSession, category: str) -> str:
 
 # --- 메인 실행 함수 ---
 
-async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSession, speed: float = 1.0) -> tuple[str, str]:
+async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSession, speed: float = 1.0, save_messages: bool = True,) -> tuple[str, str]:
     text = user_text.strip()
     if not text: return "...", "평온"
-
+    
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
     # 1. DB에 유저 말 저장
-    db.add(ChatMessage(user_id=user_id, role="user", content=text))
-    await db.commit()
+    if save_messages:
+        db.add(ChatMessage(user_id=user_id, role="user", content=text))
+        await db.commit()
 
     # 2. 컨텍스트 빌드
     history = await _get_chat_history(db, user_id)
@@ -130,7 +131,8 @@ async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSessio
     reply = _limit_reply_sentences(reply, text)
 
     # 4. 바텐더 말 저장
-    db.add(ChatMessage(user_id=user_id, role="assistant", content=reply))
-    await db.commit()
+    if save_messages:
+        db.add(ChatMessage(user_id=user_id, role="assistant", content=reply))
+        await db.commit()
 
     return reply, emotion_cat
