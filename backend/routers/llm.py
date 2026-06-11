@@ -12,6 +12,7 @@ from backend.services.rag_chain import (
     new_session_id,
     run_first_turn,
     run_free_chat,
+    finalize_memory,
 )
 
 router = APIRouter()
@@ -131,6 +132,21 @@ async def respond_with_rag(
         ]
         if part
     ).strip()
+
+    conversation_text = f"""
+    사용자: {payload.text}
+    바텐더: {reply}
+    """
+
+    await finalize_memory(
+        summary_chain=summary_chain,
+        user_id=user_id,
+        session_id=session_id,
+        emotion=emotion,
+        cocktail=cocktail,
+        bartender_result=bartender_result,
+        conversation_text=conversation_text,
+)
 
     return LLMResponse(reply=reply)
 

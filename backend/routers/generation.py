@@ -126,8 +126,11 @@ async def generate(text: str = Form(...), voice: str = Form("onyx"), avatar_name
 
             if avatar_name:
                 av = _get_video_avatar(avatar_name)
+            elif ml_manager.custom_avatar is not None:
+                av = ml_manager.custom_avatar
             else:
-                av = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
+                push({"error": "아바타를 선택해주세요.", "done": True})
+                return
             push({"status": f"영상 생성 중... (음성 {duration:.1f}초)"})
             t0 = time.time()
             av.inference(audio_path=audio_path, out_vid_name=out_name, fps=ml_manager.args.fps, skip_save_images=False)
@@ -304,6 +307,9 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
     if not ml_manager.models_ready:
         return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
 
+    if not avatar_name and ml_manager.custom_avatar is None:
+        return JSONResponse({"error": "아바타를 선택해주세요."}, status_code=400)
+
     from stream_inference import inference_stream as _infer_stream
     from config import FFMPEG_PATH
 
@@ -327,7 +333,7 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
                 av = _get_video_avatar(avatar_name)
                 composite_bg = False  # 영상 아바타는 배경이 이미 합성되어 있음
             else:
-                av = ml_manager.custom_avatar if ml_manager.custom_avatar is not None else ml_manager.avatar_long
+                av = ml_manager.custom_avatar
                 composite_bg = True
             first = True
             for chunk in _infer_stream(
