@@ -21,10 +21,6 @@ args = Namespace(
 )
 rt.args = args
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_AVATAR_VIDEO = BACKEND_DIR / "data" / "video" / "bartender.mp4"
-LONG_AVATAR_VIDEO = BACKEND_DIR / "data" / "video" / "Bartender_long.mp4"
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"[서버] 디바이스: {device}")
 
