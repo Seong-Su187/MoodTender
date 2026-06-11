@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import FRONTEND_DIR, VIDEO_DIR
 from backend.database import engine, Base
+from backend.routers import chat
 # 🚀 수정 부분 1: health 라우터 import 추가
 from backend.routers import auth, generation, llm, model_status, stt, health, pairing
 # ─── FastAPI 앱 ───────────────────────────────────────────────
@@ -38,8 +39,7 @@ app.add_middleware(
 )
 
 # ─── 정적 파일 ───────────────────────────────────────────────
-app.mount("/static/video", StaticFiles(directory=str(VIDEO_DIR)), name="video")
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+app.mount("/video", StaticFiles(directory=str(VIDEO_DIR)), name="video")
 
 # ─── 라우터 ───────────────────────────────────────────────────
 app.include_router(auth.router,         prefix="/api", tags=["Auth"])
@@ -48,6 +48,7 @@ app.include_router(generation.router,   prefix="/api", tags=["Generation"])
 app.include_router(llm.router,          prefix="/api", tags=["LLM"])
 app.include_router(stt.router,          prefix="/api", tags=["STT"])
 app.include_router(pairing.router)
+app.include_router(chat.router) 
 
 # 🚀 수정 부분 2: 모바일 건강 데이터 라우터 등록
 # (health.py 내부에 이미 prefix="/api/mobile"이 설정되어 있습니다)
@@ -70,6 +71,9 @@ async def loading_page():
 async def dashboard_page():
     return FileResponse(FRONTEND_DIR / "dashboard.html")
 
+# frontend/ 폴더를 루트 경로에 마운트 (위 페이지 라우트가 우선 매칭됨)
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=7862, reload=False)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=7862, reload=False)

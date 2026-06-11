@@ -6,56 +6,83 @@
     <title>MoodTender Health Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <style>
-        /* 기존 메인 앱과 동일한 컬러 테마 적용 */
+        /* 태번(우드·골드) 테마 + 배경 이미지 */
         body {
-            background-color: #0d0b13;
-            color: #f4f1f7;
+            color: #f4ecd9;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+            background:
+                linear-gradient(rgba(15, 10, 6, 0.74), rgba(15, 10, 6, 0.84)),
+                url('/assets/dashboard-bg.jpeg') center center / cover no-repeat fixed;
+            background-color: #140f0a;
+            min-height: 100vh;
         }
-        .surface { background-color: #18151f; border: 1px solid rgba(255, 255, 255, 0.12); }
-        .accent-text { color: #7c4dff; }
-        .danger-text { color: #ff6b7a; }
-        .success-text { color: #61d394; }
+        .serif { font-family: 'Playfair Display', serif; }
+        .surface {
+            background: linear-gradient(180deg, rgba(42, 30, 17, 0.62), rgba(28, 19, 11, 0.58));
+            border: 1px solid rgba(200, 160, 90, 0.22);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s, border-color 0.25s;
+        }
+        .surface:hover {
+            transform: translateY(-3px);
+            border-color: rgba(200, 160, 90, 0.4);
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+        }
+        .accent-text { color: #d9b65a; }
+        .danger-text { color: #e0746b; }
+        .success-text { color: #9bbd6a; }
+        .muted-text { color: #b3a48c; }
     </style>
 </head>
 <body class="p-6 md:p-10 min-h-screen">
 
     <div class="max-w-5xl mx-auto space-y-6">
-        
+
         <header class="mb-8">
-            <h1 class="text-2xl font-bold tracking-tight">📊 MoodTender Analytics</h1>
-            <p class="text-[#a8a1b3] text-sm mt-1">스마트폰에서 수집된 나의 생활 패턴과 멘탈 상태를 확인하세요.</p>
+            <h1 class="serif text-3xl font-bold tracking-tight" style="color:#e8c884; text-shadow:0 2px 14px rgba(200,144,46,0.3);">MoodTender Analytics</h1>
+            <p class="muted-text text-sm mt-1">스마트폰에서 수집된 나의 생활 패턴과 멘탈 상태를 확인하세요.</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="surface rounded-xl p-6 shadow-lg">
-                <h3 class="text-[#a8a1b3] font-semibold text-sm mb-2">오늘 걸음 수</h3>
+            <div class="surface rounded-2xl p-6 shadow-lg">
+                <h3 class="muted-text font-semibold text-sm mb-2">오늘 걸음 수</h3>
                 <p id="card-steps" class="text-3xl font-bold accent-text">- 보</p>
             </div>
-            <div class="surface rounded-xl p-6 shadow-lg">
-                <h3 class="text-[#a8a1b3] font-semibold text-sm mb-2">수면 시간</h3>
-                <p id="card-sleep" class="text-3xl font-bold text-[#3dd6c6]">- 시간 - 분</p>
+            <div class="surface rounded-2xl p-6 shadow-lg">
+                <h3 class="muted-text font-semibold text-sm mb-2">수면 시간</h3>
+                <p id="card-sleep" class="text-3xl font-bold" style="color:#c8902e;">- 시간 - 분</p>
             </div>
-            <div class="surface rounded-xl p-6 shadow-lg">
-                <h3 class="text-[#a8a1b3] font-semibold text-sm mb-2">스마트폰 사용</h3>
+            <div class="surface rounded-2xl p-6 shadow-lg">
+                <h3 class="muted-text font-semibold text-sm mb-2">스마트폰 사용</h3>
                 <p id="card-screen" class="text-3xl font-bold danger-text">- 분</p>
             </div>
         </div>
 
-        <div class="surface rounded-xl p-6 shadow-lg">
-            <h2 class="text-lg font-bold mb-4">주간 활동 트렌드</h2>
-            <div class="relative h-72 w-full">
-                <canvas id="trendChart"></canvas>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="surface rounded-2xl p-6 shadow-lg">
+                <h2 class="text-lg font-bold mb-4">주간 걸음 수</h2>
+                <div class="relative h-72 w-full">
+                    <canvas id="stepChart"></canvas>
+                </div>
+            </div>
+            <div class="surface rounded-2xl p-6 shadow-lg">
+                <h2 class="text-lg font-bold mb-4">주간 스마트폰 사용 시간</h2>
+                <div class="relative h-72 w-full">
+                    <canvas id="screenChart"></canvas>
+                </div>
             </div>
         </div>
 
-        <div class="surface rounded-xl p-6 shadow-lg bg-gradient-to-br from-[#18151f] to-[#24202d]">
+        <div class="surface rounded-2xl p-6 shadow-lg">
             <div class="flex items-center mb-4 gap-2">
-                <span class="text-xl">🤖</span>
-                <h2 class="text-lg font-bold">AI 바텐더의 상태 분석</h2>
+                <span class="text-xl">🥃</span>
+                <h2 class="text-lg font-bold">바텐더의 상태 분석</h2>
             </div>
-            <div id="ai-report" class="text-[#f4f1f7] text-sm leading-relaxed p-4 bg-[#0d0b13] rounded-lg border border-[rgba(255,255,255,0.05)]">
+            <div id="ai-report" class="text-sm leading-relaxed p-4 rounded-xl" style="background: rgba(15,10,6,0.5); border: 1px solid rgba(200,160,90,0.15); color:#f4ecd9;">
                 데이터를 분석하고 있습니다...
             </div>
         </div>
@@ -78,11 +105,11 @@
                 // 2. 상단 요약 카드 업데이트 (가장 최신 데이터 기준)
                 const latest = records[records.length - 1];
                 document.getElementById('card-steps').innerText = latest.stepCount.toLocaleString() + ' 보';
-                
+
                 const sleepHours = Math.floor(latest.sleepMinutes / 60);
                 const sleepMins = latest.sleepMinutes % 60;
                 document.getElementById('card-sleep').innerText = `${sleepHours}시간 ${sleepMins}분`;
-                
+
                 document.getElementById('card-screen').innerText = latest.screenTimeMinutes + ' 분';
 
                 // 3. 차트용 데이터 배열 추출
@@ -90,60 +117,81 @@
                 const stepData = records.map(r => r.stepCount);
                 const screenData = records.map(r => r.screenTimeMinutes);
 
-                // 4. Chart.js 그래프 그리기
-                const ctx = document.getElementById('trendChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'bar', // 기본 형태는 막대 그래프
+                // 4. Chart.js 그래프 그리기 (걸음 수 / 스마트폰 사용 시간 분리)
+                const stepCtx = document.getElementById('stepChart').getContext('2d');
+                new Chart(stepCtx, {
+                    type: 'line',
                     data: {
                         labels: labels,
                         datasets: [
                             {
                                 label: '걸음 수 (보)',
                                 data: stepData,
-                                backgroundColor: '#7c4dff',
-                                borderRadius: 4,
-                                yAxisID: 'y',
-                                order: 2
-                            },
-                            {
-                                label: '스마트폰 사용 (분)',
-                                data: screenData,
-                                type: 'line', // 스마트폰 사용량은 꺾은선으로 겹쳐서 표시
-                                borderColor: '#ff6b7a',
-                                backgroundColor: '#ff6b7a',
-                                borderWidth: 2,
-                                pointBackgroundColor: '#0d0b13',
-                                tension: 0.3,
-                                yAxisID: 'y1',
-                                order: 1
+                                borderColor: '#c8902e',
+                                backgroundColor: 'rgba(200, 144, 46, 0.15)',
+                                pointBackgroundColor: '#e8c884',
+                                fill: true,
+                                tension: 0.3
                             }
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        color: '#a8a1b3', // 범례 글자색
+                        color: '#b3a48c', // 범례 글자색
                         scales: {
                             x: {
-                                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                                grid: { color: 'rgba(200, 160, 90, 0.08)' },
+                                ticks: { color: '#b3a48c' }
                             },
                             y: {
-                                type: 'linear',
-                                display: true,
-                                position: 'left',
-                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                                title: { display: true, text: '걸음 수', color: '#a8a1b3' }
-                            },
-                            y1: {
-                                type: 'linear',
-                                display: true,
-                                position: 'right',
-                                grid: { drawOnChartArea: false },
-                                title: { display: true, text: '사용 시간(분)', color: '#a8a1b3' }
+                                beginAtZero: true,
+                                grid: { color: 'rgba(200, 160, 90, 0.08)' },
+                                ticks: { color: '#b3a48c' },
+                                title: { display: true, text: '걸음 수 (보)', color: '#b3a48c' }
                             }
                         },
                         plugins: {
-                            legend: { labels: { color: '#f4f1f7' } }
+                            legend: { labels: { color: '#f4ecd9' } }
+                        }
+                    }
+                });
+
+                const screenCtx = document.getElementById('screenChart').getContext('2d');
+                new Chart(screenCtx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: '스마트폰 사용 (분)',
+                                data: screenData,
+                                borderColor: '#e0746b',
+                                backgroundColor: 'rgba(224, 116, 107, 0.15)',
+                                pointBackgroundColor: '#f4ecd9',
+                                fill: true,
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        color: '#b3a48c', // 범례 글자색
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(200, 160, 90, 0.08)' },
+                                ticks: { color: '#b3a48c' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 30, color: '#b3a48c' }, // 30분 단위 눈금
+                                grid: { color: 'rgba(200, 160, 90, 0.08)' },
+                                title: { display: true, text: '사용 시간 (분)', color: '#b3a48c' }
+                            }
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#f4ecd9' } }
                         }
                     }
                 });
@@ -155,7 +203,7 @@
 
             } catch (error) {
                 console.error("데이터 로드 실패:", error);
-                document.getElementById('ai-report').innerHTML = "<span class='text-[#ff6b7a]'>서버 연결에 실패했습니다.</span>";
+                document.getElementById('ai-report').innerHTML = "<span style='color:#e0746b;'>서버 연결에 실패했습니다.</span>";
             }
         }
 

@@ -4,8 +4,12 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
+from pathlib import Path
 from .model import BiSeNet
 import torchvision.transforms as transforms
+
+MUSETALK_ROOT = Path(__file__).resolve().parents[3]
+FACE_PARSE_MODEL_DIR = MUSETALK_ROOT / "models" / "face-parse-bisent"
 
 class FaceParsing():
     def __init__(self, left_cheek_width=80, right_cheek_width=80):
@@ -56,15 +60,16 @@ class FaceParsing():
         cv2.rectangle(mask, (center + right_cheek_width, 0), (512, 512), 255, -1)  # Right cheek
         return mask
 
-    def model_init(self, 
-                   resnet_path='./models/face-parse-bisent/resnet18-5c106cde.pth', 
-                   model_pth='./models/face-parse-bisent/79999_iter.pth'):
+    def model_init(self,
+                   resnet_path=None,
+                   model_pth=None):
+        resnet_path = str(resnet_path or FACE_PARSE_MODEL_DIR / "resnet18-5c106cde.pth")
+        model_pth = str(model_pth or FACE_PARSE_MODEL_DIR / "79999_iter.pth")
         net = BiSeNet(resnet_path)
+        state_dict = torch.load(model_pth, map_location=torch.device('cpu'))
+        net.load_state_dict(state_dict)
         if torch.cuda.is_available():
             net.cuda()
-            net.load_state_dict(torch.load(model_pth)) 
-        else:
-            net.load_state_dict(torch.load(model_pth, map_location=torch.device('cpu')))
         net.eval()
         return net
 

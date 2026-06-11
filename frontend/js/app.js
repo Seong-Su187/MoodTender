@@ -14,8 +14,8 @@
 let isModelReady = false;
 
 // ── 영상 상태 관리 ────────────────────────────────────────────
-const VIDEO_IDLE    = '/static/loop_bg.webm';
-const VIDEO_LOADING = '/static/loading.mp4';
+const VIDEO_IDLE    = '/assets/loop_bg.webm';
+const VIDEO_LOADING = '/assets/loading.mp4';
 
 let currentIdleUrl = VIDEO_IDLE;
 
@@ -91,12 +91,13 @@ async function loadAvatars() {
     const statusEl = document.getElementById('avatar-status');
 
     if (!sel.value) {
+      if (statusEl) statusEl.textContent = '';
       currentIdleUrl = VIDEO_IDLE;
       playIdle(VIDEO_IDLE);
       return;
     }
 
-    currentIdleUrl = `/static/video/${sel.value}`;
+    currentIdleUrl = `/video/${sel.value}`;
     playIdle(currentIdleUrl);
 
     if (statusEl) statusEl.textContent = '아바타 준비 중...';
@@ -296,30 +297,37 @@ async function generateChat() {
     const avatarSel = document.getElementById('avatar-select');
     if (avatarSel && avatarSel.value) form.append('avatar_name', avatarSel.value);
 
-    // WebM VP9 알파 방식: 루프와 동일하게 CSS bar-background 투과 재생
-    await readSSE('/api/generate_webm', form, ({ status, error, video_path }) => {
-      if (status) statusEl.textContent = status;
-      if (error) {
-        statusEl.textContent = `오류: ${error}`;
-        appendChatMessage('system', error);
-        return;
-      }
-      if (video_path) {
-        const url = `/api/video?path=${encodeURIComponent(video_path)}`;
-        videoEl.muted = false;
-        videoEl.loop  = false;
-        videoEl.setAttribute('controls', '');
-        videoEl.src               = url;
-        videoEl.style.display     = 'block';
-        placeholder.style.display = 'none';
-        videoEl.play().catch(() => {});
-        videoEl.addEventListener('play', () => {
-          const loadingEl = document.getElementById('loading-video');
-          if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
-        }, { once: true });
-        videoEl.addEventListener('ended', () => playIdle(), { once: true });
-      }
-    });
+    // MP4 (H264) 스트리밍: 배경이 베이크된 아바타 영상을 컨트롤과 함께 재생
+    videoEl.muted = false;
+    videoEl.loop  = false;
+    videoEl.setAttribute('controls', '');
+
+    const MIME   = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+    const useMSE = 'MediaSource' in window && MediaSource.isTypeSupported(MIME);
+
+    if (useMSE) {
+      await _generateStream(form, MIME, videoEl, placeholder, statusEl, () => playIdle());
+    } else {
+      await readSSE('/api/generate', form, ({ status, error, video_path }) => {
+        if (status) statusEl.textContent = status;
+        if (error) {
+          statusEl.textContent = `오류: ${error}`;
+          appendChatMessage('system', error);
+          return;
+        }
+        if (video_path) {
+          videoEl.src               = `/api/video?path=${encodeURIComponent(video_path)}`;
+          videoEl.style.display     = 'block';
+          placeholder.style.display = 'none';
+          videoEl.play().catch(() => {});
+          videoEl.addEventListener('play', () => {
+            const loadingEl = document.getElementById('loading-video');
+            if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
+          }, { once: true });
+          videoEl.addEventListener('ended', () => playIdle(), { once: true });
+        }
+      });
+    }
   } catch (e) {
     statusEl.textContent = `오류: ${e.message}`;
     appendChatMessage('system', e.message);
@@ -343,12 +351,37 @@ function appendChatMessage(role, text) {
 
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble';
-  bubble.textContent = text;
 
   row.appendChild(time);
   row.appendChild(bubble);
   log.appendChild(row);
   log.scrollTop = log.scrollHeight;
+
+  // AI 응답은 한 글자씩 타이핑, 나머지는 즉시 표시
+  if (role === 'assistant') {
+    typeText(bubble, text, log);
+  } else {
+    bubble.textContent = text;
+    log.scrollTop = log.scrollHeight;
+  }
+}
+
+// ── AI 타이핑 효과 ───────────────────────────────────────────
+function typeText(el, text, log) {
+  el.classList.add('typing');
+  let i = 0;
+  const speed = 26; // 글자당 ms
+
+  (function step() {
+    if (i <= text.length) {
+      el.textContent = text.slice(0, i);
+      log.scrollTop = log.scrollHeight;
+      i += 1;
+      setTimeout(step, speed);
+    } else {
+      el.classList.remove('typing');
+    }
+  })();
 }
 
 async function _generateStream(form, mime, videoEl, placeholder, statusEl, onEnded) {
