@@ -69,11 +69,9 @@
             <span>아바타 설정</span>
           </summary>
           <div class="nav-controls">
-            <p id="avatar-status" class="status-text">기본 바텐더 사용 중</p>
+            <p id="avatar-status" class="status-text"></p>
             <label class="field-label" for="avatar-select">영상 선택</label>
-            <select id="avatar-select">
-              <option value="">기본 바텐더</option>
-            </select>
+            <select id="avatar-select"></select>
           </div>
         </details>
 
@@ -138,6 +136,7 @@
 
           <div class="avatar-output" aria-label="아바타 영상 출력">
             <video id="video-output"></video>
+            <video id="loading-video" src="/assets/loop_bg.webm" muted loop playsinline></video>
             <div id="video-placeholder">
               <span>아바타 영상이 여기에 표시됩니다.</span>
             </div>
@@ -279,7 +278,9 @@
       contentDiv.innerHTML = '<div style="text-align: center; color: #a8a1b3; margin-top: 50px;">데이터를 불러오는 중입니다...</div>';
 
       try {
-        const response = await fetch(`/api/chat/history/${currentWebUserId}`);
+        const response = await fetch('/api/chat/history', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+        });
         const data = await response.json();
         
         contentDiv.innerHTML = ''; 

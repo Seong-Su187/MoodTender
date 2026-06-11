@@ -102,7 +102,7 @@ async def _get_cocktail_data(db: AsyncSession, category: str) -> str:
 async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSession, speed: float = 1.0, save_messages: bool = True,) -> tuple[str, str]:
     text = user_text.strip()
     if not text: return "...", "평온"
-    
+
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
     # 1. DB에 유저 말 저장
