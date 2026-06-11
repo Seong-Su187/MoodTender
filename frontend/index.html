@@ -186,7 +186,30 @@
     // ---------------------------------------------------------
     let pairingSocket = null;
     const currentWebUserId = 1; // 🚨 임시: 향후 연동될 실제 유저 ID
+// 🌟 1. 새로 추가: 서버에 기기 연동 상태를 물어보는 함수
+    async function checkDevicePairingStatus(userId) {
+      try {
+        const response = await fetch(`/api/users/${userId}/status`);
+        if (response.ok) {
+          const data = await response.json();
+          // DB 확인 결과 이 유저가 이미 기기를 연동했다면?
+          if (data.is_device_paired === true) {
+            const overlay = document.getElementById('pairing-overlay');
+            if (overlay) {
+              overlay.style.display = 'none'; // 핀 번호 창을 아예 숨겨버림!
+            }
+            console.log("✅ 이미 연동된 유저입니다. 자동 잠금 해제 완료!");
+          }
+        }
+      } catch (error) {
+        console.error("연동 상태 확인 중 오류 발생:", error);
+      }
+    }
 
+    // 🌟 2. 새로 추가: HTML 화면이 로딩되자마자 위 함수를 바로 실행시킴
+    window.addEventListener('DOMContentLoaded', () => {
+      checkDevicePairingStatus(currentWebUserId);
+    });
     function startPairing() {
       document.getElementById('locked-state').style.display = 'none';
       document.getElementById('pin-state').style.display = 'block';
