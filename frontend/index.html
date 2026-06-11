@@ -8,39 +8,58 @@
 </head>
 <body>
   
-  <div id="pairing-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(13, 11, 19, 0.95); backdrop-filter: blur(16px); transition: opacity 0.5s ease;">
-    
-    <div id="locked-state" style="text-align: center; padding: 40px 60px; border: 1px solid rgba(124, 77, 255, 0.3); border-radius: 16px; background: #18151f; box-shadow: 0 0 60px rgba(124, 77, 255, 0.15);">
-      <div style="font-size: 64px; margin-bottom: 16px;">🔒</div>
-      <h2 style="font-size: 1.6rem; font-weight: bold; color: #f4f1f7; margin-bottom: 8px;">우선 디바이스를 먼저 연결해주세요!</h2>
-      <p style="color: #a8a1b3; font-size: 0.95rem; margin-bottom: 24px;">좌측 상단의 메뉴(☰)를 열어 <strong>[회원 정보] > [디바이스 연동 📱]</strong> 버튼을 클릭하시거나,<br>아래 버튼을 눌러주세요.</p>
-      
-      <button class="btn-dashboard" type="button" onclick="startPairing()" style="width: auto; padding: 12px 32px; font-size: 1rem;">
-        바로 디바이스 연동하기 📱
+  <div id="pairing-overlay" class="pairing-overlay" style="z-index: 50;">
+
+    <div id="locked-state" class="pairing-card">
+      <div class="pairing-icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2.5"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+      <h2>디바이스를 먼저 연결해 주세요</h2>
+      <p>좌측 상단 메뉴 또는 아래 버튼에서<br>디바이스를 연동하면 시작할 수 있어요.</p>
+      <button class="pairing-btn" type="button" onclick="startPairing()">
+        <span>디바이스 연동하기</span>
+        <svg class="pairing-btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
       </button>
     </div>
 
-    <div id="pin-state" style="display: none; text-align: center; padding: 40px 60px; border: 1px solid rgba(124, 77, 255, 0.6); border-radius: 16px; background: #18151f; box-shadow: 0 0 80px rgba(124, 77, 255, 0.25);">
-      <div style="font-size: 50px; margin-bottom: 16px;">📱</div>
-      <h2 style="font-size: 1.4rem; font-weight: bold; color: #f4f1f7; margin-bottom: 8px;">모바일 기기와 연결 대기 중</h2>
-      <p style="color: #a8a1b3; margin-bottom: 32px; font-size: 0.9rem;">모바일 앱에 동일한 계정으로 로그인 후 아래 핀 번호를 입력하세요.</p>
-      <div id="pin-display" style="font-size: 4rem; font-family: monospace; font-weight: bold; color: #3dd6c6; letter-spacing: 0.25em; text-shadow: 0 0 20px rgba(61, 214, 198, 0.4);">
-        ------
+    <div id="pin-state" class="pairing-card" style="display: none;">
+      <div class="pairing-icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="2" width="14" height="20" rx="2.5"></rect>
+          <line x1="12" y1="18" x2="12.01" y2="18"></line>
+        </svg>
+      </div>
+      <h2>모바일 기기와 연결 대기 중</h2>
+      <p>모바일 앱에 동일한 계정으로 로그인 후<br>아래 핀 번호를 입력하세요.</p>
+      <div id="pin-display" class="pin-display">------</div>
+    </div>
+  </div>
+
+  <div id="history-modal" class="history-modal" style="display: none;">
+    <div class="history-modal-panel">
+      <div class="history-modal-header">
+        <h2>📜 지난 대화 기록</h2>
+        <button onclick="closeHistoryModal()" aria-label="닫기">✕</button>
+      </div>
+      <div id="history-content" class="history-modal-body">
+        <div class="history-empty">데이터를 불러오는 중입니다...</div>
       </div>
     </div>
   </div>
 
-  <div id="history-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); justify-content: center; align-items: center;">
-    <div style="width: 90%; max-width: 700px; height: 80vh; background: #18151f; border: 1px solid rgba(61, 214, 198, 0.3); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
-      <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03);">
-        <h2 style="color: #f4f1f7; font-size: 1.2rem; font-weight: bold;">📜 지난 대화 기록</h2>
-        <button onclick="closeHistoryModal()" style="background: transparent; color: #a8a1b3; font-size: 1.5rem; border: none; cursor: pointer; transition: color 0.2s;">✕</button>
+  <div id="dashboard-modal" class="dashboard-modal" aria-hidden="true">
+    <div class="dashboard-modal-panel" role="dialog" aria-modal="true" aria-label="건강 분석 대시보드">
+      <div class="dashboard-modal-header">
+        <h2>건강 & 분석</h2>
+        <button type="button" onclick="closeDashboardModal()" aria-label="닫기">✕</button>
       </div>
-      <div id="history-content" style="flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
-        <div style="text-align: center; color: #a8a1b3; margin-top: 50px;">
-          데이터를 불러오는 중입니다...
-        </div>
-      </div>
+      <iframe id="dashboard-frame" title="MoodTender Health Dashboard" data-src="/dashboard"></iframe>
     </div>
   </div>
 
@@ -57,14 +76,28 @@
           <span class="brand-mark"></span>
           <span>MoodTender</span>
         </div>
-        <button class="sidebar-close" onclick="closeSidebar()" aria-label="닫기">✕</button>
       </div>
 
       <nav class="sidebar-nav" aria-label="설정 메뉴">
-        <div class="nav-section-label">MAIN APP</div>
+        <button class="nav-link active" type="button" onclick="closeSidebar()">
+          <span class="nav-icon icon-home" aria-hidden="true"></span>
+          <span>홈</span>
+        </button>
 
-        <details class="nav-group" open>
-          <summary class="nav-link active">
+        <button class="nav-link" type="button" onclick="openDashboardModal()">
+          <span class="nav-icon icon-health" aria-hidden="true"></span>
+          <span>건강 & 분석</span>
+        </button>
+
+        <button class="nav-link" type="button" onclick="openHistoryModal()">
+          <span class="nav-icon icon-history" aria-hidden="true"></span>
+          <span>대화 기록</span>
+        </button>
+
+        <div class="nav-section-label">설정</div>
+
+        <details class="nav-group">
+          <summary class="nav-link">
             <span class="nav-icon icon-avatar" aria-hidden="true"></span>
             <span>아바타 설정</span>
           </summary>
@@ -91,16 +124,6 @@
             </select>
           </div>
         </details>
-
-        <button class="nav-link" type="button" onclick="window.open('/dashboard', '_blank')">
-          <span class="nav-icon icon-health" aria-hidden="true"></span>
-          <span>건강 & 분석</span>
-        </button>
-
-        <button class="nav-link" type="button" onclick="openHistoryModal()">
-          <span class="nav-icon icon-history" aria-hidden="true"></span>
-          <span>대화 기록</span>
-        </button>
 
         <div class="nav-section-label">OTHERS</div>
 
@@ -178,6 +201,21 @@
     function closeSidebar() {
       document.getElementById('sidebar').classList.remove('open');
       document.getElementById('sidebar-overlay').classList.remove('show');
+    }
+    function openDashboardModal() {
+      const modal = document.getElementById('dashboard-modal');
+      const frame = document.getElementById('dashboard-frame');
+      if (!frame.src) {
+        frame.src = frame.dataset.src;
+      }
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      closeSidebar();
+    }
+    function closeDashboardModal() {
+      const modal = document.getElementById('dashboard-modal');
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
     }
 
     // ---------------------------------------------------------
