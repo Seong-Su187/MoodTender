@@ -63,14 +63,22 @@ async def check_username(username: str, db: AsyncSession = Depends(get_db)):
     return {"is_available": True, "message": "사용 가능한 아이디입니다."}
 
 # ---------------------------------------------------------
-# 🚀 새로 추가된 API: 유저의 기기 연동 상태(is_device_paired) 확인
+# 🚀 수정된 API: 토큰을 통해 '내' 연동 상태와 ID를 정확히 가져오기
 # ---------------------------------------------------------
-@router.get("/users/{user_id}/status")
-async def get_user_pairing_status(user_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == user_id))
+@router.get("/users/me/status")
+async def get_my_pairing_status(
+    token_payload: dict = Depends(get_current_user_token), 
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. 토큰 안에 들어있는 유저명을 꺼냅니다.
+    username = token_payload.get("sub") 
+    
+    # 2. 내 계정 정보를 DB에서 정확히 찾습니다.
+    result = await db.execute(select(User).where(User.username == username))
     user = result.scalars().first()
     
     if not user:
         raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
         
-    return {"is_device_paired": user.is_device_paired}
+    # 3. 내 연동 상태와 '진짜 내 ID 번호'를 같이 넘겨줍니다.
+    return {"is_device_paired": user.is_device_paired, "user_id": user.id}
