@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from backend.database import get_db
@@ -7,6 +7,7 @@ from backend.routers.auth import get_current_user_token
 from backend.routers.llm import get_current_user_id
 from datetime import datetime, timedelta
 
+# 한국 시간 오프셋
 KST_OFFSET = timedelta(hours=9)
 
 router = APIRouter(tags=["Chat"])
@@ -16,9 +17,10 @@ async def get_chat_history(
     token_payload: dict = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db),
 ):
+    # 1. 토큰에서 유저 ID 추출 (이미 구현된 get_current_user_id 사용)
     user_id = await get_current_user_id(token_payload, db)
 
-    # 1. 해당 유저의 대화 기록을 과거순으로 정렬해서 가져옵니다.
+    # 2. 해당 유저의 대화 기록을 과거순으로 정렬해서 가져오기
     result = await db.execute(
         select(domain.ChatMessage)
         .where(domain.ChatMessage.user_id == user_id)
@@ -26,21 +28,19 @@ async def get_chat_history(
     )
     records = result.scalars().all()
     
-    # 2. 날짜별로 데이터를 묶어줍니다.
-    # 결과 형태: {"2026-06-10": [{"role": "user", "content": "..."}, ...], "2026-06-09": [...]}
+    # 3. 날짜별로 데이터 그룹화
     grouped_history = {}
     
     for r in records:
-        # ChatMessage 테이블에 정형화된 날짜 필드(예: created_at)가 있다면 그것을 사용하고,
-        # 없을 경우 안전하게 오늘 날짜로 처리하도록 방어 코드를 작성합니다.
+        # DB의 created_at을 한국 시간으로 변환
         if hasattr(r, 'created_at') and r.created_at:
-            # DB에는 UTC로 저장되어 있으므로 한국 시간(KST, UTC+9)으로 변환
             local_dt = r.created_at + KST_OFFSET
             date_str = local_dt.strftime("%Y-%m-%d")
+            time_str = local_dt.strftime("%H:%M")
         else:
-            local_dt = None
-            # 임시 가상 데이터용: 테이블에 날짜가 없다면 오늘 날짜로 묶음
+            # 기록이 없는 경우 현재 시간 사용
             date_str = datetime.now().strftime("%Y-%m-%d")
+            time_str = ""
 
         if date_str not in grouped_history:
             grouped_history[date_str] = []
@@ -48,7 +48,7 @@ async def get_chat_history(
         grouped_history[date_str].append({
             "role": r.role,
             "content": r.content,
-            "time": local_dt.strftime("%H:%M") if local_dt else ""
+            "time": time_str
         })
         
     return {"history": grouped_history}
