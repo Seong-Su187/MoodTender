@@ -84,22 +84,44 @@ class Avatar:
         self.idx = 0
         self.init()
 
+    def has_prepared_cache(self):
+        required_files = [
+            self.avatar_info_path,
+            self.coords_path,
+            self.latents_out_path,
+            self.mask_coords_path,
+        ]
+        required_dirs = [
+            self.full_imgs_path,
+            self.mask_out_path,
+        ]
+        return (
+            all(os.path.isfile(path) for path in required_files)
+            and all(os.path.isdir(path) and os.listdir(path) for path in required_dirs)
+        )
+
+    def load_prepared_cache(self):
+        self.input_latent_list_cycle = torch.load(self.latents_out_path)
+        with open(self.coords_path, 'rb') as f:
+            self.coord_list_cycle = pickle.load(f)
+        input_img_list = glob.glob(os.path.join(self.full_imgs_path, '*.[jpJP][pnPN]*[gG]'))
+        input_img_list = sorted(input_img_list, key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
+        self.frame_list_cycle = read_imgs(input_img_list)
+        with open(self.mask_coords_path, 'rb') as f:
+            self.mask_coords_list_cycle = pickle.load(f)
+        input_mask_list = glob.glob(os.path.join(self.mask_out_path, '*.[jpJP][pnPN]*[gG]'))
+        input_mask_list = sorted(input_mask_list, key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
+        self.mask_list_cycle = read_imgs(input_mask_list)
+
     def init(self):
         if self.preparation:
-            if os.path.exists(self.avatar_path):
+            if self.has_prepared_cache():
                 # 캐시가 있으면 바로 로드 (재생성 없이)
-                self.input_latent_list_cycle = torch.load(self.latents_out_path)
-                with open(self.coords_path, 'rb') as f:
-                    self.coord_list_cycle = pickle.load(f)
-                input_img_list = glob.glob(os.path.join(self.full_imgs_path, '*.[jpJP][pnPN]*[gG]'))
-                input_img_list = sorted(input_img_list, key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
-                self.frame_list_cycle = read_imgs(input_img_list)
-                with open(self.mask_coords_path, 'rb') as f:
-                    self.mask_coords_list_cycle = pickle.load(f)
-                input_mask_list = glob.glob(os.path.join(self.mask_out_path, '*.[jpJP][pnPN]*[gG]'))
-                input_mask_list = sorted(input_mask_list, key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
-                self.mask_list_cycle = read_imgs(input_mask_list)
+                self.load_prepared_cache()
             else:
+                if os.path.exists(self.avatar_path):
+                    print(f"[Avatar] incomplete cache detected, rebuilding: {self.avatar_path}")
+                    shutil.rmtree(self.avatar_path)
                 print("*********************************")
                 print(f"  creating avator: {self.avatar_id}")
                 print("*********************************")
@@ -123,17 +145,12 @@ class Avatar:
                 osmakedirs([self.avatar_path, self.full_imgs_path, self.video_out_path, self.mask_out_path])
                 self.prepare_material()
             else:
-                self.input_latent_list_cycle = torch.load(self.latents_out_path)
-                with open(self.coords_path, 'rb') as f:
-                    self.coord_list_cycle = pickle.load(f)
-                input_img_list = glob.glob(os.path.join(self.full_imgs_path, '*.[jpJP][pnPN]*[gG]'))
-                input_img_list = sorted(input_img_list, key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
-                self.frame_list_cycle = read_imgs(input_img_list)
-                with open(self.mask_coords_path, 'rb') as f:
-                    self.mask_coords_list_cycle = pickle.load(f)
-                input_mask_list = glob.glob(os.path.join(self.mask_out_path, '*.[jpJP][pnPN]*[gG]'))
-                input_mask_list = sorted(input_mask_list, key=lambda x: int(os.path.splitext(os.path.basename(x))[0]))
-                self.mask_list_cycle = read_imgs(input_mask_list)
+                if not self.has_prepared_cache():
+                    raise FileNotFoundError(
+                        f"Incomplete avatar cache for '{self.avatar_id}'. "
+                        f"Run with preparation=True to rebuild {self.avatar_path}."
+                    )
+                self.load_prepared_cache()
 
     def prepare_material(self):
         print("preparing data materials ... ...")
@@ -142,13 +159,15 @@ class Avatar:
 
         if os.path.isfile(self.video_path):
             video2imgs(self.video_path, self.full_imgs_path, ext='png')
-        else:
+        elif os.path.isdir(self.video_path):
             print(f"copy files in {self.video_path}")
             files = os.listdir(self.video_path)
             files.sort()
             files = [file for file in files if file.split(".")[-1] == "png"]
             for filename in files:
                 shutil.copyfile(f"{self.video_path}/{filename}", f"{self.full_imgs_path}/{filename}")
+        else:
+            raise FileNotFoundError(f"Avatar source video or image directory not found: {self.video_path}")
         input_img_list = sorted(glob.glob(os.path.join(self.full_imgs_path, '*.[jpJP][pnPN]*[gG]')))
 
         print("extracting landmarks...")
