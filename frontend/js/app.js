@@ -15,11 +15,8 @@ let isModelReady = false;
 
 // ── 영상 상태 관리 ────────────────────────────────────────────
 const VIDEO_IDLE    = '/assets/loop_bg.webm';
-const VIDEO_LOADING = '/assets/loading.mp4';
 
-let currentIdleUrl = VIDEO_IDLE;
-
-function playIdle(url = currentIdleUrl) {
+function playIdle(url = VIDEO_IDLE) {
   const videoEl     = document.getElementById('video-output');
   const loadingEl   = document.getElementById('loading-video');
   const placeholder = document.getElementById('video-placeholder');
@@ -39,7 +36,6 @@ function playIdle(url = currentIdleUrl) {
 function playLoading() {
   const loadingEl = document.getElementById('loading-video');
   if (!loadingEl) return;
-  loadingEl.src           = VIDEO_LOADING;
   loadingEl.style.display = 'block';
   loadingEl.play().catch(() => {});
 }
@@ -87,27 +83,25 @@ async function loadAvatars() {
     console.error('아바타 목록 로드 실패:', e);
   }
 
-  sel.addEventListener('change', () => {
-    const statusEl = document.getElementById('avatar-status');
+  sel.addEventListener('change', () => applySelectedAvatar(sel));
+  applySelectedAvatar(sel);
+}
 
-    if (!sel.value) {
-      if (statusEl) statusEl.textContent = '';
-      currentIdleUrl = VIDEO_IDLE;
-      playIdle(VIDEO_IDLE);
-      return;
-    }
+function applySelectedAvatar(sel) {
+  const statusEl = document.getElementById('avatar-status');
 
-    currentIdleUrl = `/video/${sel.value}`;
-    playIdle(currentIdleUrl);
+  if (!sel.value) {
+    if (statusEl) statusEl.textContent = '아바타를 선택해주세요.';
+    return;
+  }
 
-    if (statusEl) statusEl.textContent = '아바타 준비 중...';
-    const form = new FormData();
-    form.append('avatar_name', sel.value);
-    readSSE('/api/prepare_avatar', form, ({ status, error }) => {
-      if (status && statusEl) statusEl.textContent = status;
-      if (error && statusEl)  statusEl.textContent = `오류: ${error}`;
-    }).catch(() => {});
-  });
+  if (statusEl) statusEl.textContent = '아바타 준비 중...';
+  const form = new FormData();
+  form.append('avatar_name', sel.value);
+  readSSE('/api/prepare_avatar', form, ({ status, error }) => {
+    if (status && statusEl) statusEl.textContent = status;
+    if (error && statusEl)  statusEl.textContent = `오류: ${error}`;
+  }).catch(() => {});
 }
 
 // ── 목소리 목록 ──────────────────────────────────────────────
@@ -463,6 +457,19 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl, onEnd
     body:    form,
     headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
   });
+
+  if (!response.ok) {
+    let message = '영상 생성에 실패했습니다.';
+    try {
+      const data = await response.json();
+      if (data.error) message = data.error;
+    } catch (_) {}
+    statusEl.textContent = `오류: ${message}`;
+    appendChatMessage('system', message);
+    playIdle();
+    return;
+  }
+
   const reader = response.body.getReader();
 
   while (true) {
