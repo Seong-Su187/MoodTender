@@ -169,13 +169,55 @@
     // 🚀 실시간 기기 연동 (WebSocket) 제어 로직
     // ---------------------------------------------------------
     let pairingSocket = null;
-    const currentWebUserId = 1; // 🚨 임시: 향후 연동될 실제 유저 ID
+    let currentWebUserId = null; // 🚨 1번 고정 제거! (빈 값으로 초기화)
+
+    // 🌟 서버에 내 토큰을 보내서 진짜 상태와 아이디를 가져오는 함수
+    async function checkDevicePairingStatus() {
+      try {
+        const token = localStorage.getItem('access_token'); 
+        if (!token) return;
+
+        const response = await fetch(`/api/users/me/status`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          currentWebUserId = data.user_id; // 진짜 내 ID 저장!
+          
+          if (data.is_device_paired === true) {
+            const overlay = document.getElementById('pairing-overlay');
+            if (overlay) {
+              overlay.style.display = 'none'; 
+            }
+            alert("로그인 완료!"); // 🚀 연동 패스 시 팝업
+            console.log("✅ 이미 연동된 유저입니다. 자동 잠금 해제 완료!");
+          } else {
+             console.log("🔒 디바이스 연동이 필요합니다.");
+          }
+        }
+      } catch (error) {
+        console.error("연동 상태 확인 중 오류 발생:", error);
+      }
+    }
+
+    // 화면 로딩 시 연동 상태 즉시 체크
+    window.addEventListener('DOMContentLoaded', () => {
+      checkDevicePairingStatus();
+    });
 
     function startPairing() {
+      // 내 ID가 아직 로드되지 않았다면 방어
+      if (!currentWebUserId) {
+        alert("유저 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
       document.getElementById('locked-state').style.display = 'none';
       document.getElementById('pin-state').style.display = 'block';
       closeSidebar();
 
+      // 이제 고정된 1번이 아닌, 내 진짜 ID로 웹소켓을 엽니다!
       pairingSocket = new WebSocket(`ws://${window.location.host}/api/pairing/ws/${currentWebUserId}`);
 
       pairingSocket.onmessage = function(event) {
@@ -205,6 +247,11 @@
     // 📜 과거 대화 기록(History) 하루 단위 모달 제어 로직
     // ---------------------------------------------------------
     async function openHistoryModal() {
+      if (!currentWebUserId) {
+        alert("유저 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
       document.getElementById('history-modal').style.display = 'flex';
       closeSidebar();
 
