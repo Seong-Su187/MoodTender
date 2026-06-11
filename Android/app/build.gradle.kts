@@ -70,6 +70,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    implementation("com.google.android.exoplayer:exoplayer:2.19.1")
+    implementation("com.airbnb.android:lottie-compose:6.0.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     // ⬇️ 헬스 커넥트 (걸음수, 수면)
