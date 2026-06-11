@@ -53,52 +53,64 @@
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
+        <div class="sidebar-brand" aria-label="MoodTender">
+          <span class="brand-mark"></span>
+          <span>MoodTender</span>
+        </div>
         <button class="sidebar-close" onclick="closeSidebar()" aria-label="닫기">✕</button>
       </div>
-      <div class="panel">
-        <div class="panel-header">아바타 설정</div>
-        <p id="avatar-status" class="status-text">기본 바텐더 사용 중</p>
-        <label class="field-label" for="avatar-select">영상 선택</label>
-        <select id="avatar-select">
-          <option value="">기본 바텐더</option>
-        </select>
-      </div>
 
-      <div class="panel">
-        <div class="panel-header">목소리</div>
-        <label class="field-label" for="voice-select">응답 음성</label>
-        <select id="voice-select"></select>
-        <label class="field-label" for="speed-select">말하기 속도</label>
-        <select id="speed-select">
-          <option value="0.8">0.8배속 (느리게)</option>
-          <option value="1.0" selected>1.0배속 (기본)</option>
-          <option value="1.2">1.2배속 (빠르게)</option>
-        </select>
-      </div>
+      <nav class="sidebar-nav" aria-label="설정 메뉴">
+        <div class="nav-section-label">MAIN APP</div>
 
-      <div class="panel">
-        <div class="panel-header">건강 & 분석</div>
-        <p class="status-text">모바일 연동 데이터 확인</p>
-        <button class="btn-dashboard" type="button" onclick="window.open('/dashboard', '_blank')">
-          대시보드 열기 📊
+        <details class="nav-group" open>
+          <summary class="nav-link active">
+            <span class="nav-icon icon-avatar" aria-hidden="true"></span>
+            <span>아바타 설정</span>
+          </summary>
+          <div class="nav-controls">
+            <p id="avatar-status" class="status-text">기본 바텐더 사용 중</p>
+            <label class="field-label" for="avatar-select">영상 선택</label>
+            <select id="avatar-select">
+              <option value="">기본 바텐더</option>
+            </select>
+          </div>
+        </details>
+
+        <details class="nav-group">
+          <summary class="nav-link">
+            <span class="nav-icon icon-voice" aria-hidden="true"></span>
+            <span>목소리</span>
+          </summary>
+          <div class="nav-controls">
+            <label class="field-label" for="voice-select">응답 음성</label>
+            <select id="voice-select"></select>
+            <label class="field-label" for="speed-select">말하기 속도</label>
+            <select id="speed-select">
+              <option value="0.8">0.8배속 (느리게)</option>
+              <option value="1.0" selected>1.0배속 (기본)</option>
+              <option value="1.2">1.2배속 (빠르게)</option>
+            </select>
+          </div>
+        </details>
+
+        <button class="nav-link" type="button" onclick="window.open('/dashboard', '_blank')">
+          <span class="nav-icon icon-health" aria-hidden="true"></span>
+          <span>건강 & 분석</span>
         </button>
-      </div>
 
-      <div class="panel">
-        <div class="panel-header">회원 정보</div>
-        <p class="status-text">현재 로그인: 사용자님</p>
-        <button class="btn-dashboard" type="button" onclick="startPairing()" style="margin-top:4px;">
-          디바이스 연동 📱
+        <button class="nav-link" type="button" onclick="openHistoryModal()">
+          <span class="nav-icon icon-history" aria-hidden="true"></span>
+          <span>대화 기록</span>
         </button>
-      </div>
 
-      <div class="panel">
-        <div class="panel-header">대화 기록</div>
-        <p class="status-text">이전 대화 내역 모아보기</p>
-        <button class="btn-dashboard" type="button" onclick="openHistoryModal()" style="margin-top:4px; background: rgba(61, 214, 198, 0.15); border-color: rgba(61, 214, 198, 0.4); color: #3dd6c6;">
-          과거 대화 기록 열람 📜
+        <div class="nav-section-label">OTHERS</div>
+
+        <button class="nav-link" type="button" onclick="startPairing()">
+          <span class="nav-icon icon-member" aria-hidden="true"></span>
+          <span>회원 정보</span>
         </button>
-      </div>
+      </nav>
 
       <div class="sidebar-footer">
         <span id="username-badge" class="username-badge"></span>
@@ -210,6 +222,10 @@
       checkDevicePairingStatus();
     });
 
+    // 🌟 2. 새로 추가: HTML 화면이 로딩되자마자 위 함수를 바로 실행시킴
+    window.addEventListener('DOMContentLoaded', () => {
+      checkDevicePairingStatus(currentWebUserId);
+    });
     function startPairing() {
       // 내 ID가 아직 로드되지 않았다면 방어
       if (!currentWebUserId) {
