@@ -99,14 +99,15 @@ async def _get_cocktail_data(db: AsyncSession, category: str) -> str:
 
 # --- 메인 실행 함수 ---
 
-async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSession, speed: float = 1.0) -> tuple[str, str]:
+async def generate_bartender_reply(user_id: int, user_text: str, db: AsyncSession, speed: float = 1.0, db_text: str | None = None) -> tuple[str, str]:
     text = user_text.strip()
     if not text: return "...", "평온"
 
     client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-    # 1. DB에 유저 말 저장
-    db.add(ChatMessage(user_id=user_id, role="user", content=text))
+    # 1. DB에 유저 말 저장 (LLM에 보내는 텍스트와 저장용 텍스트가 다르면 db_text 사용)
+    saved_text = (db_text or text).strip()
+    db.add(ChatMessage(user_id=user_id, role="user", content=saved_text))
     await db.commit()
 
     # 2. 컨텍스트 빌드

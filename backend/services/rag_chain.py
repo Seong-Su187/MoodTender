@@ -235,6 +235,7 @@ async def run_first_turn(
         user_id,
         bartender_input,
         db,
+        db_text=safe_user_text,
     )
 
     if isinstance(bartender_reply_result, tuple):
