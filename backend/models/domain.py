@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, BigInteger, Date, DateTime, ForeignKey, JSON, UniqueConstraint
+# 🚀 1. 첫 번째 줄에 Boolean 을 추가로 import 합니다.
+from sqlalchemy import Column, Integer, String, Text, BigInteger, Date, DateTime, ForeignKey, JSON, UniqueConstraint, Boolean
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
 # database.py가 어디에 있는지에 따라 import 경로를 맞춰주세요.
@@ -12,6 +13,9 @@ class User(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+    
+    # 🚀 2. 새로 추가된 부분: 기기 연동 완료 여부 도장칸
+    is_device_paired = Column(Boolean, default=False) 
 
 class EmotionDictionary(Base):
     __tablename__ = "emotion_dictionary"
