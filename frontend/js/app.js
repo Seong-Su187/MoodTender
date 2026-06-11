@@ -17,7 +17,9 @@ let isModelReady = false;
 const VIDEO_IDLE    = '/assets/loop_bg.webm';
 const VIDEO_LOADING = '/assets/loading.mp4';
 
-function playIdle(url = VIDEO_IDLE) {
+let currentIdleUrl = VIDEO_IDLE;
+
+function playIdle(url = currentIdleUrl) {
   const videoEl     = document.getElementById('video-output');
   const loadingEl   = document.getElementById('loading-video');
   const placeholder = document.getElementById('video-placeholder');
@@ -90,8 +92,13 @@ async function loadAvatars() {
 
     if (!sel.value) {
       if (statusEl) statusEl.textContent = '';
+      currentIdleUrl = VIDEO_IDLE;
+      playIdle(VIDEO_IDLE);
       return;
     }
+
+    currentIdleUrl = `/video/${sel.value}`;
+    playIdle(currentIdleUrl);
 
     if (statusEl) statusEl.textContent = '아바타 준비 중...';
     const form = new FormData();
@@ -344,12 +351,37 @@ function appendChatMessage(role, text) {
 
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble';
-  bubble.textContent = text;
 
   row.appendChild(time);
   row.appendChild(bubble);
   log.appendChild(row);
   log.scrollTop = log.scrollHeight;
+
+  // AI 응답은 한 글자씩 타이핑, 나머지는 즉시 표시
+  if (role === 'assistant') {
+    typeText(bubble, text, log);
+  } else {
+    bubble.textContent = text;
+    log.scrollTop = log.scrollHeight;
+  }
+}
+
+// ── AI 타이핑 효과 ───────────────────────────────────────────
+function typeText(el, text, log) {
+  el.classList.add('typing');
+  let i = 0;
+  const speed = 26; // 글자당 ms
+
+  (function step() {
+    if (i <= text.length) {
+      el.textContent = text.slice(0, i);
+      log.scrollTop = log.scrollHeight;
+      i += 1;
+      setTimeout(step, speed);
+    } else {
+      el.classList.remove('typing');
+    }
+  })();
 }
 
 async function _generateStream(form, mime, videoEl, placeholder, statusEl, onEnded) {
