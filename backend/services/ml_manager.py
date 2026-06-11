@@ -26,7 +26,7 @@ print(f"[서버] 디바이스: {device}")
 
 # ─── 모델 전역 상태 ───────────────────────────────────────────
 vae = unet = pe = timesteps = whisper = audio_processor = weight_dtype = fp = None
-avatar_short = avatar_long = custom_avatar = None
+avatar_long = custom_avatar = None
 video_avatars: dict = {}   # { filename: Avatar } — backend/video/ 사전 로드
 taesd_decoder = None  # TAESD 경량 VAE 디코더
 CUSTOM_AVATAR_CACHE = f"./results/{args.version}/avatars/custom_avatar"
@@ -38,7 +38,7 @@ loading_in_progress = False
 
 def load_models():
     global vae, unet, pe, timesteps, whisper, audio_processor, weight_dtype, fp
-    global avatar_short, avatar_long, video_avatars, models_ready, loading_status, loading_error, loading_in_progress
+    global avatar_long, video_avatars, models_ready, loading_status, loading_error, loading_in_progress
     try:
         loading_status = "MuseTalk 모델 로딩 중..."
         vae, unet, pe = load_all_model(
@@ -73,12 +73,10 @@ def load_models():
         rt.weight_dtype = weight_dtype; rt.device = device; rt.fp = fp
 
         loading_status = "아바타 준비 중..."
-        avatar_short = Avatar(avatar_id="bartender",      video_path="data/video/bartender.mp4",      bbox_shift=0, batch_size=args.batch_size, preparation=True)
-        avatar_long  = Avatar(avatar_id="bartender_long", video_path="data/video/Bartender_long.mp4", bbox_shift=0, batch_size=args.batch_size, preparation=True)
+        avatar_long = Avatar(avatar_id="bartender_long", video_path="data/video/Bartender_long.mp4", bbox_shift=0, batch_size=args.batch_size, preparation=True)
 
         # latent를 GPU에 사전 적재 (추론 시 CPU→GPU 전송 제거)
-        avatar_short.input_latent_list_cycle = [t.to(device) for t in avatar_short.input_latent_list_cycle]
-        avatar_long.input_latent_list_cycle  = [t.to(device) for t in avatar_long.input_latent_list_cycle]
+        avatar_long.input_latent_list_cycle = [t.to(device) for t in avatar_long.input_latent_list_cycle]
         print("[서버] latent GPU 적재 완료")
 
         _load_video_avatars()
