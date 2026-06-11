@@ -1,6 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+// local.properties에서 개인별 설정(BASE_URL 등)을 읽어옴 (git에 올라가지 않음)
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -15,6 +25,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // local.properties에 BASE_URL=http://본인IP:포트/ 를 추가해서 사용하세요.
+        buildConfigField(
+            "String",
+            "BASE_URL",
+            "\"${localProperties.getProperty("BASE_URL", "http://localhost:7862/")}\""
+        )
     }
 
     buildTypes {
@@ -32,6 +49,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
