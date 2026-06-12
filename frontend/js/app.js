@@ -14,7 +14,8 @@
 let isModelReady = false;
 
 // ── 영상 상태 관리 ────────────────────────────────────────────
-const VIDEO_IDLE    = '/assets/loop_bg.webm';
+const VIDEO_IDLE    = '/assets/loop_bg.mp4';
+const IDLE_RETURN_DELAY_MS = 700; // 응답 영상 종료 후 idle 루프 전환까지 여백
 
 function playIdle(url = VIDEO_IDLE) {
   const videoEl     = document.getElementById('video-output');
@@ -291,10 +292,9 @@ async function generateChat() {
     const avatarSel = document.getElementById('avatar-select');
     if (avatarSel && avatarSel.value) form.append('avatar_name', avatarSel.value);
 
-    // MP4 (H264) 스트리밍: 배경이 베이크된 아바타 영상을 컨트롤과 함께 재생
+    // MP4 (H264) 스트리밍: 배경이 베이크된 아바타 영상 재생
     videoEl.muted = false;
     videoEl.loop  = false;
-    videoEl.setAttribute('controls', '');
 
     const MIME   = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
     const useMSE = 'MediaSource' in window && MediaSource.isTypeSupported(MIME);
@@ -318,7 +318,7 @@ async function generateChat() {
             const loadingEl = document.getElementById('loading-video');
             if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
           }, { once: true });
-          videoEl.addEventListener('ended', () => playIdle(), { once: true });
+          videoEl.addEventListener('ended', () => setTimeout(playIdle, IDLE_RETURN_DELAY_MS), { once: true });
         }
       });
     }
@@ -416,10 +416,10 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl, onEnd
     if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
   }, { once: true });
 
-  // 영상 종료 시 모니터 정리 후 idle로 복귀
+  // 영상 종료 시 모니터 정리 후 여백을 두고 idle로 복귀
   videoEl.addEventListener('ended', () => {
     clearTimeout(monitorId);
-    if (onEnded) onEnded();
+    setTimeout(() => { if (onEnded) onEnded(); }, IDLE_RETURN_DELAY_MS);
   }, { once: true });
 
   // 버퍼 직접 모니터링

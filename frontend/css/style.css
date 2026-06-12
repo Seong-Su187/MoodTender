@@ -1004,12 +1004,17 @@ button:not(:disabled):hover {
 }
 
 .stage-top {
-  z-index: 1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 12px;
+  padding: 16px 16px 12px 28px;
+  background: linear-gradient(rgba(5, 3, 10, 0.55), transparent);
 }
 
 .stage-kicker {
@@ -1029,10 +1034,9 @@ button:not(:disabled):hover {
 
 /* 좌 2/3 : 아바타 영상 패널 */
 .avatar-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  padding: 22px 16px 20px 28px;
-  gap: 12px;
   min-height: 0;
   background:
     linear-gradient(rgba(5, 3, 10, 0.28), rgba(5, 3, 10, 0.28)),
@@ -1221,7 +1225,7 @@ button:not(:disabled):hover {
 #video-output {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: none;
   background: transparent;
   border: none;
@@ -1233,7 +1237,7 @@ button:not(:disabled):hover {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: none;
   background: transparent;
   border: none;
