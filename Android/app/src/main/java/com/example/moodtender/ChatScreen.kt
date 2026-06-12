@@ -2,6 +2,7 @@ package com.example.moodtender
 
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,12 +26,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// 말풍선 컴포넌트
 @Composable
 fun ChatBubble(msg: String) {
     val isUser = msg.startsWith("나: ")
     val cleanMsg = msg.removePrefix("나: ")
-
     val bubbleColor = if (isUser) Color(0xFF6D4C41) else Color(0xFFD7CCC8)
     val textColor = if (isUser) Color.White else Color.Black
 
@@ -44,12 +43,7 @@ fun ChatBubble(msg: String) {
             shadowElevation = 2.dp,
             modifier = Modifier.widthIn(max = 280.dp)
         ) {
-            Text(
-                text = cleanMsg,
-                color = textColor,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(12.dp)
-            )
+            Text(text = cleanMsg, color = textColor, fontSize = 16.sp, modifier = Modifier.padding(12.dp))
         }
     }
 }
@@ -63,7 +57,6 @@ fun ChatScreen(userId: Int, token: String) {
     var text by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     val messages = remember { mutableStateListOf("어서오세요. 어떤 마음을 담아드릴까요?") }
-
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_animation))
 
     ModalNavigationDrawer(
@@ -73,58 +66,53 @@ fun ChatScreen(userId: Int, token: String) {
                 Spacer(Modifier.height(12.dp))
                 Text("설정", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
                 HorizontalDivider()
-                NavigationDrawerItem(
-                    label = { Text("사용 기록 권한 설정하기") },
-                    selected = false,
-                    onClick = {
-                        context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                        scope.launch { drawerState.close() }
-                    }
-                )
+                NavigationDrawerItem(label = { Text("사용 기록 권한 설정") }, selected = false, onClick = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)); scope.launch { drawerState.close() } })
             }
         }
     ) {
         Scaffold(
             topBar = {
-                // 🚀 수정: title을 비우고 배경을 투명하게 하여 아이콘만 강조
                 TopAppBar(
                     title = { },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Text("☰", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        }
-                    },
+                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Text("☰", fontSize = 24.sp, fontWeight = FontWeight.Bold) } },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                 )
             }
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
 
+                // 메인 컨테이너: Column으로 세로 배치
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .paint(painter = painterResource(id = R.drawable.paper_background), contentScale = ContentScale.Crop)
-                        .padding(24.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = "Order Menu",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4E342E),
-                        modifier = Modifier.padding(bottom = 16.dp)
+                    // 1. 사진에 있는 큰 ORDER MENU 이미지 (여기에 실제 이미지 리소스 ID를 넣으세요!)
+                    // 예: R.drawable.ic_order_menu_title
+                    Image(
+                        painter = painterResource(id = R.drawable.order_menu_title), // 👈 실제 이미지 리소스 ID로 교체 필요
+                        contentDescription = "Order Menu Title",
+                        modifier = Modifier.fillMaxWidth().height(80.dp).padding(vertical = 8.dp),
+                        contentScale = ContentScale.Fit
                     )
 
-                    LazyColumn(modifier = Modifier.weight(1f)) {
-                        items(messages) { msg ->
-                            ChatBubble(msg = msg)
-                        }
+                    // 2. 대화창 (weight(1f)를 주어 남은 공간을 독점하게 함)
+                    LazyColumn(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        items(messages) { msg -> ChatBubble(msg = msg) }
                     }
 
+                    // 3. 하단 입력창
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(bottom = 16.dp) // 화면 바닥과 여백
                             .background(Color(0xE6FFF3E0), RoundedCornerShape(30.dp))
-                            .padding(horizontal = 16.dp),
+                            .height(56.dp)
+                            .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextField(
@@ -152,16 +140,10 @@ fun ChatScreen(userId: Int, token: String) {
                     }
                 }
 
+                // 로딩 애니메이션
                 if (isLoading) {
-                    Box(
-                        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        LottieAnimation(
-                            composition = composition,
-                            iterations = LottieConstants.IterateForever,
-                            modifier = Modifier.size(150.dp)
-                        )
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                        LottieAnimation(composition = composition, iterations = LottieConstants.IterateForever, modifier = Modifier.size(150.dp))
                     }
                 }
             }
