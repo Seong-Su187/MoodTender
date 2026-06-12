@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
 
         val sharedPref = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
         val loggedInUserId = sharedPref.getInt("USER_ID", -1)
-        val token = sharedPref.getString("TOKEN", "") ?: ""
+        val token = sharedPref.getString("ACCESS_TOKEN", "") ?: ""
 
         setContent {
             // 권한 체크 상태

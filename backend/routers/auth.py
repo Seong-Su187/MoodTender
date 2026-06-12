@@ -12,6 +12,7 @@ from backend.config import SECRET_KEY, ALGORITHM
 
 router = APIRouter()
 
+# 기존 토큰 검증 함수
 def get_current_user_token(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="토큰이 없습니다.")
@@ -24,6 +25,18 @@ def get_current_user_token(authorization: str = Header(None)):
         return payload
     except JWTError:
         raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+
+# 🚀 [추가] DB에서 실제 유저 객체를 가져오는 의존성 함수
+async def get_current_user(
+    token_payload: dict = Depends(get_current_user_token), 
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    username = token_payload.get("sub")
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
+    return user
 
 @router.post("/signup")
 async def signup(user: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -44,12 +57,10 @@ async def login(user: UserCreate, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 틀렸습니다.")
     
     token_data = create_access_token(db_user.username)
-    
-    # 🚀 로그인 성공 시 Token 모델(access_token, token_type, id)을 반환
     return {
         "access_token": token_data["access_token"], 
         "token_type": token_data["token_type"],
-        "id": db_user.id  # 👈 핵심: 앱에서 유저 ID를 저장할 수 있도록 반환
+        "id": db_user.id
     }
 
 @router.post("/logout")
@@ -71,18 +82,6 @@ async def check_username(username: str, db: AsyncSession = Depends(get_db)):
 
 @router.get("/users/me/status")
 async def get_my_pairing_status(
-    token_payload: dict = Depends(get_current_user_token), 
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user)
 ):
-    # 1. 토큰 안에 들어있는 유저명을 꺼냅니다.
-    username = token_payload.get("sub") 
-    
-    # 2. 내 계정 정보를 DB에서 정확히 찾습니다.
-    result = await db.execute(select(User).where(User.username == username))
-    user = result.scalars().first()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
-        
-    # 3. 내 연동 상태와 '진짜 내 ID 번호'를 같이 넘겨줍니다.
-    return {"is_device_paired": user.is_device_paired, "user_id": user.id}
+    return {"is_device_paired": current_user.is_device_paired, "user_id": current_user.id}
