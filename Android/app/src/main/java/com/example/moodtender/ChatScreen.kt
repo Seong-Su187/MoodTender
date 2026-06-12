@@ -2,7 +2,6 @@ package com.example.moodtender
 
 import android.content.Intent
 import android.provider.Settings
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// 카카오톡 스타일 갈색 테마 말풍선
 @Composable
 fun ChatBubble(msg: String) {
     val isUser = msg.startsWith("나: ")
@@ -81,23 +81,17 @@ fun ChatScreen(userId: Int, token: String) {
         ) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
 
-                // 메인 컨테이너: Column으로 세로 배치
+                // 메인 컨테이너 (배경 유지)
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .paint(painter = painterResource(id = R.drawable.paper_background), contentScale = ContentScale.Crop)
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    // 1. 사진에 있는 큰 ORDER MENU 이미지 (여기에 실제 이미지 리소스 ID를 넣으세요!)
-                    // 예: R.drawable.ic_order_menu_title
-                    Image(
-                        painter = painterResource(id = R.drawable.paper_background), // 👈 실제 이미지 리소스 ID로 교체 필요
-                        contentDescription = "Order Menu Title",
-                        modifier = Modifier.fillMaxWidth().height(80.dp).padding(vertical = 8.dp),
-                        contentScale = ContentScale.Fit
-                    )
 
-                    // 2. 대화창 (weight(1f)를 주어 남은 공간을 독점하게 함)
+                    // 🚀 'Order Menu' 사진은 여기서 삭제되었습니다.
+
+                    // 대화창 (LazyColumn)
                     LazyColumn(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         contentPadding = PaddingValues(vertical = 8.dp)
@@ -105,38 +99,51 @@ fun ChatScreen(userId: Int, token: String) {
                         items(messages) { msg -> ChatBubble(msg = msg) }
                     }
 
-                    // 3. 하단 입력창
+                    // 하단 입력창 (깨짐 방지 처리 완료)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp) // 화면 바닥과 여백
-                            .background(Color(0xE6FFF3E0), RoundedCornerShape(30.dp))
+                            .padding(bottom = 16.dp)
                             .height(56.dp)
-                            .padding(horizontal = 8.dp),
+                            .background(Color(0xE6FFF3E0), RoundedCornerShape(30.dp)),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextField(
                             value = text,
                             onValueChange = { text = it },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).height(56.dp),
                             enabled = !isLoading,
-                            colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent)
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent, // 밑줄 제거
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent
+                            ),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp)
                         )
-                        IconButton(onClick = {
-                            if (text.isNotBlank()) {
-                                isLoading = true
-                                val msg = text
-                                text = ""
-                                messages.add("나: $msg")
-                                scope.launch {
-                                    try {
-                                        val response = withContext(Dispatchers.IO) { RetrofitClient.instance.postChat("Bearer $token", ChatRequest(userId, msg)).execute() }
-                                        response.body()?.let { messages.add(it.reply) }
-                                    } catch (e: Exception) { messages.add("서버 연결 실패") }
-                                    isLoading = false
+                        IconButton(
+                            onClick = {
+                                if (text.isNotBlank()) {
+                                    isLoading = true
+                                    val msg = text
+                                    text = ""
+                                    messages.add("나: $msg")
+                                    scope.launch {
+                                        try {
+                                            val response = withContext(Dispatchers.IO) { RetrofitClient.instance.postChat("Bearer $token", ChatRequest(userId, msg)).execute() }
+                                            response.body()?.let { messages.add(it.reply) }
+                                        } catch (e: Exception) { messages.add("서버 연결 실패") }
+                                        isLoading = false
+                                    }
                                 }
-                            }
-                        }, enabled = !isLoading) { Text("➔", fontSize = 24.sp) }
+                            },
+                            enabled = !isLoading,
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text("➔", fontSize = 24.sp, color = Color(0xFF6D4C41))
+                        }
                     }
                 }
 
