@@ -26,9 +26,11 @@ interface ApiService {
     @POST("/api/login")
     fun login(@Body request: UserCreate): Call<LoginResponse>
 
-    @POST("/api/mobile/health-data")
-    fun sendHealthData(@Body request: HealthDataRequest): Call<Any>
+    @GET("/api/mobile/health-data")
+    fun getHealthData(@Header("Authorization") token: String): Call<HealthResponse>
 
+    @POST("/api/mobile/health-data")
+    fun sendHealthData(@Body request: HealthDataRequest): Call<Any> // 👈 이 줄이 반드시 있어야 합니다
     @POST("/api/mobile/pairing/verify")
     fun verifyPairing(@Body request: VerifyRequest): Call<VerifyResponse>
 

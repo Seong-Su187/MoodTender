@@ -1,6 +1,8 @@
 package com.example.moodtender
 
+import android.app.AppOpsManager
 import android.content.Context
+import android.os.Bundle
 import android.os.Process
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,13 +20,15 @@ class MainActivity : ComponentActivity() {
 
         val sharedPref = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
         val loggedInUserId = sharedPref.getInt("USER_ID", -1)
-        val token = sharedPref.getString("TOKEN", "") ?: "" // 토큰도 저장되어 있다고 가정
+        val token = sharedPref.getString("TOKEN", "") ?: ""
 
         setContent {
+            // 권한 체크 상태
             var hasPermission by remember { mutableStateOf(hasUsageStatsPermission()) }
             val navController = rememberNavController()
 
             if (!hasPermission) {
+                // PermissionScreen이 같은 패키지(com.example.moodtender)에 있는지 확인하세요!
                 PermissionScreen(onPermissionGranted = {
                     hasPermission = hasUsageStatsPermission()
                 })

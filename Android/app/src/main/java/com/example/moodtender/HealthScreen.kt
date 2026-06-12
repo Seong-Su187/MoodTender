@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.moodtender.data.HealthData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,29 +21,39 @@ import kotlinx.coroutines.withContext
 fun HealthScreen(token: String, onNavigateBack: () -> Unit) {
     var allHealthData by remember { mutableStateOf<List<HealthData>>(emptyList()) }
     var selectedDate by remember { mutableStateOf<String?>(null) }
+
+    // 데이터가 로드된 후 currentData를 찾습니다.
     val currentData = allHealthData.find { it.recordDate == selectedDate }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
-                val response = RetrofitClient.instance.getWebData("Bearer $token").execute()
+                // 🚀 ApiService에 추가한 getHealthData 사용
+                val response = RetrofitClient.instance.getHealthData("Bearer $token").execute()
                 if (response.isSuccessful) {
-                    allHealthData = response.body()?.data ?: emptyList()
+                    val body = response.body()
+                    allHealthData = body?.data ?: emptyList()
                     selectedDate = allHealthData.lastOrNull()?.recordDate
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        IconButton(onClick = onNavigateBack) { Text("← 뒤로가기", fontWeight = FontWeight.Bold) }
+        IconButton(onClick = onNavigateBack) {
+            Text("← 뒤로가기", fontWeight = FontWeight.Bold)
+        }
 
         Text("내 건강 리포트", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
 
-        DateSelector(allHealthData, selectedDate) { selectedDate = it }
+        if (allHealthData.isNotEmpty()) {
+            DateSelector(allHealthData, selectedDate) { selectedDate = it }
 
-        if (currentData != null) {
-            HealthStatusCard(currentData)
+            if (currentData != null) {
+                HealthStatusCard(currentData)
+            }
         } else {
             Text("데이터를 불러오는 중입니다...", modifier = Modifier.padding(16.dp))
         }
