@@ -1,12 +1,13 @@
 # coding: utf-8
 import sys
 from pathlib import Path
-_here = Path(__file__).resolve().parent   # backend/
-_root = _here.parent                      # 프로젝트 루트
+_here = Path(__file__).resolve().parent    # backend/
+_root = _here.parent                       # 프로젝트 루트
+
 # 프로젝트 루트 → from backend.xxx 동작
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
-# backend/ → scripts/, musetalk/ 등 ML 라이브러리 동작
+# backend/ → routers/, models/ 등 동작
 if str(_here) not in sys.path:
     sys.path.insert(1, str(_here))
 
@@ -17,13 +18,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import FRONTEND_DIR, VIDEO_DIR
 from backend.database import engine, Base
-from backend.routers import chat
-# 🚀 수정 부분 1: health 라우터 import 추가
-from backend.routers import auth, generation, llm, model_status, stt, health, pairing
+# 🚀 1. 라우터 import (auth, chat, health 등 모두 포함)
+from backend.routers import auth, chat, generation, llm, model_status, stt, health, pairing
+
 # ─── FastAPI 앱 ───────────────────────────────────────────────
 app = FastAPI(title="MoodTender API")
 
-# 비동기 DB 테이블 초기화 (서버 시작 시 실행)
+# 비동기 DB 테이블 초기화
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
@@ -42,16 +43,14 @@ app.add_middleware(
 app.mount("/video", StaticFiles(directory=str(VIDEO_DIR)), name="video")
 
 # ─── 라우터 ───────────────────────────────────────────────────
-app.include_router(auth.router,         prefix="/api", tags=["Auth"])
-app.include_router(model_status.router, prefix="/api", tags=["Model"])
-app.include_router(generation.router,   prefix="/api", tags=["Generation"])
-app.include_router(llm.router,          prefix="/api", tags=["LLM"])
-app.include_router(stt.router,          prefix="/api", tags=["STT"])
+app.include_router(auth.router,          prefix="/api", tags=["Auth"])
+app.include_router(model_status.router,  prefix="/api", tags=["Model"])
+app.include_router(generation.router,    prefix="/api", tags=["Generation"])
+app.include_router(llm.router,           prefix="/api", tags=["LLM"])
+app.include_router(stt.router,           prefix="/api", tags=["STT"])
 app.include_router(pairing.router)
 app.include_router(chat.router) 
-
-# 🚀 수정 부분 2: 모바일 건강 데이터 라우터 등록
-# (health.py 내부에 이미 prefix="/api/mobile"이 설정되어 있습니다)
+# 🚀 2. 헬스 데이터 라우터 포함
 app.include_router(health.router)
 
 # ─── 프론트엔드 ───────────────────────────────────────────────
@@ -71,7 +70,6 @@ async def loading_page():
 async def dashboard_page():
     return FileResponse(FRONTEND_DIR / "dashboard.html")
 
-# frontend/ 폴더를 루트 경로에 마운트 (위 페이지 라우트가 우선 매칭됨)
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 if __name__ == "__main__":

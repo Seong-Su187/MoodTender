@@ -1,6 +1,5 @@
 package com.example.moodtender
 
-import android.app.AppOpsManager
 import android.content.Context
 import android.os.Process
 import androidx.activity.ComponentActivity
@@ -14,7 +13,6 @@ import com.example.moodtender.workers.DataSyncWorker
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
