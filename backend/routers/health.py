@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert 
 from backend.database import get_db
 from backend.models import schemas, domain
+from backend.routers.auth import get_current_user # 🚀 의존성 임포트
 
 router = APIRouter(
     tags=["Health Data"]
@@ -15,14 +16,13 @@ router = APIRouter(
 @router.post("/api/mobile/health-data")
 async def save_health_data(
     data: schemas.HealthDataCreate, 
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: domain.User = Depends(get_current_user) # 🚀 유저 자동 주입
 ):
-    current_user_id = 1 # 테스트용 고정 ID
-
     try:
-        # PostgreSQL UPSERT 쿼리
+        # PostgreSQL UPSERT 쿼리 (current_user.id 사용)
         stmt = insert(domain.HealthMetric).values(
-            user_id=current_user_id,
+            user_id=current_user.id,
             record_date=data.record_date,
             step_count=data.step_count,
             sleep_minutes=data.sleep_minutes,
@@ -31,7 +31,6 @@ async def save_health_data(
             depression_score=data.depression_score
         )
 
-        # 🚀 에러 방지: 제약조건 이름 대신 컬럼 조합을 사용하여 충돌 처리
         do_update_stmt = stmt.on_conflict_do_update(
             index_elements=['user_id', 'record_date'], 
             set_=dict(
@@ -49,7 +48,6 @@ async def save_health_data(
 
     except Exception as e:
         await db.rollback()
-        # 에러 로그 출력
         print(f"DATABASE ERROR: {str(e)}") 
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -57,12 +55,14 @@ async def save_health_data(
 # 🌐 2. 웹 대시보드 데이터 제공
 # ---------------------------------------------------------
 @router.get("/api/web/data")
-async def get_web_data(db: AsyncSession = Depends(get_db)):
-    current_user_id = 1
-    
+async def get_web_data(
+    db: AsyncSession = Depends(get_db),
+    current_user: domain.User = Depends(get_current_user) # 🚀 유저 자동 주입
+):
+    # current_user.id 사용 (고정 1 삭제)
     result = await db.execute(
         select(domain.HealthMetric)
-        .where(domain.HealthMetric.user_id == current_user_id)
+        .where(domain.HealthMetric.user_id == current_user.id)
         .order_by(domain.HealthMetric.record_date.asc())
     )
     records = result.scalars().all()
