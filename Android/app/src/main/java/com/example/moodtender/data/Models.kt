@@ -12,10 +12,10 @@ data class HealthData(
     val screenTimeMinutes: Int
 )
 
-// 채팅 요청용
+// 채팅 요청용 (기존 ChatScreen.kt와 호환되도록 필드명 유지)
 data class ChatRequest(
-    val userId: Int,
-    val msg: String
+    val user_id: Int,
+    val text: String
 )
 
 // 채팅 응답용 (emotion 포함 버전)
