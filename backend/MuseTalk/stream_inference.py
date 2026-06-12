@@ -38,6 +38,16 @@ def _black_bg_alpha(frame: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return a
 
 
+def _white_bg_alpha(frame: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    """흰 배경 아바타에서 캐릭터 알파 마스크 생성 (RGB min-value 임계값 방식)."""
+    min_rgb = frame.min(axis=2)                              # (H, W) 각 픽셀의 최소 채널값
+    a = np.where(min_rgb < 243, np.uint8(255), np.uint8(0))  # 흰 배경(≥243) = 투명
+    a = cv2.morphologyEx(a, cv2.MORPH_CLOSE, kernel, iterations=2)  # 옷 안의 작은 구멍 메우기 (윤곽선 위치는 유지)
+    a = cv2.erode(a, kernel, iterations=1)                  # 가장자리 검정 fringe 1px 제거
+    a = cv2.GaussianBlur(a, (7, 7), 0)                      # 엣지 부드럽게
+    return a
+
+
 def inference_stream(
     avatar, audio_path, fps, ffmpeg_bin,
     pe, unet, vae, timesteps,
@@ -45,6 +55,7 @@ def inference_stream(
     audio_pad_left=2, audio_pad_right=2,
     taesd=None,
     composite_bg=True,
+    bg_alpha_mode="black",
 ):
     """
     MuseTalk 추론 결과를 프레임 단위로 FFmpeg에 파이프하고
@@ -80,9 +91,11 @@ def inference_stream(
         bar_bg    = cv2.resize(_raw_bg, (W, H)) if _raw_bg is not None else None
         bar_bg_u16 = bar_bg.astype(np.uint16) if bar_bg is not None else None
         _erode_kernel = np.ones((3, 3), np.uint8)
+        _alpha_fn = _white_bg_alpha if bg_alpha_mode == "white" else _black_bg_alpha
     else:
         bar_bg_u16 = None
         _erode_kernel = None
+        _alpha_fn = None
 
     # ── 3. FFmpeg 프로세스 시작 ─────────────────────────────────
     cmd = [
@@ -206,7 +219,7 @@ def inference_stream(
                 mc    = avatar.mask_coords_list_cycle[idx % len(avatar.mask_coords_list_cycle)]
                 frame = get_image_blending(ori, rf, bbox, mask, mc)
                 if bar_bg_u16 is not None:
-                    a_u8 = _black_bg_alpha(ori, _erode_kernel)
+                    a_u8 = _alpha_fn(ori, _erode_kernel)
                     a = a_u8[:, :, np.newaxis].astype(np.uint16)
                     frame = ((frame.astype(np.uint16) * a + bar_bg_u16 * (255 - a)) >> 8).astype(np.uint8)
                 proc.stdin.write(frame.tobytes())

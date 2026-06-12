@@ -19,11 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val InkBrown = Color(0xFF4E342E)
-
 @Composable
 fun PermissionScreen(onPermissionGranted: () -> Unit) {
     val context = LocalContext.current
+
+    val InkBrown = Color(0xFF4E342E)
 
     Column(
         modifier = Modifier

@@ -331,10 +331,12 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
 
             if avatar_name:
                 av = _get_video_avatar(avatar_name)
-                composite_bg = False  # 영상 아바타는 배경이 이미 합성되어 있음
+                composite_bg = True
+                bg_alpha_mode = "white"  # backend/video/*.mp4는 흰 배경
             else:
                 av = ml_manager.custom_avatar
                 composite_bg = True
+                bg_alpha_mode = "black"  # 커스텀(LivePortrait) 아바타는 검정 배경
             first = True
             for chunk in _infer_stream(
                 av, audio_path, ml_manager.args.fps, FFMPEG_PATH,
@@ -345,6 +347,7 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
                 ml_manager.args.audio_padding_length_right,
                 taesd=ml_manager.taesd_decoder,
                 composite_bg=composite_bg,
+                bg_alpha_mode=bg_alpha_mode,
             ):
                 if first:
                     print(f"[Stream] 첫 청크: {time.time()-t0:.1f}초")

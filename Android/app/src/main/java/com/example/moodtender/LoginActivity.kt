@@ -26,9 +26,12 @@ class LoginActivity : ComponentActivity() {
                         if (response.isSuccessful) {
                             val userId = response.body()!!.id
 
-                            // ID 저장
+                            // ID 및 토큰 저장
                             val sharedPref = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
-                            sharedPref.edit().putInt("USER_ID", userId).apply()
+                            sharedPref.edit()
+                                .putInt("USER_ID", userId)
+                                .putString("ACCESS_TOKEN", response.body()!!.access_token)
+                                .apply()
 
                             // 로그인 성공 -> MainActivity로 이동
                             startActivity(Intent(this@LoginActivity, MainActivity::class.java))
