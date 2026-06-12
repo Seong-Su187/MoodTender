@@ -129,9 +129,12 @@ fun ChatScreen(userId: Int, token: String, onNavigateToHealth: () -> Unit) {
                                         messages.add("나: $msg")
                                         scope.launch {
                                             try {
-                                                // 🚀 여기가 핵심 수정 부분입니다.
+                                                // 토큰과 함께 ChatRequest 전송
                                                 val response = withContext(Dispatchers.IO) {
-                                                    RetrofitClient.instance.postChat(ChatRequest(user_id = userId, text = msg)).execute()
+                                                    RetrofitClient.instance.postChat(
+                                                        "Bearer $token",
+                                                        ChatRequest(user_id = userId, text = msg)
+                                                    ).execute()
                                                 }
                                                 response.body()?.let { messages.add(it.reply) }
                                             } catch (e: Exception) { messages.add("서버 연결 실패") }
