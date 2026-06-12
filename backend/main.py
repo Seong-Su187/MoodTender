@@ -58,6 +58,18 @@ app.include_router(health.router)
 async def index():
     return FileResponse(FRONTEND_DIR / "index.html")
 
+@app.get("/login")
+async def login_page():
+    return FileResponse(FRONTEND_DIR / "login.html")
+
+@app.get("/loading")
+async def loading_page():
+    return FileResponse(FRONTEND_DIR / "loading.html")
+
+@app.get("/dashboard")
+async def dashboard_page():
+    return FileResponse(FRONTEND_DIR / "dashboard.html")
+
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 if __name__ == "__main__":
