@@ -58,7 +58,6 @@ class ChatMessage(Base):
     user_id = Column(BigInteger, ForeignKey("users.id"))
     role = Column(String(20), nullable=False) # 'user' 또는 'assistant'
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(1536))
     created_at = Column(DateTime, server_default=func.now())
 
 # --- 🚀 새로 추가된 모바일 건강 데이터 테이블 ---

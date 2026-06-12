@@ -26,7 +26,7 @@ interface ApiService {
     @POST("/api/login")
     fun login(@Body request: UserCreate): Call<LoginResponse>
 
-    @GET("/api/mobile/health-data")
+    @GET("/api/web/data")
     fun getHealthData(@Header("Authorization") token: String): Call<HealthResponse>
 
     @POST("/api/mobile/health-data")
