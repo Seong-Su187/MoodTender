@@ -5,35 +5,47 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.*
+import androidx.work.*
+import com.example.moodtender.workers.DataSyncWorker
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val sharedPref = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
         val loggedInUserId = sharedPref.getInt("USER_ID", -1)
         val accessToken = sharedPref.getString("ACCESS_TOKEN", "") ?: ""
+        val isPaired = sharedPref.getBoolean("IS_PAIRED", false)
 
         setContent {
-            var hasPermission by remember { mutableStateOf(hasUsageStatsPermission()) }
-
-            if (hasPermission) {
+            if (isPaired) {
+                // 이미 연동됨 -> 바로 채팅 화면으로
+                val intent = Intent(this@MainActivity, ChatActivity::class.java).apply {
+                    putExtra("USER_ID", loggedInUserId)
+                    putExtra("ACCESS_TOKEN", accessToken)
+                }
+                startActivity(intent)
+                finish()
+            } else {
+                // 연동 필요 -> 페어링 화면으로
                 PairingScreen(currentUserId = loggedInUserId) {
-                    // 성공 시 인텐트에 USER_ID와 토큰을 담아 ChatActivity로 전송
-                    val intent = Intent(this@MainActivity, ChatActivity::class.java)
-                    intent.putExtra("USER_ID", loggedInUserId)
-                    intent.putExtra("ACCESS_TOKEN", accessToken)
+                    val intent = Intent(this@MainActivity, ChatActivity::class.java).apply {
+                        putExtra("USER_ID", loggedInUserId)
+                        putExtra("ACCESS_TOKEN", accessToken)
+                    }
                     startActivity(intent)
                     finish()
                 }
-            } else {
-                PermissionScreen(onPermissionGranted = { hasPermission = hasUsageStatsPermission() })
             }
         }
+        scheduleSyncWork()
     }
 
-    private fun hasUsageStatsPermission(): Boolean {
-        // (기존 권한 체크 로직 유지)
-        return true // 예시로 true 반환
+    private fun scheduleSyncWork() {
+        val workRequest = PeriodicWorkRequestBuilder<DataSyncWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork("MoodTenderSync", ExistingPeriodicWorkPolicy.KEEP, workRequest)
     }
 }
