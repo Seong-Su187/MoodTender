@@ -91,7 +91,7 @@ fun ChatScreen(userId: Int, token: String) {
                     // 1. 사진에 있는 큰 ORDER MENU 이미지 (여기에 실제 이미지 리소스 ID를 넣으세요!)
                     // 예: R.drawable.ic_order_menu_title
                     Image(
-                        painter = painterResource(id = R.drawable.order_menu_title), // 👈 실제 이미지 리소스 ID로 교체 필요
+                        painter = painterResource(id = R.drawable.paper_background), // 👈 실제 이미지 리소스 ID로 교체 필요
                         contentDescription = "Order Menu Title",
                         modifier = Modifier.fillMaxWidth().height(80.dp).padding(vertical = 8.dp),
                         contentScale = ContentScale.Fit
