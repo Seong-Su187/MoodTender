@@ -73,6 +73,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
     implementation("com.airbnb.android:lottie-compose:6.0.0")
     implementation("androidx.appcompat:appcompat:1.7.0")

@@ -1,10 +1,15 @@
 package com.example.moodtender
 
+import android.app.AppOpsManager
 import android.content.Context
-import android.content.Intent
 import android.os.Bundle
+import android.os.Process
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.work.*
 import com.example.moodtender.workers.DataSyncWorker
 import java.util.concurrent.TimeUnit
@@ -15,31 +20,44 @@ class MainActivity : ComponentActivity() {
 
         val sharedPref = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
         val loggedInUserId = sharedPref.getInt("USER_ID", -1)
-        val accessToken = sharedPref.getString("ACCESS_TOKEN", "") ?: ""
-        val isPaired = sharedPref.getBoolean("IS_PAIRED", false)
+        val token = sharedPref.getString("TOKEN", "") ?: ""
 
         setContent {
-            if (isPaired) {
-                // 이미 연동됨 -> 바로 채팅 화면으로
-                val intent = Intent(this@MainActivity, ChatActivity::class.java).apply {
-                    putExtra("USER_ID", loggedInUserId)
-                    putExtra("ACCESS_TOKEN", accessToken)
-                }
-                startActivity(intent)
-                finish()
+            // 권한 체크 상태
+            var hasPermission by remember { mutableStateOf(hasUsageStatsPermission()) }
+            val navController = rememberNavController()
+
+            if (!hasPermission) {
+                // PermissionScreen이 같은 패키지(com.example.moodtender)에 있는지 확인하세요!
+                PermissionScreen(onPermissionGranted = {
+                    hasPermission = hasUsageStatsPermission()
+                })
             } else {
-                // 연동 필요 -> 페어링 화면으로
-                PairingScreen(currentUserId = loggedInUserId) {
-                    val intent = Intent(this@MainActivity, ChatActivity::class.java).apply {
-                        putExtra("USER_ID", loggedInUserId)
-                        putExtra("ACCESS_TOKEN", accessToken)
+                // 권한이 있을 때만 내비게이션 실행
+                NavHost(navController = navController, startDestination = "chat") {
+                    composable("chat") {
+                        ChatScreen(
+                            userId = loggedInUserId,
+                            token = token,
+                            onNavigateToHealth = { navController.navigate("health") }
+                        )
                     }
-                    startActivity(intent)
-                    finish()
+                    composable("health") {
+                        HealthScreen(
+                            token = token,
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
                 }
             }
         }
         scheduleSyncWork()
+    }
+
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+        return mode == AppOpsManager.MODE_ALLOWED
     }
 
     private fun scheduleSyncWork() {
