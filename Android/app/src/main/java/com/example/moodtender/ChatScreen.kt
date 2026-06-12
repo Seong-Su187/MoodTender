@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airbnb.lottie.compose.*
-// 🚀 아래 두 import가 빨간 줄을 해결해 줄 핵심입니다!
 import com.example.moodtender.data.ChatRequest
 import com.example.moodtender.data.LLMResponse
 import kotlinx.coroutines.Dispatchers
@@ -130,7 +129,10 @@ fun ChatScreen(userId: Int, token: String, onNavigateToHealth: () -> Unit) {
                                         messages.add("나: $msg")
                                         scope.launch {
                                             try {
-                                                val response = withContext(Dispatchers.IO) { RetrofitClient.instance.postChat(ChatRequest(userId, msg)).execute() }
+                                                // 🚀 여기가 핵심 수정 부분입니다.
+                                                val response = withContext(Dispatchers.IO) {
+                                                    RetrofitClient.instance.postChat(ChatRequest(user_id = userId, text = msg)).execute()
+                                                }
                                                 response.body()?.let { messages.add(it.reply) }
                                             } catch (e: Exception) { messages.add("서버 연결 실패") }
                                             isLoading = false
