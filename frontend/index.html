@@ -53,6 +53,56 @@
     </div>
   </div>
 
+  <!-- 감정 영수증 모달 -->
+  <div id="receipt-modal" class="receipt-modal" style="display:none;">
+    <div class="receipt-modal-panel">
+      <div class="receipt-modal-header">
+        <h2>🧾 감정 영수증</h2>
+        <button onclick="closeReceiptModal()" aria-label="닫기">✕</button>
+      </div>
+      <div class="receipt-modal-body">
+        <!-- 왼쪽: 달력 -->
+        <div class="receipt-left">
+          <div class="receipt-calendar-nav">
+            <button class="receipt-nav-btn" onclick="changeReceiptMonth(-1)">&#8592;</button>
+            <span id="receipt-month-label"></span>
+            <button class="receipt-nav-btn" onclick="changeReceiptMonth(1)">&#8594;</button>
+          </div>
+          <div class="receipt-calendar-grid">
+            <div class="receipt-cal-weekdays">
+              <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+            </div>
+            <div id="receipt-cal-days" class="receipt-cal-days"></div>
+          </div>
+        </div>
+        <!-- 오른쪽: 영수증 내용 -->
+        <div class="receipt-right" id="receipt-right">
+          <div class="receipt-empty-state" id="receipt-empty-state">
+            <span>날짜를 선택하면<br>감정 영수증을 볼 수 있어요.</span>
+          </div>
+          <div class="receipt-detail" id="receipt-detail" style="display:none;">
+            <div class="rc-paper">
+              <div class="rc-top-perf"></div>
+              <div class="rc-brand">MOODTENDER</div>
+              <div class="rc-title">감정 영수증</div>
+              <div class="rc-date" id="receipt-card-date"></div>
+              <div class="rc-line"></div>
+              <div class="rc-section-label">오늘의 감정</div>
+              <div class="rc-field"><span>감정</span><span id="rc-emotion">-</span></div>
+              <div class="rc-field"><span>날씨</span><span id="rc-weather">-</span></div>
+              <div class="rc-field"><span>추천 칵테일</span><span id="rc-cocktail">-</span></div>
+              <div class="rc-line rc-line--dashed"></div>
+              <div class="rc-summary" id="rc-summary"></div>
+              <div class="rc-line rc-line--dashed"></div>
+              <div class="rc-footer">✦ THANK YOU ✦</div>
+              <div class="rc-bottom-perf"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="dashboard-modal" class="dashboard-modal" aria-hidden="true">
     <div class="dashboard-modal-panel" role="dialog" aria-modal="true" aria-label="건강 분석 대시보드">
       <div class="dashboard-modal-header">
@@ -92,6 +142,11 @@
         <button class="nav-link" type="button" onclick="openHistoryModal()">
           <span class="nav-icon icon-history" aria-hidden="true"></span>
           <span>대화 기록</span>
+        </button>
+
+        <button class="nav-link" type="button" onclick="openReceiptModal()">
+          <span class="nav-icon icon-receipt" aria-hidden="true"></span>
+          <span>감정 영수증</span>
         </button>
 
         <div class="nav-section-label">설정</div>
@@ -193,7 +248,21 @@
     </section>
   </main>
 
+  <div class="toast-container" id="toast-container"></div>
+
   <script>
+    function showToast(message, icon = '✓', duration = 3000) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span class="toast-icon">${icon}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
     function toggleSidebar() {
       document.getElementById('sidebar').classList.toggle('open');
       document.getElementById('sidebar-overlay').classList.toggle('show');
@@ -243,7 +312,8 @@
             if (overlay) {
               overlay.style.display = 'none'; 
             }
-            alert("로그인 완료!"); // 🚀 연동 패스 시 팝업
+            showToast('로그인 완료!', '✓');
+          showToast('디바이스가 이미 연동되어 있어요.', '🔗');
             console.log("✅ 이미 연동된 유저입니다. 자동 잠금 해제 완료!");
           } else {
              console.log("🔒 디바이스 연동이 필요합니다.");
@@ -254,14 +324,8 @@
       }
     }
 
-    // 화면 로딩 시 연동 상태 즉시 체크
     window.addEventListener('DOMContentLoaded', () => {
       checkDevicePairingStatus();
-    });
-
-    // 🌟 2. 새로 추가: HTML 화면이 로딩되자마자 위 함수를 바로 실행시킴
-    window.addEventListener('DOMContentLoaded', () => {
-      checkDevicePairingStatus(currentWebUserId);
     });
     function startPairing() {
       // 내 ID가 아직 로드되지 않았다면 방어
@@ -383,6 +447,109 @@
 
     function closeHistoryModal() {
       document.getElementById('history-modal').style.display = 'none';
+    }
+
+    // 감정 영수증
+    let receiptYear = new Date().getFullYear();
+    let receiptMonth = new Date().getMonth();
+    let receiptData = {};
+
+    async function openReceiptModal() {
+      document.getElementById('receipt-modal').style.display = 'flex';
+      closeSidebar();
+      await loadReceiptData();
+      renderReceiptCalendar();
+    }
+
+    function closeReceiptModal() {
+      document.getElementById('receipt-modal').style.display = 'none';
+      closeReceiptCard();
+    }
+
+    async function loadReceiptData() {
+      try {
+        const token = localStorage.getItem('access_token');
+        const res = await fetch('/api/emotion/receipts', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          receiptData = {};
+          (data.receipts || []).forEach(r => { receiptData[r.receipt_date] = r; });
+        }
+      } catch (e) {
+        receiptData = {};
+      }
+    }
+
+    function changeReceiptMonth(dir) {
+      receiptMonth += dir;
+      if (receiptMonth > 11) { receiptMonth = 0; receiptYear++; }
+      if (receiptMonth < 0)  { receiptMonth = 11; receiptYear--; }
+      renderReceiptCalendar();
+    }
+
+    function renderReceiptCalendar() {
+      const label = document.getElementById('receipt-month-label');
+      label.textContent = `${receiptYear}년 ${receiptMonth + 1}월`;
+
+      const container = document.getElementById('receipt-cal-days');
+      container.innerHTML = '';
+
+      const firstDay = new Date(receiptYear, receiptMonth, 1).getDay();
+      const daysInMonth = new Date(receiptYear, receiptMonth + 1, 0).getDate();
+
+      for (let i = 0; i < firstDay; i++) {
+        const blank = document.createElement('div');
+        blank.className = 'cal-day empty';
+        container.appendChild(blank);
+      }
+
+      const today = new Date();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${receiptYear}-${String(receiptMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const isToday = d === today.getDate() && receiptMonth === today.getMonth() && receiptYear === today.getFullYear();
+        const cell = document.createElement('div');
+        cell.className = 'cal-day' + (receiptData[dateStr] ? ' has-receipt' : '') + (isToday ? ' is-today' : '');
+        const numSpan = document.createElement('span');
+        numSpan.textContent = d;
+        cell.appendChild(numSpan);
+        if (receiptData[dateStr]) {
+          const dot = document.createElement('span');
+          dot.className = 'receipt-dot';
+          cell.appendChild(dot);
+        }
+        cell.style.cursor = 'pointer';
+        cell.onclick = () => {
+          if (cell.classList.contains('selected')) {
+            cell.classList.remove('selected');
+            document.getElementById('receipt-empty-state').style.display = 'flex';
+            document.getElementById('receipt-detail').style.display = 'none';
+          } else {
+            document.querySelectorAll('.cal-day.selected').forEach(el => el.classList.remove('selected'));
+            cell.classList.add('selected');
+            openReceiptCard(dateStr, receiptData[dateStr] || null);
+          }
+        };
+        container.appendChild(cell);
+      }
+    }
+
+    function openReceiptCard(dateStr, data) {
+      document.getElementById('receipt-card-date').textContent = dateStr;
+      if (data) {
+        document.getElementById('rc-emotion').textContent = data.dominant_sub_category || '-';
+        document.getElementById('rc-weather').textContent = data.weather || '-';
+        document.getElementById('rc-cocktail').textContent = data.recommended_cocktail || '-';
+        document.getElementById('rc-summary').textContent = data.summary_note || '아직 감정 영수증이 없어요.';
+      } else {
+        document.getElementById('rc-emotion').textContent = '-';
+        document.getElementById('rc-weather').textContent = '-';
+        document.getElementById('rc-cocktail').textContent = '-';
+        document.getElementById('rc-summary').textContent = '오늘의 감정 영수증은 대화 후 발급돼요.';
+      }
+      document.getElementById('receipt-empty-state').style.display = 'none';
+      document.getElementById('receipt-detail').style.display = 'flex';
     }
   </script>
   <script src="/js/app.js"></script>
