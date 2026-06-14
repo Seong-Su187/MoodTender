@@ -94,7 +94,7 @@
               <div class="rc-top-perf"></div>
               <div class="rc-brand">MOODTENDER</div>
               <div class="rc-title-row">
-                <div class="rc-title">감정 영수증</div>
+                <div class="rc-title" id="rc-title">감정 영수증</div>
                 <span class="rc-cocktail-badge" id="rc-cocktail-badge">
                   <svg class="rc-cocktail-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <polygon points="2,2 22,2 12,15" fill="currentColor"/>
@@ -106,9 +106,9 @@
               </div>
               <div class="rc-date" id="receipt-card-date"></div>
               <div class="rc-line"></div>
-              <div class="rc-section-label">오늘의 감정</div>
+              <div class="rc-section-label" id="rc-section-label">오늘의 감정</div>
               <div class="rc-field">
-                <span>감정</span>
+                <span id="rc-label-emotion">감정</span>
                 <div class="rc-emotion-value">
                   <div class="rc-emotion-main-row">
                     <span class="rc-emotion-dot" id="rc-emotion-dot"></span>
@@ -117,8 +117,8 @@
                   <span class="rc-sub-emotion" id="rc-emotion-sub" style="display:none;"></span>
                 </div>
               </div>
-              <div class="rc-field"><span>날씨</span><span id="rc-weather">-</span></div>
-              <div class="rc-field"><span>추천 칵테일</span><span id="rc-cocktail">-</span></div>
+              <div class="rc-field"><span id="rc-label-weather">날씨</span><span id="rc-weather">-</span></div>
+              <div class="rc-field"><span id="rc-label-cocktail">추천 칵테일</span><span id="rc-cocktail">-</span></div>
               <div class="rc-line rc-line--dashed"></div>
               <div class="rc-summary" id="rc-summary"></div>
               <div class="rc-line rc-line--dashed"></div>
@@ -238,6 +238,9 @@
               <strong>오늘 기분을 천천히 들려주세요.</strong>
             </div>
             <p id="gen-status" class="status-text"></p>
+            <button class="order-menu-btn" id="order-menu-btn" onclick="toggleOrderPanel()">
+              ORDER MENU <span class="omenu-icon">&#9776;</span>
+            </button>
           </div>
 
           <div class="avatar-output" aria-label="아바타 영상 출력">
@@ -250,27 +253,118 @@
         </div>
 
         <div class="chat-panel">
-          <div class="chat-top-space">
-            <span class="chat-kicker">MoodTender Live Bar</span>
-            <p class="chat-subtitle">오늘 기분을 천천히 들려주세요.</p>
+          <div class="panel-tabs">
+            <button class="panel-tab active" onclick="switchPanelTab(this, 'chat')">대화창</button>
+            <button class="panel-tab" onclick="switchPanelTab(this, 'menu')">메뉴창</button>
+            <button class="panel-tab" onclick="switchPanelTab(this, 'music')">음악창</button>
+            <button class="panel-close-btn" onclick="closeOrderPanel()" aria-label="닫기">✕</button>
           </div>
-          <div id="chat-log" class="chat-log" aria-live="polite">
-            <div class="chat-spacer"></div>
-            <div class="message-row assistant">
-              <div class="message-time">방금 전</div>
-              <div class="message-bubble">어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?</div>
+
+          <div id="tab-chat" class="tab-content">
+            <div class="chat-top-space">
+              <span class="chat-kicker">MoodTender Live Bar</span>
+              <p class="chat-subtitle">오늘 기분을 천천히 들려주세요.</p>
+            </div>
+            <div id="chat-log" class="chat-log" aria-live="polite">
+              <div class="chat-spacer"></div>
+              <div class="message-row assistant">
+                <div class="message-time">방금 전</div>
+                <div class="message-bubble">어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?</div>
+              </div>
+            </div>
+            <div class="end-chat-bar">
+              <button class="end-chat-btn" onclick="endConversation()">대화 종료 · 영수증 발급</button>
+            </div>
+            <form class="chat-composer" onsubmit="event.preventDefault(); generateChat();">
+              <button id="mic-btn" class="composer-icon-btn" type="button" title="음성 입력" aria-label="음성 입력">
+                <span class="icon-mic"></span>
+              </button>
+              <input id="text-input" type="text" autocomplete="off" placeholder="메시지를 입력해 주세요." />
+              <button id="generate-btn" class="send-btn" type="submit" disabled aria-label="메시지 전송">
+                <span class="send-arrow"></span>
+              </button>
+            </form>
+          </div>
+
+          <div id="tab-menu" class="tab-content" style="display:none;">
+            <div class="order-menu-panel">
+              <div class="order-menu-title">Order Menu</div>
+              <div class="menu-list">
+                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="주황 칵테일" data-emotion="기쁨">
+                  <span class="menu-item-icon" style="color:#f4923a;filter:drop-shadow(0 0 6px #f4923a88);">
+                    <svg class="menu-cocktail-svg" viewBox="0 0 24 24"><polygon points="2,2 22,2 12,15" fill="currentColor"/><line x1="12" y1="15" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="22" x2="17" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="4.5" r="2" fill="currentColor" opacity="0.6"/></svg>
+                  </span>
+                  <div class="menu-item-info">
+                    <div class="menu-item-name">주황 칵테일</div>
+                    <div class="menu-item-sub">기쁨</div>
+                  </div>
+                </div>
+                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="파랑 칵테일" data-emotion="우울">
+                  <span class="menu-item-icon" style="color:#4a7fc1;filter:drop-shadow(0 0 6px #4a7fc188);">
+                    <svg class="menu-cocktail-svg" viewBox="0 0 24 24"><polygon points="2,2 22,2 12,15" fill="currentColor"/><line x1="12" y1="15" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="22" x2="17" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="4.5" r="2" fill="currentColor" opacity="0.6"/></svg>
+                  </span>
+                  <div class="menu-item-info">
+                    <div class="menu-item-name">파랑 칵테일</div>
+                    <div class="menu-item-sub">우울</div>
+                  </div>
+                </div>
+                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="보라 칵테일" data-emotion="불안">
+                  <span class="menu-item-icon" style="color:#9b59b6;filter:drop-shadow(0 0 6px #9b59b688);">
+                    <svg class="menu-cocktail-svg" viewBox="0 0 24 24"><polygon points="2,2 22,2 12,15" fill="currentColor"/><line x1="12" y1="15" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="22" x2="17" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="4.5" r="2" fill="currentColor" opacity="0.6"/></svg>
+                  </span>
+                  <div class="menu-item-info">
+                    <div class="menu-item-name">보라 칵테일</div>
+                    <div class="menu-item-sub">불안</div>
+                  </div>
+                </div>
+                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="빨강 칵테일" data-emotion="분노">
+                  <span class="menu-item-icon" style="color:#e74c3c;filter:drop-shadow(0 0 6px #e74c3c88);">
+                    <svg class="menu-cocktail-svg" viewBox="0 0 24 24"><polygon points="2,2 22,2 12,15" fill="currentColor"/><line x1="12" y1="15" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="22" x2="17" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="4.5" r="2" fill="currentColor" opacity="0.6"/></svg>
+                  </span>
+                  <div class="menu-item-info">
+                    <div class="menu-item-name">빨강 칵테일</div>
+                    <div class="menu-item-sub">분노</div>
+                  </div>
+                </div>
+                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="노랑 칵테일" data-emotion="지침">
+                  <span class="menu-item-icon" style="color:#d4b800;filter:drop-shadow(0 0 6px #d4b80088);">
+                    <svg class="menu-cocktail-svg" viewBox="0 0 24 24"><polygon points="2,2 22,2 12,15" fill="currentColor"/><line x1="12" y1="15" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="22" x2="17" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="4.5" r="2" fill="currentColor" opacity="0.6"/></svg>
+                  </span>
+                  <div class="menu-item-info">
+                    <div class="menu-item-name">노랑 칵테일</div>
+                    <div class="menu-item-sub">지침</div>
+                  </div>
+                </div>
+                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="회색 칵테일" data-emotion="외로움">
+                  <span class="menu-item-icon" style="color:#a0aabf;filter:drop-shadow(0 0 6px #a0aabf88);">
+                    <svg class="menu-cocktail-svg" viewBox="0 0 24 24"><polygon points="2,2 22,2 12,15" fill="currentColor"/><line x1="12" y1="15" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="22" x2="17" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="4.5" r="2" fill="currentColor" opacity="0.6"/></svg>
+                  </span>
+                  <div class="menu-item-info">
+                    <div class="menu-item-name">회색 칵테일</div>
+                    <div class="menu-item-sub">외로움</div>
+                  </div>
+                </div>
+                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="초록 칵테일" data-emotion="평온">
+                  <span class="menu-item-icon" style="color:#27ae60;filter:drop-shadow(0 0 6px #27ae6088);">
+                    <svg class="menu-cocktail-svg" viewBox="0 0 24 24"><polygon points="2,2 22,2 12,15" fill="currentColor"/><line x1="12" y1="15" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="22" x2="17" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="4.5" r="2" fill="currentColor" opacity="0.6"/></svg>
+                  </span>
+                  <div class="menu-item-info">
+                    <div class="menu-item-name">초록 칵테일</div>
+                    <div class="menu-item-sub">평온</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <form class="chat-composer" onsubmit="event.preventDefault(); generateChat();">
-            <button id="mic-btn" class="composer-icon-btn" type="button" title="음성 입력" aria-label="음성 입력">
-              <span class="icon-mic"></span>
-            </button>
-            <input id="text-input" type="text" autocomplete="off" placeholder="메시지를 입력해 주세요." />
-            <button id="generate-btn" class="send-btn" type="submit" disabled aria-label="메시지 전송">
-              <span class="send-arrow"></span>
-            </button>
-          </form>
+          <div id="tab-music" class="tab-content" style="display:none;">
+            <div class="music-panel">
+              <div class="music-coming-soon">
+                <span>🎵</span>
+                <p>음악 기능 준비중이에요</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -475,6 +569,98 @@
 
     function closeHistoryModal() {
       document.getElementById('history-modal').style.display = 'none';
+    }
+
+    function switchPanelTab(btn, tabName) {
+      document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+      btn.classList.add('active');
+      document.getElementById('tab-' + tabName).style.display = 'flex';
+    }
+
+    function toggleOrderPanel() {
+      const panel = document.querySelector('.chat-panel');
+      const isOpen = panel.classList.contains('open');
+      if (isOpen) {
+        closeOrderPanel();
+      } else {
+        panel.classList.add('open');
+        // 메뉴창 탭으로 전환
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        document.querySelectorAll('.panel-tab')[1].classList.add('active');
+        document.getElementById('tab-menu').style.display = 'flex';
+      }
+    }
+
+    function closeOrderPanel() {
+      document.querySelector('.chat-panel').classList.remove('open');
+    }
+
+    let selectedCocktail = null;
+
+    function selectCocktail(el) {
+      const cocktail = el.dataset.cocktail;
+      const emotion = el.dataset.emotion;
+      selectedCocktail = { name: cocktail, emotion: emotion };
+      const chatTab = document.querySelector('.panel-tab:first-child');
+      switchPanelTab(chatTab, 'chat');
+      const input = document.getElementById('text-input');
+      input.value = `오늘은 ${cocktail}을 주세요!`;
+      generateChat();
+    }
+
+    async function endConversation() {
+      const btn = document.querySelector('.end-chat-btn');
+      if (btn) { btn.disabled = true; btn.textContent = '처리 중…'; }
+
+      if (selectedCocktail) {
+        try {
+          const token = localStorage.getItem('access_token');
+          await fetch('/api/emotion/receipts/select-cocktail', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              emotion: selectedCocktail.emotion,
+              cocktail_name: selectedCocktail.name
+            })
+          });
+        } catch (e) {
+          console.error('영수증 저장 실패:', e);
+        }
+        selectedCocktail = null;
+      }
+
+      if (btn) { btn.disabled = false; btn.textContent = '대화 종료 · 영수증 발급'; }
+
+      closeOrderPanel();
+      if (typeof closeSidebar === 'function') closeSidebar();
+      document.getElementById('receipt-modal').style.display = 'flex';
+      await loadReceiptData();
+
+      const today = new Date();
+      receiptYear = today.getFullYear();
+      receiptMonth = today.getMonth();
+      renderReceiptCalendar();
+
+      const pad = n => String(n).padStart(2, '0');
+      const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+      if (receiptData[todayStr]) {
+        // 달력 셀 selected 표시
+        const cells = document.querySelectorAll('#receipt-cal-days .cal-day');
+        cells.forEach(cell => {
+          const num = parseInt(cell.querySelector('span')?.textContent);
+          if (num === today.getDate() && cell.classList.contains('has-receipt')) {
+            cell.classList.add('selected');
+            cell.style.background = `${cell.dataset.emotionColor}55`;
+            cell.style.color = '#fff3da';
+          }
+        });
+        openReceiptCard(todayStr, receiptData[todayStr]);
+      }
     }
 
     // 감정 영수증
@@ -725,6 +911,11 @@
       });
     }
 
+    const cocktailColorNameMap = {
+      '기쁨': '주황 칵테일', '우울': '파랑 칵테일', '불안': '보라 칵테일',
+      '분노': '빨강 칵테일', '지침': '노랑 칵테일', '외로움': '회색 칵테일', '평온': '초록 칵테일'
+    };
+
     function openReceiptCard(dateStr, data) {
       document.getElementById('receipt-empty-state').style.display = 'none';
       document.getElementById('receipt-no-data').style.display = 'none';
@@ -738,23 +929,13 @@
         return;
       }
 
+      const isDirect = data.summary_note && data.summary_note.includes('직접 선택하셨어요');
       const emotion = data.dominant_sub_category || null;
       const color = getEmotionColor(emotion);
-
-      document.getElementById('receipt-card-date').textContent = formatReceiptDate(dateStr);
       const main = getMainCategory(emotion);
       const sub = document.getElementById('rc-emotion-sub');
-      if (main) {
-        document.getElementById('rc-emotion').textContent = main;
-        sub.textContent = emotion;
-        sub.style.display = 'block';
-      } else {
-        document.getElementById('rc-emotion').textContent = emotion || '-';
-        sub.style.display = 'none';
-      }
-      document.getElementById('rc-weather').textContent = data.weather ? `${getWeatherEmoji(data.weather)} ${data.weather}` : '-';
-      document.getElementById('rc-cocktail').textContent = data.recommended_cocktail || '-';
-      document.getElementById('rc-summary').textContent = data.summary_note || '아직 감정 영수증이 없어요.';
+
+      document.getElementById('receipt-card-date').textContent = formatReceiptDate(dateStr);
 
       const badge = document.getElementById('rc-cocktail-badge');
       const dot   = document.getElementById('rc-emotion-dot');
@@ -763,6 +944,39 @@
       badge.style.display = 'flex';
       dot.style.background  = color;
       dot.style.boxShadow   = `0 0 6px ${color}88`;
+
+      if (isDirect) {
+        document.getElementById('rc-title').textContent = '감정 영수증';
+        document.getElementById('rc-section-label').textContent = '선택한 칵테일';
+        document.getElementById('rc-label-emotion').textContent = '주문';
+        document.getElementById('rc-label-weather').textContent = '감정';
+        document.getElementById('rc-label-cocktail').textContent = '칵테일';
+
+        document.getElementById('rc-emotion').textContent = main ? (cocktailColorNameMap[main] || main) : (emotion || '-');
+        sub.textContent = emotion || '';
+        sub.style.display = emotion ? 'block' : 'none';
+        document.getElementById('rc-weather').textContent = main || '-';
+        document.getElementById('rc-cocktail').textContent = data.recommended_cocktail || '-';
+        document.getElementById('rc-summary').textContent = data.summary_note || '';
+      } else {
+        document.getElementById('rc-title').textContent = '감정 영수증';
+        document.getElementById('rc-section-label').textContent = '오늘의 감정';
+        document.getElementById('rc-label-emotion').textContent = '감정';
+        document.getElementById('rc-label-weather').textContent = '날씨';
+        document.getElementById('rc-label-cocktail').textContent = '추천 칵테일';
+
+        if (main) {
+          document.getElementById('rc-emotion').textContent = main;
+          sub.textContent = emotion;
+          sub.style.display = 'block';
+        } else {
+          document.getElementById('rc-emotion').textContent = emotion || '-';
+          sub.style.display = 'none';
+        }
+        document.getElementById('rc-weather').textContent = data.weather ? `${getWeatherEmoji(data.weather)} ${data.weather}` : '-';
+        document.getElementById('rc-cocktail').textContent = data.recommended_cocktail || '-';
+        document.getElementById('rc-summary').textContent = data.summary_note || '아직 감정 영수증이 없어요.';
+      }
 
       document.getElementById('receipt-detail').style.display = 'flex';
     }

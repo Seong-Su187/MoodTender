@@ -1,450 +1,648 @@
-import asyncio
+"""
+rag_chain.py
+MoodTender RAG 개인화 서비스 레이어
+"""
+
 import os
 import re
-import uuid
+import json
+import asyncio
+from typing import Optional
 
 from dotenv import load_dotenv
-from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text as sql_text
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.output_parsers import StrOutputParser
 
 from backend.services.db_client import (
-    retrieve_emotion_dictionary,
-    retrieve_similar_user_memories,
-    retrieve_similar_chat_messages,
+    search_user_memories,
+    search_chat_messages,
+    get_recent_chat_messages,
+    get_recent_health_metrics,
+    get_emotion_dictionary,
+    save_chat_message,
     save_user_memory,
     save_emotion_receipt,
-    save_chat_message,
 )
-from backend.services.openai_llm import generate_bartender_reply
 
 load_dotenv()
 
+_VALID_EMOTIONS = {"기쁨", "우울", "불안", "분노", "지침", "외로움", "평온"}
 
-def mask_sensitive_patterns(text: str) -> str:
-    if not text:
-        return ""
+_SPEED_RANGE = {
+    1.2: (58, 62),
+    1.0: (48, 52),
+    0.8: (38, 42),
+}
 
-    masked = text
-    masked = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", "[이메일]", masked)
-    masked = re.sub(r"\b010[-.\s]?\d{4}[-.\s]?\d{4}\b", "[전화번호]", masked)
-    masked = re.sub(r"\b0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}\b", "[전화번호]", masked)
-    masked = re.sub(r"\b\d{6}[-\s]?\d{7}\b", "[주민등록번호]", masked)
-    masked = re.sub(r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b", "[카드번호]", masked)
-    masked = re.sub(r"https?://[^\s]+", "[URL]", masked)
-
-    return masked
+_embeddings = OpenAIEmbeddings(
+    model="text-embedding-3-small",
+    openai_api_key=os.getenv("OPENAI_API_KEY"),
+)
 
 
-EMOTION_ROUTER_PROMPT = ChatPromptTemplate.from_template("""
-너는 MoodTender의 감정 분석 라우터다.
-
-사용자의 발화를 읽고 감정 계열, 감정의 결, 감정 강도, 핵심 키워드, 상황 요약을 분석한다.
-
-[감정 분류 체계]
-기쁨 계열: 경사·축하 / 통쾌·후련 / 뿌듯·성취 / 잔잔한 만족 / 설렘·두근 / 안도·해방 / 벅참·감동 / 신남·들뜸 / 자랑스러움 / 그리운 기쁨
-우울 계열: 가라앉음·무기력 / 자책·후회 / 공허·허전 / 슬픔·눈물 / 침잠·혼자 / 무덤덤·먹먹 / 좌절·낙담 / 소진·지쳐 처짐 / 외로운 우울 / 무의미·허무
-불안 계열: 초조·긴장 / 막막함 / 걱정·근심 / 안절부절 / 두려움·겁 / 압박·부담 / 불확실·혼란 / 예민·과민 / 조마조마·불길
-분노 계열: 욱·폭발 / 억울·분함 / 짜증·신경질 / 배신감 / 분개·치밀어오름 / 답답·울화 / 서운·삐침 / 분노 후 허탈
-지침(번아웃) 계열: 탈진·소진 / 권태·지루 / 압박감·짓눌림 / 무기력한 피로 / 의욕 상실 / 번아웃·다 놓고 싶음
-외로움 계열: 고립·혼자 / 그리움 / 소외·서운 / 쓸쓸·허전 / 단절·이해받지 못함 / 사무치는 외로움 / 군중 속 고독 / 보고픔·사무친 정 / 외톨이·겉도는 / 의지할 곳 없음
-평온 계열: 담담·무던 / 여유·느긋 / 안온·편안 / 정돈·차분 / 만족스러운 고요 / 비움·홀가분 / 나른·노곤 / 충만·잔잔한 행복 / 사색·고즈넉 / 해방·자유 / 안도의 평온
-
-[사용자 발화]
-{user_text}
-
-반드시 아래 JSON 형식으로만 출력한다.
-JSON 앞뒤에 설명, 마크다운, 코드블록을 붙이지 않는다.
-
-{{
-  "emotion_family": "기쁨|우울|불안|분노|지침(번아웃)|외로움|평온 중 하나",
-  "emotion_texture": "위 분류 체계 안의 세부 감정 결 중 하나",
-  "emotion_intensity": 0부터 100 사이의 정수,
-  "keywords": ["키워드1", "키워드2", "키워드3"],
-  "situation_summary": "개인정보를 직접 드러내지 않는 상황 요약 한 문장"
-}}
-""")
+def _make_llm(temperature: float = 0.7, model: str = "gpt-4.1-mini") -> ChatOpenAI:
+    return ChatOpenAI(
+        model=model,
+        temperature=temperature,
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+    )
 
 
-SUMMARY_PROMPT = ChatPromptTemplate.from_template("""
-너는 MoodTender의 개인정보 보호 요약기다.
-
-역할:
-- 사용자의 대화 내용을 DB에 저장하기 전에 비식별화된 요약문으로 바꾼다.
-- 원문을 그대로 복사하지 않는다.
-- 감정 흐름, 상황 맥락, 반복되는 개인 패턴만 남긴다.
-- 이름, 장소, 기관명, 연락처, 계정 정보 등 개인을 특정할 수 있는 정보는 제거하거나 일반화한다.
-- 의학적 진단이나 치료 판단은 만들지 않는다.
-
-[비식별화 규칙]
-- 사람 이름은 "가까운 사람", "친구", "가족", "동료"처럼 일반화한다.
-- 회사명, 학교명, 팀명, 기관명은 "회사", "학교", "조직"처럼 일반화한다.
-- 구체적인 지역, 장소, 주소는 "특정 장소", "지역", "학교", "회사"처럼 일반화한다.
-- 전화번호, 이메일, 계좌번호, 주민등록번호, 학번, 사번, 주소는 저장하지 않는다.
-- 사용자의 문장을 그대로 인용하지 않는다.
-- 감정 판단을 과장하지 않는다.
-
-[입력 텍스트]
-{text}
-
-비식별화된 요약문만 1~2문장으로 출력한다.
-설명, 제목, 마크다운, 따옴표는 붙이지 않는다.
-""")
+async def _embed(text: str) -> list[float]:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: _embeddings.embed_query(text))
 
 
-RECEIPT_PROMPT = ChatPromptTemplate.from_template("""
-너는 MoodTender의 감정 바텐더다.
+def _trim(text: str, speed: float) -> str:
+    selected = min(_SPEED_RANGE, key=lambda v: abs(v - speed))
+    limit = _SPEED_RANGE[selected][1]
 
-아래 정보를 바탕으로 칵테일 소개 문장과 감정 영수증 문장을 만든다.
+    text = text.strip()
 
-[규칙]
-- 실제 음주 권유가 아니라 감정의 상징으로 표현한다.
-- 마크다운, 이모지, 번호 목록은 쓰지 않는다.
-- 한국어로 짧고 자연스럽게 작성한다.
+    if len(text) <= limit:
+        return text
 
-[감정 분석]
-감정 계열: {emotion_family}
-감정의 결: {emotion_texture}
-키워드: {keywords}
+    sentences = re.split(r'(?<=[.!?])\s+', text)
 
-[칵테일 정보]
-칵테일 방향: {cocktail_direction}
-칵테일 색상: {cocktail_color}
+    result = ""
+    for sentence in sentences:
+        if not sentence:
+            continue
+        if len(result) + len(sentence) <= limit:
+            result += sentence
+        else:
+            break
 
-[유사 과거 기록]
-{related_memories}
-
-[사용자 발화]
-{user_text}
-
-반드시 아래 JSON 형식으로만 출력한다.
-
-{{
-  "cocktail_line": "칵테일 소개 한 문장",
-  "receipt_message": "감정 영수증 한 문장"
-}}
-""")
+    return result.strip() or text[:limit]
 
 
-FREE_CHAT_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """
-너는 MoodTender의 감정 바텐더다.
+def _build_memory_context(memories: list[dict]) -> str:
+    if not memories:
+        return "관련 기억 없음"
 
-첫 응답 이후 사용자의 이야기를 자연스럽게 이어 듣고 위로한다.
+    return "\n".join(
+        f"- {m['memory_text']}"
+        for m in memories[:3]
+    )
 
-[대화 규칙]
-- 사용자를 평가하거나 훈계하지 않는다.
-- 감정을 과장하지 않고 차분하게 받아준다.
-- 의학적 진단이나 치료 조언은 하지 않는다.
-- 답변은 한국어로 작성한다.
-- related_memories가 있으면 현재 대화와 자연스럽게 연결되는 내용만 참고한다.
-- 관련 없는 과거 기억은 언급하지 않는다.
 
-[유사 과거 기록]
-{related_memories}
-"""),
-    MessagesPlaceholder(variable_name="history"),
-    ("human", "{user_text}"),
-])
+def _build_history(chats: list[dict]) -> list:
+    history = []
+    for chat in chats:
+        if chat["role"] == "user":
+            history.append(HumanMessage(content=chat["content"]))
+        elif chat["role"] == "assistant":
+            history.append(AIMessage(content=chat["content"]))
+    return history
+
+
+def _build_health_context(rows: list[dict]) -> str:
+    if not rows:
+        return "건강 데이터 없음"
+
+    latest = rows[0]
+    sleep = latest.get("sleep_minutes") or 0
+    steps = latest.get("step_count") or 0
+    screen = latest.get("screen_time_minutes") or 0
+    depression_score = latest.get("depression_score")
+    app_usage = latest.get("app_usage_json") or {}
+
+    lines = []
+
+    # 수면: 연속 부족 추세 감지
+    sleep_values = [r.get("sleep_minutes") or 0 for r in rows]
+    poor_sleep_streak = 0
+    for s in sleep_values:
+        if s and s < 300:
+            poor_sleep_streak += 1
+        else:
+            break
+
+    if sleep and sleep < 300:
+        if poor_sleep_streak >= 3:
+            lines.append(f"수면 부족이 {poor_sleep_streak}일째 이어지는 중 (어제 {sleep // 60}시간 {sleep % 60}분)")
+        else:
+            lines.append(f"어제 수면 {sleep // 60}시간 {sleep % 60}분으로 부족함")
+    elif sleep >= 420:
+        lines.append(f"어제 수면 {sleep // 60}시간으로 충분함")
+
+    # 걸음수
+    if steps and steps < 4000:
+        lines.append(f"어제 걸음수 {steps}보로 활동량이 적음")
+    elif steps and steps >= 8000:
+        lines.append(f"어제 걸음수 {steps}보로 활동량이 충분함")
+
+    # 스크린타임
+    if screen and screen > 360:
+        lines.append(f"어제 스크린타임 {screen // 60}시간으로 매우 긴 편")
+    elif screen and screen > 240:
+        lines.append(f"어제 스크린타임 {screen // 60}시간으로 긴 편")
+
+    # 앱 사용 패턴
+    if app_usage:
+        social_keys = {"kakao", "kakaotalk", "instagram", "facebook", "twitter", "message"}
+        social_time = sum(v for k, v in app_usage.items() if k.lower() in social_keys)
+        youtube_time = next((v for k, v in app_usage.items() if "youtube" in k.lower() or "유튜브" in k.lower()), 0)
+
+        if social_time < 10 and screen > 120:
+            lines.append("어제 사람들과의 연락이 거의 없었음")
+        if youtube_time > 120:
+            lines.append(f"어제 유튜브를 {youtube_time // 60}시간 이상 사용함")
+
+    # 우울 지수
+    if depression_score is not None:
+        if depression_score >= 70:
+            lines.append(f"우울 지수 {depression_score}점으로 높은 편")
+        elif depression_score >= 50:
+            lines.append(f"우울 지수 {depression_score}점으로 중간 수준")
+
+    return "\n".join(lines) if lines else "건강 데이터에서 두드러진 이상 없음"
+
+
+def _build_past_chat_context(chats: list[dict]) -> str:
+    if not chats:
+        return "관련 과거 대화 없음"
+    return "\n".join(
+        f"- {'사용자' if c['role'] == 'user' else '바텐더'}: {c['content']}"
+        for c in chats
+    )
+
+
+def _build_emotion_context(rows: list[dict]) -> str:
+    if not rows:
+        return "감정 사전 없음"
+
+    return "\n".join(
+        f"- {r['sub_category']}: 상황={r.get('situation_example')}, "
+        f"칵테일 분위기={r.get('cocktail_direction')}, "
+        f"색상={r.get('cocktail_color')}"
+        for r in rows
+    )
 
 
 def build_chains():
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY 환경 변수를 .env에 설정해 주세요.")
+    classify_chain = ChatPromptTemplate.from_messages([
+        ("system", """
+사용자 발화의 주된 감정을 하나만 고른다.
 
-    llm = ChatOpenAI(
-        api_key=api_key,
-        model="gpt-4o-mini",
-        temperature=0.7,
-    )
+선택지:
+기쁨, 우울, 불안, 분노, 지침, 외로움, 평온
 
-    emotion_chain = EMOTION_ROUTER_PROMPT | llm | JsonOutputParser()
-    summary_chain = SUMMARY_PROMPT | llm | StrOutputParser()
-    receipt_chain = RECEIPT_PROMPT | llm | JsonOutputParser()
-    free_chat_chain = FREE_CHAT_PROMPT | llm | StrOutputParser()
+규칙:
+- 피곤하다, 지친다, 잠을 못 잤다, 번아웃, 힘들다는 표현은 우선 지침으로 본다.
+- 걱정된다, 초조하다, 불확실하다, 결과를 기다린다는 표현은 불안으로 본다.
+- 감정 단어 하나만 출력한다.
+"""),
+        ("human", "{user_input}"),
+    ]) | _make_llm(0.0) | StrOutputParser()
 
-    return emotion_chain, summary_chain, receipt_chain, free_chat_chain
-def build_emotion_flow_context(
-    related_memories: list[dict],
-) -> str:
-    if not related_memories:
-        return "감정 변화 흐름 없음"
+    bartender_chain = ChatPromptTemplate.from_messages([
+        ("system", """
+너는 MoodTender, 따뜻한 AI 바텐더다.
 
-    flows = []
+역할:
+- 손님의 말을 먼저 듣는다.
+- 감정을 단정하거나 진단하지 않는다.
+- 상담사처럼 분석하지 않는다.
+- 짧고 자연스럽게 공감한다.
+- 항상 존댓말을 사용한다.
+- 질문은 한 번에 하나만 한다.
 
-    for memory in related_memories:
-        main_category = memory.get("main_category")
-        sub_category = memory.get("sub_category")
-        intensity = memory.get("emotion_intensity")
+[손님 관련 기억]
+{memory_context}
 
-        if main_category and sub_category:
-            if intensity is not None:
-                flows.append(f"{main_category}/{sub_category}({intensity})")
-            else:
-                flows.append(f"{main_category}/{sub_category}")
+[관련 과거 대화]
+{past_chat_context}
 
-    if not flows:
-        return "감정 변화 흐름 없음"
+[최근 건강 상태]
+{health_context}
 
-    return "최근 유사 기억의 감정 흐름: " + " → ".join(flows)
+[오늘 감정에 어울리는 칵테일]
+{emotion_context}
 
-def build_related_context(
-    related_memories: list[dict],
-    similar_chats: list[dict],
-    emotion_flow: str = "",
-) -> str:
-    lines = []
+기억 활용 규칙:
+- 현재 발화와 관련 있는 기억만 자연스럽게 반영한다.
+- 관련 없는 기억은 말하지 않는다.
+- "예전에 말씀하셨죠", "기록에 따르면" 같은 표현은 쓰지 않는다.
 
-    if emotion_flow:
-        lines.append("[감정 변화 흐름]")
-        lines.append(emotion_flow)
+건강 데이터 규칙:
+- 두드러진 건강 신호가 있으면 사용자가 직접 언급하지 않아도 자연스럽게 연결할 수 있다.
+- 수면 부족이 며칠 연속이면 피로나 예민함과 연결한다.
+- 활동량이 적으면 무기력함, 활동량이 충분하면 긍정적으로 반영한다.
+- 스크린타임이 길면 도피 또는 고립의 신호로 부드럽게 연결한다.
+- 사람들과의 연락이 거의 없었다면 고립감과 연결할 수 있다.
+- 우울 지수가 높으면 평소보다 더 조심스럽고 따뜻하게 대한다.
+- 수치나 시간을 그대로 말하지 않는다. ("어제 스크린타임이 6시간이에요"가 아니라 "요즘 폰을 많이 보게 되는 것 같아요" 처럼 말한다.)
+- 가장 두드러진 신호 하나만 반영한다.
 
-    if related_memories:
-        lines.append("[장기 기억]")
-        for memory in related_memories:
-            memory_text = memory.get("memory_text")
-            main_category = memory.get("main_category")
-            sub_category = memory.get("sub_category")
+[선제적 개인화 규칙]
 
-            if memory_text:
-                lines.append(
-                    f"- {memory_text} "
-                    f"(감정: {main_category}/{sub_category})"
-                )
+- 사용자가 짧게 말하거나 막연하게 힘들다고 말하면 건강 데이터나 기억을 먼저 자연스럽게 연결할 수 있다.
+- "요즘", "최근", "어제" 같은 표현은 사용할 수 있다.
+- "기록에 따르면", "데이터상으로는", "저장된 기억에 따르면" 같은 표현은 사용하지 않는다.
+- 기억이나 건강 데이터를 그대로 읽지 말고 자연스럽게 대화로 이어간다.
+- 기억이 여러 개 있더라도 현재 대화와 가장 관련 있는 1개만 활용한다.
 
-    if similar_chats:
-        lines.append("[관련 과거 대화]")
-        for chat in similar_chats:
-            role = chat.get("role", "")
-            content = chat.get("content", "")
+[원인 추정 규칙]
 
-            if content:
-                lines.append(f"- {role}: {content}")
+- 사용자가 피곤하다, 지친다, 힘들다고 말할 때 건강 데이터나 기억에서 원인을 추정해 먼저 말해준다.
+- "요즘 [이유] 때문에 그러신 거 아닌가요?" 또는 "요즘 [이유]이 계속되다 보니 그럴 것 같아요." 형식으로 말한다.
+- 확신하지 않고 부드럽게 추정하는 톤으로 말한다.
+- 원인을 추정할 수 없을 때는 억지로 만들지 않는다.
 
-    if not lines:
-        return "없음"
+좋은 예:
+사용자: 피곤하다
+응답 (수면 부족 3일째): 요즘 잠을 제대로 못 주무시는 날이 이어지다 보니 그러신 거 아닌가요?
 
-    return "\n".join(lines)
+사용자: 힘들어요
+응답 (기억: 프로젝트 마감 스트레스): 요즘 프로젝트 때문에 계속 긴장하고 계신 거 아닌가요?
+
+사용자: 모르겠어요
+응답 (활동량 적음): 몸을 많이 안 움직이신 날이었나요? 그럴 때 머릿속이 더 복잡해지기도 하더라고요.
+
+사용자: 그냥 유튜브만 봤어요
+응답 (스크린타임 높음): 그렇게 폰 화면만 보다 보면 오히려 더 공허해지는 것 같기도 하죠. 뭔가 머릿속을 피하고 싶은 게 있었나요?
+
+사용자: 왠지 모르게 쓸쓸해요
+응답 (사람 연락 없음): 오늘 연락을 주고받은 사람이 별로 없었나요? 그런 날은 유독 더 외롭게 느껴지기도 하죠.
+
+[부드러운 제안 규칙]
+
+- 사용자가 충분히 감정을 이야기한 경우에만 제안할 수 있다.
+- 첫 응답에서는 제안을 하지 않는다.
+- 제안은 해결책이 아니라 작은 행동 수준으로 한다.
+- 한 번에 하나만 제안한다.
+- 명령하지 않는다.
+- "해보세요"보다 "어떨까요?"를 사용한다.
+- 건강 데이터의 신호가 있으면 그에 맞는 제안을 한다. 단, 수치나 데이터는 직접 언급하지 않는다.
+
+건강 신호별 제안 방향:
+- 활동량이 적음 → 짧은 산책이나 스트레칭 제안
+- 수면 부족 → 일찍 눕거나 쉬는 것 제안
+- 스크린타임이 긴 편 → 폰을 잠깐 내려두는 것 제안
+- 사람 연락이 없었음 → 가까운 사람에게 짧게 연락 제안
+
+좋은 예:
+- 밖에 나가서 조금 걸어보는 건 어떨까요? (활동량 적음)
+- 오늘은 조금 일찍 쉬어보는 건 어떨까요? (수면 부족)
+- 잠깐 폰 내려두고 창밖 바라보는 것도 괜찮을 것 같아요. (스크린타임 높음)
+- 가까운 사람한테 짧게 안부 한 번 해보는 건 어떨까요? (연락 없음)
+- 물 한 잔 마시고 천천히 숨을 고르는 것도 괜찮을 것 같아요.
+      
+
+응답 규칙:
+- 1~2문장으로 답한다.
+- 너무 빨리 해결책을 제시하지 않는다.
+- 질문은 최대 1개만 한다.
+"""),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{user_input}\n\n[지시] {cocktail_hint}"),
+    ]) | _make_llm(0.7, model="gpt-4.1") | StrOutputParser()
+
+    memory_summary_chain = ChatPromptTemplate.from_messages([
+        ("system", """
+사용자에 대해 다음 대화에서 다시 참고할 만한 내용만 1문장으로 요약한다.
+
+저장할 것:
+- 반복되는 고민
+- 중요한 사건
+- 사용자 성향
+- 장기 목표
+- 감정 패턴
+- 반복 가능성이 있는 수면 부족이나 프로젝트 스트레스
+
+저장하지 말 것:
+- 단순 인사
+- 짧은 대답
+- 일회성 감정
+- 바텐더의 말
+- 칵테일 추천 내용
+
+저장할 내용이 없으면 NONE만 출력한다.
+"""),
+        ("human", "{conversation_text}"),
+    ]) | _make_llm(0.2) | StrOutputParser()
+
+    memory_classify_chain = ChatPromptTemplate.from_messages([
+        ("system", """
+아래 문장을 장기 기억으로 저장할지 판단한다.
+JSON만 출력한다.
+
+형식:
+{{"memory_type": "event", "importance": 3}}
+
+memory_type:
+- preference
+- event
+- concern
+- pattern
+
+importance:
+5 매우 중요
+4 중요
+3 저장
+2 참고만
+1 저장 안 함
+
+다음 대화에서 다시 참고하면 답변이 더 개인화될 내용이면 3 이상으로 둔다.
+단순 감정, 짧은 일상, 일회성 표현이면 1 또는 2로 둔다.
+"""),
+        ("human", "{summary}"),
+    ]) | _make_llm(0.0) | StrOutputParser()
+
+    receipt_chain = ChatPromptTemplate.from_messages([
+        ("system", """
+감정영수증을 5문장으로 작성한다.
+아래 대화 전체를 분석해서 오늘의 감정을 파악한다.
+
+규칙:
+1. 오늘의 감정
+2. 감정의 이유
+3. 사용자가 버틴 점
+4. 추천 칵테일 분위기
+5. 마지막 한 줄 위로
+
+마크다운 없이 자연스러운 문장으로 작성한다.
+"""),
+        ("human", """
+감정: {emotion}
+세부감정: {sub_emotion}
+칵테일: {cocktail}
+대화:
+{conversation_text}
+"""),
+    ]) | _make_llm(0.3) | StrOutputParser()
+
+    cocktail_chain = ChatPromptTemplate.from_messages([
+        ("system", """
+감정 사전을 참고해서 지금 감정에 어울리는 칵테일 표현을 10자 이내로 출력한다.
+예: 달콤한 복숭아 소다, 부드러운 위스키 사워, 상큼한 진 토닉
+표현만 출력하고 다른 말은 하지 않는다.
+"""),
+        ("human", "감정: {emotion}\n칵테일 사전:\n{emotion_context}"),
+    ]) | _make_llm(0.0, model="gpt-4.1-mini") | StrOutputParser()
+
+    return classify_chain, bartender_chain, memory_summary_chain, memory_classify_chain, receipt_chain, cocktail_chain
 
 
-def build_bartender_input(
-    user_text: str,
-    emotion: dict,
-    cocktail: dict,
-    related_context: str,
-) -> str:
-    return f"""
-사용자 발화:
-{user_text}
-
-감정 분석:
-- 감정 계열: {emotion.get("emotion_family")}
-- 감정의 결: {emotion.get("emotion_texture")}
-- 감정 강도: {emotion.get("emotion_intensity")}
-- 키워드: {emotion.get("keywords", [])}
-- 상황 요약: {emotion.get("situation_summary")}
-
-칵테일 방향:
-{cocktail.get("cocktail_direction")}
-
-칵테일 색상:
-{cocktail.get("cocktail_color")}
-
-참고할 과거 기록:
-{related_context}
-
-위 정보는 내부 참고용이다.
-사용자에게는 자연스러운 바텐더 대사로만 답한다.
-""".strip()
+CHAINS = build_chains()
 
 
-async def run_first_turn(
-    emotion_chain,
-    summary_chain,
-    receipt_chain,
+async def _build_context(
+    db: AsyncSession,
     user_id: int,
-    session_id: str,
-    user_text: str,
-    db,
-) -> tuple[dict, dict, dict]:
-    safe_user_text = mask_sensitive_patterns(user_text)
-
-    emotion = await asyncio.to_thread(
-        emotion_chain.invoke,
-        {"user_text": safe_user_text},
+    query_embedding: list[float],
+    emotion: str,
+    session_id: str = "",
+) -> dict:
+    memories, chats, past_chats, health_rows, emotion_rows = await asyncio.gather(
+        search_user_memories(db, user_id, query_embedding, top_k=3),
+        get_recent_chat_messages(db, user_id, session_id=session_id, limit=8),
+        search_chat_messages(db, user_id, query_embedding, session_id=session_id, top_k=3),
+        get_recent_health_metrics(db, user_id, days=7),
+        get_emotion_dictionary(db, emotion),
     )
 
-    cocktail = await retrieve_emotion_dictionary(
-        main_category=emotion.get("emotion_family", ""),
-        sub_category=emotion.get("emotion_texture", ""),
-    ) or {
-        "cocktail_direction": "차분하게 감정을 정리하는 부드러운 칵테일",
-        "cocktail_color": "투명",
+    print(
+        f"[RAG] emotion={emotion}, memories={len(memories)}, "
+        f"chats={len(chats)}, past_chats={len(past_chats)}, health={len(health_rows)}, dict={len(emotion_rows)}"
+    )
+
+    user_turn_count = sum(1 for c in chats if c["role"] == "user")
+
+    return {
+        "memory_context": _build_memory_context(memories),
+        "history": _build_history(chats),
+        "past_chat_context": _build_past_chat_context(past_chats),
+        "health_context": _build_health_context(health_rows),
+        "emotion_context": _build_emotion_context(emotion_rows),
+        "user_turn_count": user_turn_count,
     }
 
-    related_memories = await retrieve_similar_user_memories(
-        user_id=user_id,
-        query_text=safe_user_text,
-        limit=3,
-    )
 
-    similar_chats = await retrieve_similar_chat_messages(
-        user_id=user_id,
-        query_text=safe_user_text,
-        limit=3,
-    )
-
-    emotion_flow = build_emotion_flow_context(related_memories)
-
-    related_context = build_related_context(
-        related_memories=related_memories,
-        similar_chats=similar_chats,
-        emotion_flow=emotion_flow,
-    )
-
-    bartender_input = build_bartender_input(
-        user_text=safe_user_text,
-        emotion=emotion,
-        cocktail=cocktail,
-        related_context=related_context,
-    )
-
-    bartender_reply_result = await generate_bartender_reply(
-        user_id,
-        bartender_input,
-        db,
-        save_messages=False,
-    )
-
-    if isinstance(bartender_reply_result, tuple):
-        bartender_reply = bartender_reply_result[0]
-    else:
-        bartender_reply = bartender_reply_result
-
-    await save_chat_message(
-        user_id=user_id,
-        role="user",
-        content=user_text,
-    )
-
-    await save_chat_message(
-        user_id=user_id,
-        role="assistant",
-        content=bartender_reply,
-    )
-
-    try:
-        receipt = await asyncio.to_thread(
-            receipt_chain.invoke,
-            {
-                "user_text": safe_user_text,
-                "emotion_family": emotion.get("emotion_family"),
-                "emotion_texture": emotion.get("emotion_texture"),
-                "keywords": emotion.get("keywords", []),
-                "cocktail_direction": cocktail.get("cocktail_direction"),
-                "cocktail_color": cocktail.get("cocktail_color"),
-                "related_memories": related_context,
-            },
-        )
-    except Exception:
-        receipt = {
-            "cocktail_line": "",
-            "receipt_message": "",
-        }
-
-    bartender_result = {
-        "bartender_reply": bartender_reply,
-        "cocktail_line": receipt.get("cocktail_line"),
-        "receipt_message": receipt.get("receipt_message"),
-        "used_memory": bool(related_memories or similar_chats),
-    }
-
-    return bartender_result, emotion, cocktail
-
-
-async def run_free_chat(
-    free_chat_chain,
+async def save_memory_if_needed(
+    db: AsyncSession,
     user_id: int,
     user_text: str,
-    history: list,
-) -> str:
-    safe_user_text = mask_sensitive_patterns(user_text)
-
-    related_memories = await retrieve_similar_user_memories(
-        user_id=user_id,
-        query_text=safe_user_text,
-        limit=3,
-    )
-
-    similar_chats = await retrieve_similar_chat_messages(
-        user_id=user_id,
-        query_text=safe_user_text,
-        limit=3,
-    )
-
-    emotion_flow = build_emotion_flow_context(related_memories)
-
-    related_context = build_related_context(
-        related_memories=related_memories,
-        similar_chats=similar_chats,
-    )
-
-    response = await asyncio.to_thread(
-        free_chat_chain.invoke,
-        {
-            "user_text": safe_user_text,
-            "history": history,
-            "related_memories": related_context,
-        },
-    )
-
-    await save_chat_message(
-        user_id=user_id,
-        role="user",
-        content=user_text,
-    )
-
-    await save_chat_message(
-        user_id=user_id,
-        role="assistant",
-        content=response,
-    )
-
-    return response
-
-
-async def finalize_memory(
-    summary_chain,
-    user_id: int,
-    session_id: str,
-    emotion: dict,
-    cocktail: dict,
-    bartender_result: dict,
-    conversation_text: str,
+    assistant_reply: str,
+    emotion: str,
+    user_message_id: int,
+    memory_summary_chain,
+    memory_classify_chain,
 ) -> None:
-    safe_conversation_text = mask_sensitive_patterns(conversation_text)
+    try:
+        if len(user_text.strip()) < 4:
+            print("[memory] 짧은 발화라 저장 안 함")
+            return
 
-    conversation_summary = await asyncio.to_thread(
-        summary_chain.invoke,
-        {"text": safe_conversation_text},
-    )
+        conversation_text = f"사용자: {user_text}\n바텐더: {assistant_reply}"
 
-    await save_user_memory(
+        summary = await memory_summary_chain.ainvoke({
+            "conversation_text": conversation_text
+        })
+        summary = (summary or "").strip()
+
+        if not summary or summary.upper() == "NONE":
+            print("[memory] 저장할 내용 없음")
+            return
+
+        if any(word in summary for word in ["바텐더", "칵테일", "추천", "제안"]):
+            print("[memory] 바텐더 내용 포함이라 저장 안 함")
+            return
+
+        raw = await memory_classify_chain.ainvoke({"summary": summary})
+        clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        parsed = json.loads(clean)
+
+        memory_type = parsed.get("memory_type", "event")
+        importance = int(parsed.get("importance", 1))
+
+        if importance < 3:
+            print(f"[memory] 중요도 낮음: {importance}")
+            return
+
+        memory_embedding = await _embed(summary)
+
+        await save_user_memory(
+            db=db,
+            user_id=user_id,
+            memory_text=summary,
+            embedding=memory_embedding,
+            main_category=emotion,
+            sub_category=None,
+            emotion_intensity=60,
+            memory_type=memory_type,
+            importance=importance,
+            source_type="chat",
+            source_id=user_message_id,
+        )
+
+        print(f"[memory] 저장 완료: {summary}")
+
+    except Exception as e:
+        print(f"[memory 오류] {e}")
+        return
+
+
+async def save_receipt(
+    db: AsyncSession,
+    user_id: int,
+    emotion: str,
+    sub_emotion: str,
+    cocktail: str,
+    conversation_text: str,
+    receipt_chain,
+) -> None:
+    try:
+        note = await receipt_chain.ainvoke({
+            "emotion": emotion,
+            "sub_emotion": sub_emotion,
+            "cocktail": cocktail,
+            "conversation_text": conversation_text,
+        })
+
+        await save_emotion_receipt(
+            db=db,
+            user_id=user_id,
+            dominant_sub_category=sub_emotion,
+            recommended_cocktail=cocktail,
+            summary_note=note.strip(),
+        )
+
+        print("[receipt] 저장 완료")
+
+    except Exception as e:
+        print(f"[receipt 오류] {e}")
+        return
+
+
+async def rag_chat(
+    db: AsyncSession,
+    user_id: int,
+    user_text: str,
+    speed: float = 1.0,
+    session_id: str = "",
+    cocktail_done: bool = False,
+    user_turn_count: int = 0,
+) -> tuple[str, str, str]:
+
+    (
+        classify_chain,
+        bartender_chain,
+        memory_summary_chain,
+        memory_classify_chain,
+        receipt_chain,
+        cocktail_chain,
+    ) = CHAINS
+
+    query_embedding = await _embed(user_text)
+
+    raw_emotion = await classify_chain.ainvoke({"user_input": user_text})
+    emotion = raw_emotion.strip()
+
+    if emotion not in _VALID_EMOTIONS:
+        emotion = "평온"
+
+    print(f"[분류] '{user_text[:20]}' → {emotion}")
+
+    ctx = await _build_context(
+        db=db,
         user_id=user_id,
-        memory_text=conversation_summary,
-        main_category=emotion.get("emotion_family"),
-        sub_category=emotion.get("emotion_texture"),
-        emotion_intensity=int(emotion.get("emotion_intensity", 50)),
+        query_embedding=query_embedding,
+        emotion=emotion,
+        session_id=session_id,
     )
 
-    await save_emotion_receipt(
+    ctx.pop("user_turn_count", None)
+    should_recommend = user_turn_count >= 3 and not cocktail_done
+
+    speed_key = min(_SPEED_RANGE, key=lambda v: abs(v - speed))
+    char_limit = _SPEED_RANGE[speed_key][1]
+
+    print(f"[cocktail] turn={user_turn_count}, should={should_recommend}, done={cocktail_done}, limit={char_limit}")
+
+    cocktail_hint = (
+        "아직은 칵테일을 추천하지 말고 손님의 이야기를 더 들어준다."
+        if not should_recommend
+        else "손님의 이야기에 공감하는 한 문장으로만 답한다."
+    )
+
+    # 칵테일 추천 턴: bartender 공감 + cocktail_chain 병렬 호출
+    if should_recommend:
+        raw_reply, cocktail_name = await asyncio.gather(
+            bartender_chain.ainvoke({
+                "memory_context": ctx["memory_context"],
+                "past_chat_context": ctx["past_chat_context"],
+                "health_context": ctx["health_context"],
+                "emotion_context": ctx["emotion_context"],
+                "history": ctx["history"],
+                "user_input": user_text,
+                "cocktail_hint": cocktail_hint,
+            }),
+            cocktail_chain.ainvoke({
+                "emotion": emotion,
+                "emotion_context": ctx["emotion_context"],
+            }),
+        )
+        cocktail_name = cocktail_name.strip()
+        cocktail_line = f"오늘은 {cocktail_name} 한 잔이 어울릴 것 같아요."
+
+        empathy = _trim(raw_reply, speed)
+        max_empathy = char_limit - len(cocktail_line) - 1
+        if len(empathy) > max_empathy:
+            cut = empathy[:max_empathy]
+            matches = list(re.finditer(r'[.!?]|[요다네죠](?=\s|$)', cut))
+            empathy = cut[:matches[-1].end()].strip() if matches else cut
+        reply = (empathy + " " + cocktail_line).strip()
+    else:
+        raw_reply = await bartender_chain.ainvoke({
+            "memory_context": ctx["memory_context"],
+            "past_chat_context": ctx["past_chat_context"],
+            "health_context": ctx["health_context"],
+            "emotion_context": ctx["emotion_context"],
+            "history": ctx["history"],
+            "user_input": user_text,
+            "cocktail_hint": cocktail_hint,
+        })
+        cocktail_line = ""
+        reply = _trim(raw_reply, speed)
+
+    print(f"[reply] ({len(reply)}자) {reply}")
+
+    user_message_id = await save_chat_message(
+        db=db,
         user_id=user_id,
-        dominant_sub_category=emotion.get("emotion_texture"),
-        recommended_cocktail=cocktail.get("cocktail_direction"),
-        summary_note=bartender_result.get("receipt_message"),
+        role="user",
+        content=user_text,
+        embedding=query_embedding,
+        session_id=session_id,
     )
 
+    assistant_embedding = await _embed(reply)
 
-def new_session_id() -> str:
-    return str(uuid.uuid4())
+    await save_chat_message(
+        db=db,
+        user_id=user_id,
+        role="assistant",
+        content=reply,
+        embedding=assistant_embedding,
+        session_id=session_id,
+    )
+
+    await save_memory_if_needed(
+        db=db,
+        user_id=user_id,
+        user_text=user_text,
+        assistant_reply=reply,
+        emotion=emotion,
+        user_message_id=user_message_id,
+        memory_summary_chain=memory_summary_chain,
+        memory_classify_chain=memory_classify_chain,
+    )
+
+    return reply, emotion, cocktail_line
