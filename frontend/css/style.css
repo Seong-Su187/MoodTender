@@ -1613,9 +1613,6 @@ button:not(:disabled):hover {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background:
-    linear-gradient(rgba(5, 3, 10, 0.28), rgba(5, 3, 10, 0.28)),
-    url('/assets/bar-background_16_9.jpeg') center center / cover no-repeat fixed;
 }
 
 .order-menu-btn {

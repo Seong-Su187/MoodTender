@@ -5,7 +5,6 @@ fMP4 청크를 yield해 HTTP 스트리밍에 사용.
 """
 
 import os, queue, threading, subprocess, ctypes
-from pathlib import Path
 import numpy as np
 import cv2
 import torch
@@ -21,8 +20,6 @@ def _win_short_path(path: str) -> str:
         pass
     return path
 
-
-_BAR_BG_PATH = Path(__file__).resolve().parent.parent.parent / "frontend" / "assets" / "bar-background.jpeg"
 
 from musetalk.utils.blending import get_image_blending
 from musetalk.utils.utils import datagen
@@ -51,23 +48,12 @@ def _blend_fast(image: np.ndarray, face: np.ndarray, face_box, mask_array: np.nd
     return image
 
 
-def _black_bg_alpha(frame: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """검정 배경 아바타에서 캐릭터 알파 마스크 생성 (RGB max-value 임계값 방식)."""
-    max_rgb = frame.max(axis=2)                              # (H, W) 각 픽셀의 최대 채널값
-    a = np.where(max_rgb > 12, np.uint8(255), np.uint8(0))  # 검정 배경(≤12) = 투명
-    a = cv2.morphologyEx(a, cv2.MORPH_CLOSE, kernel, iterations=2)  # 옷 안의 작은 구멍 메우기 (윤곽선 위치는 유지)
-    a = cv2.erode(a, kernel, iterations=1)                  # 가장자리 흰 fringe 1px 제거
-    a = cv2.GaussianBlur(a, (7, 7), 0)                      # 엣지 부드럽게
-    return a
-
-
 def inference_stream(
     avatar, audio_path, fps, ffmpeg_bin,
     pe, unet, vae, timesteps,
     whisper_model, audio_processor, weight_dtype, device,
     audio_pad_left=2, audio_pad_right=2,
     taesd=None,
-    composite_bg=True,
 ):
     """
     MuseTalk 추론 결과를 프레임 단위로 FFmpeg에 파이프하고
@@ -90,24 +76,8 @@ def inference_stream(
     )
     video_num = len(whisper_chunks)
 
-    # ── 2. 아바타 프레임 크기 확인 + 바 배경 + 알파 로드 ─────────
+    # ── 2. 아바타 프레임 크기 확인 ───────────────────────────────
     H, W = avatar.frame_list_cycle[0].shape[:2]
-    if composite_bg:
-        # cv2.imread는 Windows 한글 경로 미지원 → np.fromfile 우회
-        _raw_buf = np.fromfile(str(_BAR_BG_PATH), dtype=np.uint8)
-        _raw_bg  = cv2.imdecode(_raw_buf, cv2.IMREAD_COLOR) if len(_raw_buf) > 0 else None
-        if _raw_bg is None:
-            print(f"[COMPOSITING] 배경 이미지 로드 실패: {_BAR_BG_PATH}", flush=True)
-        else:
-            print(f"[COMPOSITING] 배경 이미지 로드 성공 → {W}x{H}로 리사이즈", flush=True)
-        bar_bg    = cv2.resize(_raw_bg, (W, H)) if _raw_bg is not None else None
-        bar_bg_u16 = bar_bg.astype(np.uint16) if bar_bg is not None else None
-        _erode_kernel = np.ones((3, 3), np.uint8)
-        _alpha_fn = _black_bg_alpha
-    else:
-        bar_bg_u16 = None
-        _erode_kernel = None
-        _alpha_fn = None
 
     # ── 3. FFmpeg 프로세스 시작 ─────────────────────────────────
     cmd = [
@@ -232,10 +202,6 @@ def inference_stream(
                 mask  = avatar.mask_list_cycle[idx % len(avatar.mask_list_cycle)]
                 mc    = avatar.mask_coords_list_cycle[idx % len(avatar.mask_coords_list_cycle)]
                 frame = _blend_fast(ori, rf, bbox, mask, mc)
-                if bar_bg_u16 is not None:
-                    a_u8 = _alpha_fn(ori, _erode_kernel)
-                    a = a_u8[:, :, np.newaxis].astype(np.uint16)
-                    frame = ((frame.astype(np.uint16) * a + bar_bg_u16 * (255 - a)) >> 8).astype(np.uint8)
                 proc.stdin.write(frame.tobytes())
                 idx += 1
         except Exception as e:
