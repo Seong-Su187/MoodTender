@@ -22,6 +22,7 @@ class Token(BaseModel):
 class LLMRequest(BaseModel):
     text: str
     speed: float = 1.0
+    session_id: str = ""
 
 class LLMResponse(BaseModel):
     reply: str

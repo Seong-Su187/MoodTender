@@ -38,6 +38,10 @@ class UserMemory(Base):
     main_category = Column(String(20))
     sub_category = Column(String(50))
     emotion_intensity = Column(Integer, default=50)
+    memory_type = Column(String(30), default="event")
+    importance = Column(Integer, default=3)
+    source_type = Column(String(30), default="chat")
+    source_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 class EmotionReceipt(Base):
@@ -56,6 +60,7 @@ class ChatMessage(Base):
 
     id = Column(BigInteger, primary_key=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
+    session_id = Column(String(100), nullable=False, index=True)
     role = Column(String(20), nullable=False) # 'user' 또는 'assistant'
     content = Column(Text, nullable=False)
     embedding = Column(Vector(1536))
