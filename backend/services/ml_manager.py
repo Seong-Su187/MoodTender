@@ -190,13 +190,3 @@ def _warmup_gpu():
         print("[서버] GPU 웜업 완료")
     except Exception as e:
         print(f"[서버] GPU 웜업 스킵: {e}")
-
-def offload_to_cpu():
-    vae.vae = vae.vae.cpu(); unet.model = unet.model.cpu()
-    pe.cpu(); whisper.cpu()
-    torch.cuda.empty_cache()
-
-def reload_to_gpu():
-    vae.vae = vae.vae.half().to(device); unet.model = unet.model.half().to(device)
-    pe.half().to(device); whisper.to(device=device, dtype=weight_dtype)
-    rt.vae = vae; rt.unet = unet; rt.pe = pe; rt.whisper = whisper

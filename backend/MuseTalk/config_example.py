@@ -6,7 +6,3 @@ import os
 
 # FFmpeg 설치 경로 (bin 폴더까지)
 FFMPEG_PATH = r"C:\path\to\ffmpeg\bin"
-
-# LivePortrait 경로
-LP_DIR    = r"C:\path\to\MoodTender\backend\LivePortrait"
-LP_PYTHON = r"C:\path\to\MoodTender\backend\LivePortrait\venv\Scripts\python.exe"

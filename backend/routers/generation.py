@@ -6,14 +6,13 @@ import tempfile
 import shutil
 import threading
 import asyncio
-import cv2
 from pathlib import Path
 from fastapi import APIRouter, Form, UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 
-from backend.config import VOICES, LP_DRIVING_VIDEOS, VIDEO_DIR
+from backend.config import VOICES, VIDEO_DIR
 from backend.services import ml_manager
-from backend.services.video_audio import tts, get_audio_duration, trim_video, run_liveportrait
+from backend.services.video_audio import tts, get_audio_duration, trim_video
 from scripts.realtime_inference import Avatar
 
 router = APIRouter()
@@ -163,87 +162,6 @@ async def generate(text: str = Form(...), voice: str = Form("onyx"), avatar_name
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
-@router.post("/init_avatar")
-async def init_avatar(
-    file: UploadFile = File(...),
-    driving_style: str = Form("기본"),
-    motion: float = Form(0.5),
-    region: str = Form("all"),
-    bbox_shift: int = Form(0),
-):
-    if not ml_manager.models_ready:
-        return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
-
-    loop = asyncio.get_event_loop()
-    q: asyncio.Queue = asyncio.Queue()
-
-    def push(data):
-        loop.call_soon_threadsafe(q.put_nowait, data)
-
-    tmp_dir     = tempfile.mkdtemp()
-    upload_path = os.path.join(tmp_dir, file.filename)
-    contents    = await file.read()
-    with open(upload_path, "wb") as f:
-        f.write(contents)
-
-    def run():
-        t0 = time.time()
-        try:
-            push({"status": "이미지 처리 중..."})
-            img = cv2.imread(upload_path)
-            if img is None:
-                push({"error": "이미지를 읽을 수 없습니다.", "done": True}); return
-            h, w = img.shape[:2]
-            if max(h, w) > 1280:
-                scale = 1280 / max(h, w)
-                img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
-            src_path = os.path.join(tmp_dir, "source.jpg")
-            cv2.imwrite(src_path, img)
-
-            lp_out = os.path.join(tmp_dir, "lp_output")
-            os.makedirs(lp_out, exist_ok=True)
-
-            push({"status": "VRAM 확보 중..."})
-            ml_manager.offload_to_cpu()
-
-            driving = LP_DRIVING_VIDEOS.get(driving_style, LP_DRIVING_VIDEOS["기본"])
-            push({"status": "LivePortrait 실행 중..."})
-            try:
-                lp_video = run_liveportrait(src_path, driving, lp_out, motion, region)
-            except Exception as e:
-                ml_manager.reload_to_gpu()
-                push({"error": f"LivePortrait 오류: {e}", "done": True}); return
-            print(f"[시간] LivePortrait: {time.time()-t0:.1f}초")
-
-            push({"status": "아바타 준비 중...", "preview_path": lp_video})
-            ml_manager.reload_to_gpu()
-
-            if os.path.exists(ml_manager.CUSTOM_AVATAR_CACHE):
-                shutil.rmtree(ml_manager.CUSTOM_AVATAR_CACHE)
-            t0 = time.time()
-            ml_manager.custom_avatar = Avatar(
-                avatar_id="custom_avatar", video_path=lp_video,
-                bbox_shift=bbox_shift, batch_size=ml_manager.args.batch_size, preparation=True,
-            )
-            ml_manager.custom_avatar.input_latent_list_cycle = [
-                t.to(ml_manager.device) for t in ml_manager.custom_avatar.input_latent_list_cycle
-            ]
-            print(f"[시간] MuseTalk 아바타 준비: {time.time()-t0:.1f}초")
-            push({"status": "커스텀 아바타 준비 완료!", "done": True})
-        except Exception as e:
-            push({"error": str(e), "done": True})
-
-    threading.Thread(target=run, daemon=True).start()
-
-    async def stream():
-        while True:
-            item = await asyncio.wait_for(q.get(), timeout=300)
-            yield sse(item)
-            if item.get("done") or item.get("error"):
-                break
-
-    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
-
 @router.post("/init_avatar_video")
 async def init_avatar_video(
     file: UploadFile = File(...),
@@ -334,7 +252,7 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
                 composite_bg = False  # add/ 영상은 이미 배경이 합성되어 있음
             else:
                 av = ml_manager.custom_avatar
-                composite_bg = True  # 커스텀(LivePortrait) 아바타는 검정 배경 → bar 배경으로 합성
+                composite_bg = True  # 커스텀(업로드) 아바타는 검정 배경 → bar 배경으로 합성
             first = True
             for chunk in _infer_stream(
                 av, audio_path, ml_manager.args.fps, FFMPEG_PATH,

@@ -557,36 +557,6 @@ async function initAvatarVideo() {
   btn.disabled = false;
 }
 
-// ── 아바타 초기화 ────────────────────────────────────────────
-async function initAvatar() {
-  const fileInput = document.getElementById('avatar-file');
-  if (!fileInput.files.length) { alert('사진을 선택해주세요.'); return; }
-
-  const btn      = document.getElementById('init-avatar-btn');
-  const statusEl = document.getElementById('avatar-status');
-  const preview  = document.getElementById('lp-preview');
-
-  btn.disabled = true;
-
-  const form = new FormData();
-  form.append('file',          fileInput.files[0]);
-  form.append('driving_style', document.getElementById('driving-style').value);
-  form.append('motion',        document.getElementById('motion').value);
-  form.append('region',        document.getElementById('region').value);
-  form.append('bbox_shift',    document.getElementById('bbox-shift').value);
-
-  await readSSE('/api/init_avatar', form, ({ status, error, preview_path }) => {
-    if (status)       statusEl.textContent = status;
-    if (error)        statusEl.textContent = `오류: ${error}`;
-    if (preview_path) {
-      preview.src    = `/api/video?path=${encodeURIComponent(preview_path)}`;
-      preview.hidden = false;
-    }
-  });
-
-  btn.disabled = false;
-}
-
 // ── 마이크 STT ───────────────────────────────────────────────
 (function setupMic() {
   const btn    = document.getElementById('mic-btn');

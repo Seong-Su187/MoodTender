@@ -1543,13 +1543,6 @@ button:not(:disabled):hover {
   border-color: rgba(255, 107, 122, 0.5);
 }
 
-#lp-preview {
-  width: 100%;
-  margin-top: 4px;
-  border-radius: 8px;
-  background: #000;
-}
-
 .chat-stage {
   flex: 1;
   position: relative;
