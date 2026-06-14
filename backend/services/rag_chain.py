@@ -20,6 +20,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 from backend.services.db_client import (
     search_user_memories,
+    search_chat_messages,
     get_recent_chat_messages,
     get_recent_health_metrics,
     get_emotion_dictionary,
@@ -163,6 +164,15 @@ def _build_health_context(rows: list[dict]) -> str:
     return "\n".join(lines) if lines else "건강 데이터에서 두드러진 이상 없음"
 
 
+def _build_past_chat_context(chats: list[dict]) -> str:
+    if not chats:
+        return "관련 과거 대화 없음"
+    return "\n".join(
+        f"- {'사용자' if c['role'] == 'user' else '바텐더'}: {c['content']}"
+        for c in chats
+    )
+
+
 def _build_emotion_context(rows: list[dict]) -> str:
     if not rows:
         return "감정 사전 없음"
@@ -205,6 +215,9 @@ def build_chains():
 
 [손님 관련 기억]
 {memory_context}
+
+[관련 과거 대화]
+{past_chat_context}
 
 [최근 건강 상태]
 {health_context}
@@ -387,16 +400,17 @@ async def _build_context(
     emotion: str,
     session_id: str = "",
 ) -> dict:
-    memories, chats, health_rows, emotion_rows = await asyncio.gather(
+    memories, chats, past_chats, health_rows, emotion_rows = await asyncio.gather(
         search_user_memories(db, user_id, query_embedding, top_k=3),
-        get_recent_chat_messages(db, user_id,session_id=session_id, limit=8),
+        get_recent_chat_messages(db, user_id, session_id=session_id, limit=8),
+        search_chat_messages(db, user_id, query_embedding, session_id=session_id, top_k=3),
         get_recent_health_metrics(db, user_id, days=7),
         get_emotion_dictionary(db, emotion),
     )
 
     print(
         f"[RAG] emotion={emotion}, memories={len(memories)}, "
-        f"chats={len(chats)}, health={len(health_rows)}, dict={len(emotion_rows)}"
+        f"chats={len(chats)}, past_chats={len(past_chats)}, health={len(health_rows)}, dict={len(emotion_rows)}"
     )
 
     user_turn_count = sum(1 for c in chats if c["role"] == "user")
@@ -404,6 +418,7 @@ async def _build_context(
     return {
         "memory_context": _build_memory_context(memories),
         "history": _build_history(chats),
+        "past_chat_context": _build_past_chat_context(past_chats),
         "health_context": _build_health_context(health_rows),
         "emotion_context": _build_emotion_context(emotion_rows),
         "user_turn_count": user_turn_count,
@@ -562,6 +577,7 @@ async def rag_chat(
         raw_reply, cocktail_name = await asyncio.gather(
             bartender_chain.ainvoke({
                 "memory_context": ctx["memory_context"],
+                "past_chat_context": ctx["past_chat_context"],
                 "health_context": ctx["health_context"],
                 "emotion_context": ctx["emotion_context"],
                 "history": ctx["history"],
