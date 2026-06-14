@@ -14,12 +14,20 @@
 let isModelReady = false;
 
 // ── 영상 상태 관리 ────────────────────────────────────────────
-const VIDEO_IDLE    = '/assets/loop_bg.webm';
+const VIDEO_IDLE           = '/assets/loop_bg.mp4';
+const VIDEO_LOADING_START  = '/assets/loading_start.mp4';
+const VIDEO_LOADING_FINISH = '/assets/loading_finish.mp4';
+const IDLE_RETURN_DELAY_MS = 700; // 응답 영상 종료 후 idle 루프 전환까지 여백
 
 function playIdle(url = VIDEO_IDLE) {
   const videoEl     = document.getElementById('video-output');
   const loadingEl   = document.getElementById('loading-video');
   const placeholder = document.getElementById('video-placeholder');
+
+  // 이전 응답 영상의 MediaSource blob URL 해제 (버퍼 누적 방지)
+  if (videoEl.src && videoEl.src.startsWith('blob:')) {
+    URL.revokeObjectURL(videoEl.src);
+  }
 
   if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
 
@@ -36,8 +44,27 @@ function playIdle(url = VIDEO_IDLE) {
 function playLoading() {
   const loadingEl = document.getElementById('loading-video');
   if (!loadingEl) return;
+  loadingEl.loop          = true;
+  loadingEl.src           = VIDEO_LOADING_START;
   loadingEl.style.display = 'block';
+  loadingEl.currentTime   = 0;
   loadingEl.play().catch(() => {});
+}
+
+// 응답 영상 종료 → 마무리 영상 재생 → idle 루프로 복귀
+function playFinishThenIdle() {
+  const loadingEl = document.getElementById('loading-video');
+  if (!loadingEl) { playIdle(); return; }
+
+  loadingEl.loop          = false;
+  loadingEl.src           = VIDEO_LOADING_FINISH;
+  loadingEl.style.display = 'block';
+  loadingEl.currentTime   = 0;
+
+  const goIdle = () => playIdle();
+  loadingEl.addEventListener('ended', goIdle, { once: true });
+  loadingEl.addEventListener('error', goIdle, { once: true });
+  loadingEl.play().catch(goIdle);
 }
 
 async function logout() {
@@ -291,16 +318,15 @@ async function generateChat() {
     const avatarSel = document.getElementById('avatar-select');
     if (avatarSel && avatarSel.value) form.append('avatar_name', avatarSel.value);
 
-    // MP4 (H264) 스트리밍: 배경이 베이크된 아바타 영상을 컨트롤과 함께 재생
+    // MP4 (H264) 스트리밍: 배경이 베이크된 아바타 영상 재생
     videoEl.muted = false;
     videoEl.loop  = false;
-    videoEl.setAttribute('controls', '');
 
     const MIME   = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
     const useMSE = 'MediaSource' in window && MediaSource.isTypeSupported(MIME);
 
     if (useMSE) {
-      await _generateStream(form, MIME, videoEl, placeholder, statusEl, () => playIdle());
+      await _generateStream(form, MIME, videoEl, placeholder, statusEl, () => playFinishThenIdle());
     } else {
       await readSSE('/api/generate', form, ({ status, error, video_path }) => {
         if (status) statusEl.textContent = status;
@@ -318,7 +344,7 @@ async function generateChat() {
             const loadingEl = document.getElementById('loading-video');
             if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
           }, { once: true });
-          videoEl.addEventListener('ended', () => playIdle(), { once: true });
+          videoEl.addEventListener('ended', () => setTimeout(playFinishThenIdle, IDLE_RETURN_DELAY_MS), { once: true });
         }
       });
     }
@@ -416,10 +442,10 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl, onEnd
     if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
   }, { once: true });
 
-  // 영상 종료 시 모니터 정리 후 idle로 복귀
+  // 영상 종료 시 모니터 정리 후 여백을 두고 idle로 복귀
   videoEl.addEventListener('ended', () => {
     clearTimeout(monitorId);
-    if (onEnded) onEnded();
+    setTimeout(() => { if (onEnded) onEnded(); }, IDLE_RETURN_DELAY_MS);
   }, { once: true });
 
   // 버퍼 직접 모니터링
@@ -526,36 +552,6 @@ async function initAvatarVideo() {
   await readSSE('/api/init_avatar_video', form, ({ status, error }) => {
     if (status) statusEl.textContent = status;
     if (error)  statusEl.textContent = `오류: ${error}`;
-  });
-
-  btn.disabled = false;
-}
-
-// ── 아바타 초기화 ────────────────────────────────────────────
-async function initAvatar() {
-  const fileInput = document.getElementById('avatar-file');
-  if (!fileInput.files.length) { alert('사진을 선택해주세요.'); return; }
-
-  const btn      = document.getElementById('init-avatar-btn');
-  const statusEl = document.getElementById('avatar-status');
-  const preview  = document.getElementById('lp-preview');
-
-  btn.disabled = true;
-
-  const form = new FormData();
-  form.append('file',          fileInput.files[0]);
-  form.append('driving_style', document.getElementById('driving-style').value);
-  form.append('motion',        document.getElementById('motion').value);
-  form.append('region',        document.getElementById('region').value);
-  form.append('bbox_shift',    document.getElementById('bbox-shift').value);
-
-  await readSSE('/api/init_avatar', form, ({ status, error, preview_path }) => {
-    if (status)       statusEl.textContent = status;
-    if (error)        statusEl.textContent = `오류: ${error}`;
-    if (preview_path) {
-      preview.src    = `/api/video?path=${encodeURIComponent(preview_path)}`;
-      preview.hidden = false;
-    }
   });
 
   btn.disabled = false;
