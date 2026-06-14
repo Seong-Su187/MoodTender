@@ -27,8 +27,7 @@ async def save_health_data(
             step_count=data.step_count,
             sleep_minutes=data.sleep_minutes,
             screen_time_minutes=data.screen_time_minutes,
-            app_usage_json=data.app_usage_json,
-            depression_score=data.depression_score
+            app_usage_json=data.app_usage_json
         )
 
         do_update_stmt = stmt.on_conflict_do_update(
@@ -37,8 +36,7 @@ async def save_health_data(
                 step_count=stmt.excluded.step_count,
                 sleep_minutes=stmt.excluded.sleep_minutes,
                 screen_time_minutes=stmt.excluded.screen_time_minutes,
-                app_usage_json=stmt.excluded.app_usage_json,
-                depression_score=stmt.excluded.depression_score
+                app_usage_json=stmt.excluded.app_usage_json
             )
         )
 
@@ -73,8 +71,7 @@ async def get_web_data(
             "stepCount": r.step_count,
             "sleepMinutes": r.sleep_minutes,
             "screenTimeMinutes": r.screen_time_minutes,
-            "appUsageJson": r.app_usage_json,
-            "depressionScore": r.depression_score
+            "appUsageJson": r.app_usage_json
         }
         for r in records
     ]
