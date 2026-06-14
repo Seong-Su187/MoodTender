@@ -14,13 +14,20 @@
 let isModelReady = false;
 
 // ── 영상 상태 관리 ────────────────────────────────────────────
-const VIDEO_IDLE    = '/assets/loop_bg.mp4';
+const VIDEO_IDLE           = '/assets/loop_bg.mp4';
+const VIDEO_LOADING_START  = '/assets/loading_start.mp4';
+const VIDEO_LOADING_FINISH = '/assets/loading_finish.mp4';
 const IDLE_RETURN_DELAY_MS = 700; // 응답 영상 종료 후 idle 루프 전환까지 여백
 
 function playIdle(url = VIDEO_IDLE) {
   const videoEl     = document.getElementById('video-output');
   const loadingEl   = document.getElementById('loading-video');
   const placeholder = document.getElementById('video-placeholder');
+
+  // 이전 응답 영상의 MediaSource blob URL 해제 (버퍼 누적 방지)
+  if (videoEl.src && videoEl.src.startsWith('blob:')) {
+    URL.revokeObjectURL(videoEl.src);
+  }
 
   if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
 
@@ -37,8 +44,27 @@ function playIdle(url = VIDEO_IDLE) {
 function playLoading() {
   const loadingEl = document.getElementById('loading-video');
   if (!loadingEl) return;
+  loadingEl.loop          = true;
+  loadingEl.src           = VIDEO_LOADING_START;
   loadingEl.style.display = 'block';
+  loadingEl.currentTime   = 0;
   loadingEl.play().catch(() => {});
+}
+
+// 응답 영상 종료 → 마무리 영상 재생 → idle 루프로 복귀
+function playFinishThenIdle() {
+  const loadingEl = document.getElementById('loading-video');
+  if (!loadingEl) { playIdle(); return; }
+
+  loadingEl.loop          = false;
+  loadingEl.src           = VIDEO_LOADING_FINISH;
+  loadingEl.style.display = 'block';
+  loadingEl.currentTime   = 0;
+
+  const goIdle = () => playIdle();
+  loadingEl.addEventListener('ended', goIdle, { once: true });
+  loadingEl.addEventListener('error', goIdle, { once: true });
+  loadingEl.play().catch(goIdle);
 }
 
 async function logout() {
@@ -300,7 +326,7 @@ async function generateChat() {
     const useMSE = 'MediaSource' in window && MediaSource.isTypeSupported(MIME);
 
     if (useMSE) {
-      await _generateStream(form, MIME, videoEl, placeholder, statusEl, () => playIdle());
+      await _generateStream(form, MIME, videoEl, placeholder, statusEl, () => playFinishThenIdle());
     } else {
       await readSSE('/api/generate', form, ({ status, error, video_path }) => {
         if (status) statusEl.textContent = status;
@@ -318,7 +344,7 @@ async function generateChat() {
             const loadingEl = document.getElementById('loading-video');
             if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
           }, { once: true });
-          videoEl.addEventListener('ended', () => setTimeout(playIdle, IDLE_RETURN_DELAY_MS), { once: true });
+          videoEl.addEventListener('ended', () => setTimeout(playFinishThenIdle, IDLE_RETURN_DELAY_MS), { once: true });
         }
       });
     }
