@@ -2055,13 +2055,9 @@ button:not(:disabled):hover {
 .music-copy-btn::before { left: 7px; top: 8px; }
 .music-copy-btn span { left: 10px; top: 5px; background: #fcf1d2; }
 
-/* 우 : 사이드 패널 (fixed 오버레이) */
+/* 우 : 채팅 패널 (열리면 좌측 아바타 패널과 좌우로 나란히 배치) */
 .chat-panel {
-  position: fixed;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  z-index: 300;
+  flex-shrink: 0;
   width: min(35%, 480px);
   display: none;
   flex-direction: column;
@@ -2253,7 +2249,7 @@ button:not(:disabled):hover {
 #video-output {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: none;
   background: transparent;
   border: none;
