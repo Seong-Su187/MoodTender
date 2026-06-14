@@ -359,9 +359,41 @@
 
           <div id="tab-music" class="tab-content" style="display:none;">
             <div class="music-panel">
-              <div class="music-coming-soon">
-                <span>🎵</span>
-                <p>음악 기능 준비중이에요</p>
+              <div class="music-panel-title">Music Selection</div>
+              <p class="music-panel-guide">오늘의 마음에 어울리는 음악을 골라보세요.</p>
+              <div class="music-list">
+                <button class="music-item" type="button" onclick="selectMusic(this)"
+                  data-title="Amber After Hours" data-meta="Jazz · Warm · 4:01"
+                  data-src="/assets/music/Amber%20After%20Hours.mp3"
+                  data-message="은은한 호박빛처럼 따뜻한 곡을 고르셨군요.\n오늘의 여운을 천천히 음미해 볼까요?">
+                  <span class="music-note" aria-hidden="true">♪</span>
+                  <span class="music-item-info"><strong>Amber After Hours</strong><small>Jazz · Warm · 4:01</small></span>
+                  <span class="music-select-label">선택</span>
+                </button>
+                <button class="music-item" type="button" onclick="selectMusic(this)"
+                  data-title="Midnight Walnut" data-meta="Jazz · Deep · 4:03"
+                  data-src="/assets/music/Midnight%20Walnut.mp3"
+                  data-message="깊은 밤의 나무 향을 닮은 곡을 고르셨군요.\n조용히 가라앉은 마음속 이야기를 들려주시겠어요?">
+                  <span class="music-note" aria-hidden="true">♪</span>
+                  <span class="music-item-info"><strong>Midnight Walnut</strong><small>Jazz · Deep · 4:03</small></span>
+                  <span class="music-select-label">선택</span>
+                </button>
+                <button class="music-item" type="button" onclick="selectMusic(this)"
+                  data-title="Velvet Barometer" data-meta="Ambient · Calm · 2:43"
+                  data-src="/assets/music/Velvet%20Barometer.mp3"
+                  data-message="부드러운 벨벳처럼 감싸는 곡을 고르셨군요.\n지금 마음의 날씨는 어떤가요?">
+                  <span class="music-note" aria-hidden="true">♪</span>
+                  <span class="music-item-info"><strong>Velvet Barometer</strong><small>Ambient · Calm · 2:43</small></span>
+                  <span class="music-select-label">선택</span>
+                </button>
+                <button class="music-item" type="button" onclick="selectMusic(this)"
+                  data-title="Velvet Barometer (remix)" data-meta="Remix · Moody · 2:41"
+                  data-src="/assets/music/Velvet%20Barometer%28remix%29.mp3"
+                  data-message="조금 더 선명한 리듬의 벨벳 바로미터를 고르셨군요.\n멈춰 있던 기분을 가볍게 흔들어 볼까요?">
+                  <span class="music-note" aria-hidden="true">♪</span>
+                  <span class="music-item-info"><strong>Velvet Barometer (remix)</strong><small>Remix · Moody · 2:41</small></span>
+                  <span class="music-select-label">선택</span>
+                </button>
               </div>
             </div>
           </div>
@@ -608,6 +640,185 @@
       const input = document.getElementById('text-input');
       input.value = `오늘은 ${cocktail}을 주세요!`;
       generateChat();
+    }
+
+    function selectMusic(el) {
+      const music = {
+        title: el.dataset.title,
+        meta: el.dataset.meta,
+        src: el.dataset.src,
+        message: el.dataset.message.split('\\n').join('\n')
+      };
+      const chatTab = document.querySelector('.panel-tab:first-child');
+      switchPanelTab(chatTab, 'chat');
+      appendMusicSelection(music);
+    }
+
+    let activeMusicPlayback = null;
+
+    function getMusicDuration(meta) {
+      const match = meta.match(/(\d+):(\d+)$/);
+      if (!match) return 180;
+      return Number(match[1]) * 60 + Number(match[2]);
+    }
+
+    function formatMusicTime(seconds) {
+      const safeSeconds = Math.max(0, Math.floor(seconds));
+      const minutes = Math.floor(safeSeconds / 60);
+      return `${minutes}:${String(safeSeconds % 60).padStart(2, '0')}`;
+    }
+
+    function stopMusicPlayback() {
+      if (!activeMusicPlayback) return;
+      activeMusicPlayback.audio.pause();
+      activeMusicPlayback.audio.currentTime = 0;
+      activeMusicPlayback.button.classList.remove('playing');
+      activeMusicPlayback.button.textContent = '▶';
+      activeMusicPlayback.button.setAttribute('aria-label', '음악 재생');
+      activeMusicPlayback.progress.style.width = '0%';
+      activeMusicPlayback.currentTime.textContent = '0:00';
+      activeMusicPlayback = null;
+    }
+
+    async function toggleMusicPlayback(button, music, progress, currentTime) {
+      if (activeMusicPlayback?.button === button) {
+        if (activeMusicPlayback.audio.paused) {
+          await activeMusicPlayback.audio.play();
+          button.classList.add('playing');
+          button.textContent = 'Ⅱ';
+          button.setAttribute('aria-label', '음악 일시정지');
+        } else {
+          activeMusicPlayback.audio.pause();
+          button.classList.remove('playing');
+          button.textContent = '▶';
+          button.setAttribute('aria-label', '음악 계속 재생');
+        }
+        return;
+      }
+
+      stopMusicPlayback();
+
+      const audio = new Audio(music.src);
+      audio.preload = 'metadata';
+      audio.addEventListener('timeupdate', () => {
+        const duration = Number.isFinite(audio.duration)
+          ? audio.duration
+          : getMusicDuration(music.meta);
+        progress.style.width = `${(audio.currentTime / duration) * 100}%`;
+        currentTime.textContent = formatMusicTime(audio.currentTime);
+      });
+      audio.addEventListener('ended', () => {
+        if (activeMusicPlayback?.audio === audio) stopMusicPlayback();
+      });
+      audio.addEventListener('error', () => {
+        if (activeMusicPlayback?.audio === audio) stopMusicPlayback();
+        showToast('음악 파일을 재생하지 못했습니다.', '!');
+      });
+
+      button.classList.add('playing');
+      button.textContent = 'Ⅱ';
+      button.setAttribute('aria-label', '음악 일시정지');
+      activeMusicPlayback = {
+        audio,
+        button,
+        progress,
+        currentTime
+      };
+      try {
+        await audio.play();
+      } catch (_) {
+        stopMusicPlayback();
+        showToast('음악 재생을 시작하지 못했습니다.', '!');
+      }
+    }
+
+    function appendMusicSelection(music) {
+      const log = document.getElementById('chat-log');
+      if (!log) return;
+
+      const row = document.createElement('div');
+      row.className = 'message-row assistant music-selection-message';
+
+      const time = document.createElement('div');
+      time.className = 'message-time';
+      time.textContent = '방금 전';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'message-bubble music-selection-bubble';
+
+      const card = document.createElement('div');
+      card.className = 'selected-music-card';
+
+      const cardInfo = document.createElement('div');
+      cardInfo.className = 'selected-music-info';
+
+      const title = document.createElement('strong');
+      title.textContent = music.title;
+
+      const meta = document.createElement('span');
+      meta.textContent = music.meta;
+
+      const actions = document.createElement('div');
+      actions.className = 'selected-music-player';
+
+      const playButton = document.createElement('button');
+      playButton.type = 'button';
+      playButton.className = 'music-play-btn';
+      playButton.setAttribute('aria-label', '음악 재생');
+      playButton.title = '음악 재생';
+      playButton.textContent = '▶';
+
+      const progressTrack = document.createElement('div');
+      progressTrack.className = 'music-progress-track';
+
+      const progress = document.createElement('span');
+      progress.className = 'music-progress-value';
+      progressTrack.appendChild(progress);
+
+      const playbackTime = document.createElement('div');
+      playbackTime.className = 'music-playback-time';
+
+      const currentTime = document.createElement('span');
+      currentTime.textContent = '0:00';
+
+      const totalTime = document.createElement('span');
+      totalTime.textContent = formatMusicTime(getMusicDuration(music.meta));
+
+      playbackTime.appendChild(currentTime);
+      playbackTime.appendChild(totalTime);
+      playButton.addEventListener('click', () => {
+        toggleMusicPlayback(playButton, music, progress, currentTime);
+      });
+
+      const copyButton = document.createElement('button');
+      copyButton.type = 'button';
+      copyButton.className = 'music-copy-btn';
+      copyButton.setAttribute('aria-label', '음악 정보 복사');
+      copyButton.title = '음악 정보 복사';
+      copyButton.innerHTML = '<span></span>';
+      copyButton.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(`${music.title}\n${music.meta}`);
+          showToast('음악 정보가 복사되었습니다.', '♪');
+        } catch (_) {
+          showToast('음악 정보를 복사하지 못했습니다.', '!');
+        }
+      });
+
+      cardInfo.appendChild(title);
+      cardInfo.appendChild(meta);
+      actions.appendChild(playButton);
+      actions.appendChild(progressTrack);
+      actions.appendChild(playbackTime);
+      cardInfo.appendChild(actions);
+      card.appendChild(cardInfo);
+      card.appendChild(copyButton);
+      bubble.appendChild(card);
+      row.appendChild(time);
+      row.appendChild(bubble);
+      log.appendChild(row);
+      log.scrollTop = log.scrollHeight;
+      appendChatMessage('assistant', music.message);
     }
 
     async function endConversation() {
