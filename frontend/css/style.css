@@ -570,6 +570,9 @@ main {
 .receipt-left {
   border-right: 1px solid rgba(200,160,90,0.15);
   padding-bottom: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200,144,46,0.25) transparent;
 }
 
 .receipt-right {
@@ -656,13 +659,50 @@ main {
   margin-bottom: 6px;
 }
 
+.rc-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
 .rc-title {
   font-size: 1.9rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #2a1a08;
   font-family: "Georgia", serif;
-  margin-bottom: 6px;
+  margin-bottom: 0;
+}
+
+.rc-cocktail-badge {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 4px;
+  transition: color 0.35s, filter 0.35s;
+}
+
+.rc-cocktail-svg {
+  width: 30px;
+  height: 30px;
+}
+
+.rc-emotion-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #2a1a08;
+}
+
+.rc-emotion-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.35s, box-shadow 0.35s;
 }
 
 .rc-date {
@@ -702,11 +742,40 @@ main {
   color: rgba(58,28,5,0.55);
 }
 
-.rc-field span:last-child {
+.rc-field span:last-child:not(.rc-emotion-value) {
   font-weight: 700;
   color: #2a1a08;
   text-align: right;
   max-width: 55%;
+}
+
+.rc-field .rc-emotion-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 62%;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.rc-emotion-main-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+#rc-emotion {
+  font-weight: 700;
+  color: #2a1a08;
+}
+
+.rc-sub-emotion {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(58,28,5,0.55);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .rc-summary {
@@ -821,11 +890,56 @@ main {
   cursor: default;
 }
 
+.receipt-month-summary {
+  padding: 14px 28px 8px;
+  border-top: 1px solid rgba(200,160,90,0.12);
+  margin-top: 8px;
+}
+
+.summary-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(200,160,90,0.45);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.summary-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.summary-label {
+  font-size: 0.82rem;
+  color: rgba(244,236,217,0.7);
+  flex: 1;
+}
+
+.summary-count {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(200,160,90,0.75);
+}
+
+.summary-empty {
+  font-size: 0.78rem;
+  color: rgba(200,160,90,0.3);
+}
+
 .receipt-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #f4d16c;
   flex-shrink: 0;
 }
 
@@ -844,17 +958,60 @@ main {
 }
 
 .cal-day.has-receipt {
-  background: rgba(200,144,46,0.18);
-  border: 1px solid rgba(200,160,90,0.45);
-  color: #f4d16c;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition: background 0.2s, transform 0.15s, filter 0.15s;
 }
 
 .cal-day.has-receipt:hover {
-  background: rgba(200,144,46,0.35);
+  filter: brightness(1.4);
   transform: scale(1.08);
+}
+
+.receipt-no-data {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  animation: history-pop 0.25s cubic-bezier(0.22,1,0.36,1);
+}
+
+.rnd-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: rgba(12,8,4,0.75);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(200,160,90,0.2);
+  border-radius: 18px;
+  padding: 36px 48px;
+  text-align: center;
+}
+
+.rnd-icon {
+  font-size: 3rem;
+  margin-bottom: 4px;
+}
+
+.rnd-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #e8c884;
+}
+
+.rnd-desc {
+  font-size: 0.85rem;
+  color: rgba(200,160,90,0.55);
+  line-height: 1.8;
+}
+
+.rnd-date {
+  font-size: 0.78rem;
+  color: rgba(200,160,90,0.35);
+  margin-top: 4px;
+  letter-spacing: 0.05em;
 }
 
 

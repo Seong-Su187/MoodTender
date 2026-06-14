@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <style>
-        /* 태번(우드·골드) 테마 + 배경 이미지 */
         body {
             color: #f4ecd9;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
@@ -34,34 +33,34 @@
         }
         .accent-text { color: #d9b65a; }
         .danger-text { color: #e0746b; }
-        .success-text { color: #9bbd6a; }
         .muted-text { color: #b3a48c; }
-        html {
-            background-color: #140f0a;
-        }
-        html,
-        body,
-        * {
+        
+        /* 스크롤바 커스텀 */
+        html, body, * {
             scrollbar-width: thin;
             scrollbar-color: rgba(200, 144, 46, 0.45) rgba(20, 15, 10, 0.92);
         }
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(20, 15, 10, 0.92);
-            margin: 6px 0;
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(20, 15, 10, 0.92); margin: 6px 0; }
         ::-webkit-scrollbar-thumb {
             background: rgba(200, 144, 46, 0.4);
             border-radius: 6px;
             border: 2px solid transparent;
             background-clip: padding-box;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(200, 144, 46, 0.65);
-            background-clip: padding-box;
+        ::-webkit-scrollbar-thumb:hover { background: rgba(200, 144, 46, 0.65); }
+
+        /* 날짜 입력창 커스텀 (다크/골드 테마) */
+        input[type="date"] {
+            background-color: rgba(15, 10, 6, 0.6);
+            border: 1px solid rgba(200, 160, 90, 0.4);
+            color: #f4ecd9;
+            color-scheme: dark;
+        }
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #d9b65a;
+            box-shadow: 0 0 8px rgba(217, 182, 90, 0.3);
         }
     </style>
 </head>
@@ -69,35 +68,55 @@
 
     <div class="max-w-5xl mx-auto space-y-6">
 
-        <header class="mb-8">
-            <h1 class="serif text-3xl font-bold tracking-tight" style="color:#e8c884; text-shadow:0 2px 14px rgba(200,144,46,0.3);">MoodTender Analytics</h1>
-            <p class="muted-text text-sm mt-1">스마트폰에서 수집된 나의 생활 패턴과 멘탈 상태를 확인하세요.</p>
+        <header class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h1 class="serif text-3xl font-bold tracking-tight" style="color:#e8c884; text-shadow:0 2px 14px rgba(200,144,46,0.3);">MoodTender Analytics</h1>
+                <p class="muted-text text-sm mt-1">스마트폰에서 수집된 나의 생활 패턴과 멘탈 상태를 확인하세요.</p>
+            </div>
         </header>
+
+        <div class="surface rounded-2xl p-4 shadow-lg flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">📅</span>
+                <h2 class="text-base font-bold">기간 설정</h2>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4 flex-wrap">
+                <input type="date" id="startDate" class="rounded-lg p-2 text-sm">
+                <span class="muted-text">~</span>
+                <input type="date" id="endDate" class="rounded-lg p-2 text-sm">
+                <button id="filterBtn" class="text-sm px-4 py-2 rounded-lg font-bold text-[#140f0a]" style="background: linear-gradient(135deg, #d9b65a, #c8902e); transition: opacity 0.2s;">
+                    조회
+                </button>
+                <button id="resetBtn" class="text-sm px-4 py-2 rounded-lg font-bold border border-[#c8902e] text-[#c8902e] hover:bg-[#c8902e] hover:text-[#140f0a] transition-colors">
+                    전체보기
+                </button>
+            </div>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="surface rounded-2xl p-6 shadow-lg">
-                <h3 class="muted-text font-semibold text-sm mb-2">오늘 걸음 수</h3>
+                <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 걸음 수</h3>
                 <p id="card-steps" class="text-3xl font-bold accent-text">- 보</p>
             </div>
             <div class="surface rounded-2xl p-6 shadow-lg">
-                <h3 class="muted-text font-semibold text-sm mb-2">수면 시간</h3>
+                <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 수면</h3>
                 <p id="card-sleep" class="text-3xl font-bold" style="color:#c8902e;">- 시간 - 분</p>
             </div>
             <div class="surface rounded-2xl p-6 shadow-lg">
-                <h3 class="muted-text font-semibold text-sm mb-2">스마트폰 사용</h3>
+                <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 스크린타임</h3>
                 <p id="card-screen" class="text-3xl font-bold danger-text">- 분</p>
             </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="surface rounded-2xl p-6 shadow-lg">
-                <h2 class="text-lg font-bold mb-4">주간 걸음 수</h2>
+                <h2 class="text-lg font-bold mb-4">걸음 수 추이</h2>
                 <div class="relative h-72 w-full">
                     <canvas id="stepChart"></canvas>
                 </div>
             </div>
             <div class="surface rounded-2xl p-6 shadow-lg">
-                <h2 class="text-lg font-bold mb-4">주간 스마트폰 사용 시간</h2>
+                <h2 class="text-lg font-bold mb-4">스마트폰 사용 추이</h2>
                 <div class="relative h-72 w-full">
                     <canvas id="screenChart"></canvas>
                 </div>
@@ -117,114 +136,53 @@
     </div>
 
     <script>
-        async function loadDashboard() {
-            try {
-                // 1. 서버에서 DB 데이터 가져오기
-                const response = await fetch('/api/web/data');
-                const result = await response.json();
-                const records = result.data;
+        // 🚀 2. 전역 변수: 전체 데이터 보관 및 그래프 인스턴스 관리
+        let allRecords = []; 
+        let stepChartInstance = null;
+        let screenChartInstance = null;
 
-                if (!records || records.length === 0) {
+        async function loadDashboard() {
+            const token = localStorage.getItem("access_token");
+            
+            if (!token) {
+                alert("로그인이 필요합니다.");
+                window.location.href = "/login.html"; 
+                return;
+            }
+
+            try {
+                const headers = {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                };
+
+                // 서버에서 데이터 전체 가져오기
+                const response = await fetch('/api/web/data', { headers });
+                
+                if (response.status === 401) {
+                    alert("세션이 만료되었습니다. 다시 로그인해주세요.");
+                    localStorage.removeItem("access_token");
+                    window.location.href = "/login.html";
+                    return;
+                }
+
+                const result = await response.json();
+                allRecords = result.data || [];
+
+                if (allRecords.length === 0) {
                     document.getElementById('ai-report').innerHTML = "아직 수집된 모바일 데이터가 없습니다.";
                     return;
                 }
 
-                // 2. 상단 요약 카드 업데이트 (가장 최신 데이터 기준)
-                const latest = records[records.length - 1];
-                document.getElementById('card-steps').innerText = latest.stepCount.toLocaleString() + ' 보';
+                // 날짜 기본값 세팅 (최초 데이터부터 마지막 데이터까지)
+                document.getElementById('startDate').value = allRecords[0].recordDate;
+                document.getElementById('endDate').value = allRecords[allRecords.length - 1].recordDate;
 
-                const sleepHours = Math.floor(latest.sleepMinutes / 60);
-                const sleepMins = latest.sleepMinutes % 60;
-                document.getElementById('card-sleep').innerText = `${sleepHours}시간 ${sleepMins}분`;
+                // 🚀 화면 렌더링 호출
+                renderDashboard(allRecords);
 
-                document.getElementById('card-screen').innerText = latest.screenTimeMinutes + ' 분';
-
-                // 3. 차트용 데이터 배열 추출
-                const labels = records.map(r => r.recordDate);
-                const stepData = records.map(r => r.stepCount);
-                const screenData = records.map(r => r.screenTimeMinutes);
-
-                // 4. Chart.js 그래프 그리기 (걸음 수 / 스마트폰 사용 시간 분리)
-                const stepCtx = document.getElementById('stepChart').getContext('2d');
-                new Chart(stepCtx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: '걸음 수 (보)',
-                                data: stepData,
-                                borderColor: '#c8902e',
-                                backgroundColor: 'rgba(200, 144, 46, 0.15)',
-                                pointBackgroundColor: '#e8c884',
-                                fill: true,
-                                tension: 0.3
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        color: '#b3a48c', // 범례 글자색
-                        scales: {
-                            x: {
-                                grid: { color: 'rgba(200, 160, 90, 0.08)' },
-                                ticks: { color: '#b3a48c' }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: 'rgba(200, 160, 90, 0.08)' },
-                                ticks: { color: '#b3a48c' },
-                                title: { display: true, text: '걸음 수 (보)', color: '#b3a48c' }
-                            }
-                        },
-                        plugins: {
-                            legend: { labels: { color: '#f4ecd9' } }
-                        }
-                    }
-                });
-
-                const screenCtx = document.getElementById('screenChart').getContext('2d');
-                new Chart(screenCtx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: '스마트폰 사용 (분)',
-                                data: screenData,
-                                borderColor: '#e0746b',
-                                backgroundColor: 'rgba(224, 116, 107, 0.15)',
-                                pointBackgroundColor: '#f4ecd9',
-                                fill: true,
-                                tension: 0.3
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        color: '#b3a48c', // 범례 글자색
-                        scales: {
-                            x: {
-                                grid: { color: 'rgba(200, 160, 90, 0.08)' },
-                                ticks: { color: '#b3a48c' }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                ticks: { stepSize: 30, color: '#b3a48c' }, // 30분 단위 눈금
-                                grid: { color: 'rgba(200, 160, 90, 0.08)' },
-                                title: { display: true, text: '사용 시간 (분)', color: '#b3a48c' }
-                            }
-                        },
-                        plugins: {
-                            legend: { labels: { color: '#f4ecd9' } }
-                        }
-                    }
-                });
-
-                // 5. 서버에서 AI 분석 리포트 가져오기
-                const aiResponse = await fetch('/api/web/analyze');
+                // AI 리포트 가져오기 (전체 데이터 기반)
+                const aiResponse = await fetch('/api/web/analyze', { headers });
                 const aiResult = await aiResponse.json();
                 document.getElementById('ai-report').innerHTML = aiResult.report;
 
@@ -234,7 +192,117 @@
             }
         }
 
-        // 페이지가 열리면 바로 실행
+        // 🚀 3. 화면을 그리는 전담 함수 (필터링 시 재사용)
+        function renderDashboard(recordsToRender) {
+            if (recordsToRender.length === 0) {
+                alert("해당 기간에 데이터가 없습니다.");
+                return;
+            }
+
+            // 상단 카드 업데이트 (선택된 기간의 가장 최신 데이터 기준)
+            const latest = recordsToRender[recordsToRender.length - 1];
+            document.getElementById('card-steps').innerText = latest.stepCount.toLocaleString() + ' 보';
+
+            const sleepHours = Math.floor(latest.sleepMinutes / 60);
+            const sleepMins = latest.sleepMinutes % 60;
+            document.getElementById('card-sleep').innerText = `${sleepHours}시간 ${sleepMins}분`;
+            document.getElementById('card-screen').innerText = latest.screenTimeMinutes + ' 분';
+
+            // 차트 데이터 추출
+            const labels = recordsToRender.map(r => r.recordDate);
+            const stepData = recordsToRender.map(r => r.stepCount);
+            const screenData = recordsToRender.map(r => r.screenTimeMinutes);
+
+            // ⚠️ 중요: 기존 차트가 있다면 파괴(Destroy)해야 새로 그릴 때 에러가 나지 않습니다.
+            if (stepChartInstance) stepChartInstance.destroy();
+            if (screenChartInstance) screenChartInstance.destroy();
+
+            // 걸음 수 차트 그리기
+            const stepCtx = document.getElementById('stepChart').getContext('2d');
+            stepChartInstance = new Chart(stepCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '걸음 수 (보)',
+                        data: stepData,
+                        borderColor: '#c8902e',
+                        backgroundColor: 'rgba(200, 144, 46, 0.15)',
+                        pointBackgroundColor: '#e8c884',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: getChartOptions('걸음 수 (보)')
+            });
+
+            // 스크린타임 차트 그리기
+            const screenCtx = document.getElementById('screenChart').getContext('2d');
+            screenChartInstance = new Chart(screenCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '스마트폰 사용 (분)',
+                        data: screenData,
+                        borderColor: '#e0746b',
+                        backgroundColor: 'rgba(224, 116, 107, 0.15)',
+                        pointBackgroundColor: '#f4ecd9',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: getChartOptions('사용 시간 (분)')
+            });
+        }
+
+        // 차트 공통 옵션 추출 (코드 중복 방지)
+        function getChartOptions(yAxisTitle) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                color: '#b3a48c',
+                scales: {
+                    x: { grid: { color: 'rgba(200, 160, 90, 0.08)' }, ticks: { color: '#b3a48c' } },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(200, 160, 90, 0.08)' },
+                        ticks: { color: '#b3a48c' },
+                        title: { display: true, text: yAxisTitle, color: '#b3a48c' }
+                    }
+                },
+                plugins: { legend: { labels: { color: '#f4ecd9' } } }
+            };
+        }
+
+        // 🚀 4. 필터링 버튼 이벤트 리스너
+        document.getElementById('filterBtn').addEventListener('click', () => {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            // 선택한 날짜 범위에 맞게 데이터 걸러내기 (문자열 비교로도 충분히 필터링 가능)
+            let filteredRecords = allRecords;
+            if (startDate) {
+                filteredRecords = filteredRecords.filter(r => r.recordDate >= startDate);
+            }
+            if (endDate) {
+                filteredRecords = filteredRecords.filter(r => r.recordDate <= endDate);
+            }
+
+            // 걸러낸 데이터로 화면 다시 그리기
+            renderDashboard(filteredRecords);
+        });
+
+        // 🚀 5. 전체보기 버튼 이벤트 리스너
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (allRecords.length > 0) {
+                document.getElementById('startDate').value = allRecords[0].recordDate;
+                document.getElementById('endDate').value = allRecords[allRecords.length - 1].recordDate;
+                renderDashboard(allRecords);
+            }
+        });
+
+        // 페이지 시작
         loadDashboard();
     </script>
 </body>
