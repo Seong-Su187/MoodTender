@@ -249,7 +249,8 @@ async def save_emotion_receipt(
                 (user_id, receipt_date, weather, dominant_sub_category,
                  recommended_cocktail, summary_note)
             VALUES
-                (:user_id, CURRENT_DATE, :weather, :dominant_sub_category,
+                /* 🚀 서버 UTC 시간 대신 한국 시간(Asia/Seoul)으로 날짜를 강제 지정합니다! */
+                (:user_id, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date, :weather, :dominant_sub_category,
                  :recommended_cocktail, :summary_note)
             RETURNING id
         """),

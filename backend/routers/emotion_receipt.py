@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from backend.database import get_db
 from backend.models import domain
@@ -45,7 +46,6 @@ async def get_emotion_receipts(
 
 # -------------------------------------------------------
 # POST: 칵테일 직접 선택 → 오늘 영수증 생성 (다중 발급 가능)
-# emotion_dictionary에서 해당 감정의 sub_category를 가져와 차곡차곡 추가 저장
 # -------------------------------------------------------
 class CocktailSelectRequest(BaseModel):
     emotion: str        # 기쁨 | 우울 | 불안 | 분노 | 지침 | 외로움 | 평온
@@ -71,10 +71,13 @@ async def select_cocktail_receipt(
     sub_category = entry.sub_category if entry else body.emotion
     cocktail_direction = entry.cocktail_direction if entry else body.cocktail_name
 
-    # 🚀 수정: 덮어쓰기(on_conflict_do_update)를 제거하고 데이터가 매번 쌓이도록 db.add 구조로 변경
+    # 🚀 수정: 서버 UTC 시간이 아닌 한국 시간(KST)을 기준으로 오늘 날짜 추출
+    kst_today = datetime.now(ZoneInfo('Asia/Seoul')).date()
+
+    # 덮어쓰기 없이 계속 쌓이도록 db.add 구조 유지
     new_receipt = domain.EmotionReceipt(
         user_id=user_id,
-        receipt_date=date.today(),
+        receipt_date=kst_today, # KST 날짜 적용
         dominant_sub_category=sub_category,
         recommended_cocktail=cocktail_direction,
         summary_note=f"오늘은 {body.cocktail_name}을 직접 선택하셨어요.",
