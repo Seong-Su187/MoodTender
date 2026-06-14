@@ -602,6 +602,7 @@ async def rag_chat(
     else:
         raw_reply = await bartender_chain.ainvoke({
             "memory_context": ctx["memory_context"],
+            "past_chat_context": ctx["past_chat_context"],
             "health_context": ctx["health_context"],
             "emotion_context": ctx["emotion_context"],
             "history": ctx["history"],
