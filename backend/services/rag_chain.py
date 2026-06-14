@@ -518,7 +518,7 @@ async def save_receipt(
 
     except Exception as e:
         print(f"[receipt 오류] {e}")
-        return
+        raise
 
 
 async def rag_chat(

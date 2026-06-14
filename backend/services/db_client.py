@@ -249,7 +249,7 @@ async def save_emotion_receipt(
                 (user_id, receipt_date, weather, dominant_sub_category,
                  recommended_cocktail, summary_note)
             VALUES
-                (:user_id, CURRENT_DATE, :weather, :dominant_sub_category,
+                (:user_id, (NOW() AT TIME ZONE 'Asia/Seoul')::date, :weather, :dominant_sub_category,
                  :recommended_cocktail, :summary_note)
             RETURNING id
         """),
