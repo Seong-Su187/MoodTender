@@ -105,7 +105,6 @@ class HealthDataWorker(
                 sleepMinutes = realSleepMinutes,
                 screenTimeMinutes = totalScreenTime,
                 appUsageJson = appUsageMap,
-                depressionScore = 0
             )
 
             Log.d("WorkManager테스트", "📊 백그라운드에서 가공된 데이터: $finalData")
