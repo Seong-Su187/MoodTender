@@ -100,7 +100,7 @@ async def create_receipt(
     try:
         user_id = await get_current_user_id(token_payload, db)
         
-        (_, _, _, _, receipt_chain, _) = CHAINS
+        (_, _, _, _, receipt_chain, _, _, _) = CHAINS
 
         # 오늘 대화 조회
         result = await db.execute(
