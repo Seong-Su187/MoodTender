@@ -1,3 +1,8 @@
+"""
+llm.py
+/llm/respond 엔드포인트
+"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,175 +11,134 @@ from backend.database import get_db
 from backend.models.domain import User
 from backend.models.schemas import LLMRequest, LLMResponse
 from backend.routers.auth import get_current_user_token
-from backend.services.openai_llm import OpenAIError, generate_bartender_reply
-from backend.services.rag_chain import (
-    build_chains,
-    new_session_id,
-    run_first_turn,
-    run_free_chat,
-    finalize_memory,
-)
+from backend.services.rag_chain import rag_chat, save_receipt, CHAINS
+from sqlalchemy import text
 
 router = APIRouter()
 
-
-def is_casual_greeting(text: str) -> bool:
-    text = text.strip().lower()
-    return text in {
-        "안녕","안녕하세요","하이", "ㅎㅇ","hi","hello","어","응",
-        "네","넵","ㅇㅇ","아","음","흠",
-    }
-
-
-def is_meaningful_emotion_input(text: str) -> bool:
-    text = text.strip()
-
-    if not text:
-        return False
-
-    emotion_or_context_keywords = [
-        "오늘", "하루", "아침", "점심", "저녁", "밤",
-        "회사", "학교", "수업", "과제", "시험", "발표", "면접",
-        "친구", "가족", "엄마", "아빠", "동료", "상사", "팀원",
-        "힘들", "지쳤", "피곤", "우울", "슬퍼", "속상", "외로",
-        "불안", "긴장", "걱정", "무서", "막막", "답답",
-        "화나", "짜증", "억울", "서운", "부담",
-        "좋았", "행복", "기뻐", "설렜", "뿌듯", "편안",
-    ]
-
-    if any(keyword in text for keyword in emotion_or_context_keywords):
-        return True
-
-    if len(text) < 8:
-        return False
-
-    return False
-
-
-try:
-    emotion_chain, summary_chain, receipt_chain, free_chat_chain = build_chains()
-except Exception as exc:
-    emotion_chain = None
-    summary_chain = None
-    receipt_chain = None
-    free_chat_chain = None
-    print(f"[LLM] RAG chain init failed: {exc}")
-
+_user_session_data: dict[int, dict] = {}
+_user_cocktail_done: set[int] = set()
+_user_turn_counter: dict[int, int] = {}
 
 async def get_current_user_id(
     token_payload: dict,
     db: AsyncSession,
 ) -> int:
     username = token_payload.get("sub")
+
     if not username:
         raise HTTPException(status_code=401, detail="토큰에 사용자 정보가 없습니다.")
 
     result = await db.execute(select(User).where(User.username == username))
-    db_user = result.scalar_one_or_none()
+    user = result.scalar_one_or_none()
 
-    if not db_user:
+    if not user:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
-    return db_user.id
+    return user.id
 
 
 @router.post("/llm/respond", response_model=LLMResponse)
-async def respond_with_rag(
+async def respond(
     payload: LLMRequest,
     token_payload: dict = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = await get_current_user_id(token_payload, db)
+    try:
+        user_id = await get_current_user_id(token_payload, db)
 
-    if is_casual_greeting(payload.text):
-        return LLMResponse(reply="어서 와요. 오늘은 어떤 기분으로 오셨어요?")
+        user_text = payload.text.strip()
+        speed = getattr(payload, "speed", 1.0)
 
-    if not is_meaningful_emotion_input(payload.text):
-        if not free_chat_chain:
-            raise HTTPException(status_code=500, detail="Free chat chain is not initialized.")
+        if not user_text:
+            raise HTTPException(status_code=400, detail="메시지가 비어 있습니다.")
 
-        try:
-            reply = await run_free_chat(
-                free_chat_chain=free_chat_chain,
-                user_id=user_id,
-                user_text=payload.text,
-                history=[],
+        if user_text.lower() in {"안녕", "안녕하세요", "하이", "ㅎㅇ", "hi", "hello"}:
+            return LLMResponse(
+                reply="어서 와요. 오늘은 어떤 기분으로 오셨어요?",
+                emotion="평온",
             )
-            return LLMResponse(reply=reply)
-        except OpenAIError as exc:
-            raise HTTPException(status_code=502, detail=f"OpenAI API error: {exc}")
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Free chat error: {exc}")
+        
+        session_id = payload.session_id
+        cocktail_done = user_id in _user_cocktail_done
 
-    if not all([emotion_chain, summary_chain, receipt_chain]):
-        raise HTTPException(status_code=500, detail="RAG chain is not initialized.")
+        _user_turn_counter[user_id] = _user_turn_counter.get(user_id, 0) + 1
+        turn_count = _user_turn_counter[user_id]
 
-    session_id = new_session_id()
-
-    try:
-        bartender_result, emotion, cocktail = await run_first_turn(
-            emotion_chain=emotion_chain,
-            summary_chain=summary_chain,
-            receipt_chain=receipt_chain,
-            user_id=user_id,
-            session_id=session_id,
-            user_text=payload.text,
+        reply, emotion, cocktail_line = await rag_chat(
             db=db,
+            user_id=user_id,
+            user_text=user_text,
+            speed=speed,
+            session_id=session_id,
+            cocktail_done=cocktail_done,
+            user_turn_count=turn_count,
         )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"RAG error: {exc}")
 
-    reply = " ".join(
-        part
-        for part in [
-            bartender_result.get("bartender_reply"),
-            bartender_result.get("cocktail_line"),
-        ]
-        if part
-    ).strip()
+        if cocktail_line and not cocktail_done:
+            _user_cocktail_done.add(user_id)
+            _user_session_data[user_id] = {"emotion": emotion, "cocktail": cocktail_line}
 
-    conversation_text = f"""
-    사용자: {payload.text}
-    바텐더: {reply}
-    """
+        return LLMResponse(reply=reply, emotion=emotion)
 
-    await finalize_memory(
-        summary_chain=summary_chain,
-        user_id=user_id,
-        session_id=session_id,
-        emotion=emotion,
-        cocktail=cocktail,
-        bartender_result=bartender_result,
-        conversation_text=conversation_text,
-)
+    except HTTPException:
+        raise
 
-    return LLMResponse(reply=reply)
-
-
-@router.post("/llm/simple", response_model=LLMResponse)
-async def respond_simple(
-    payload: LLMRequest,
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"LLM 처리 중 오류가 발생했습니다: {e}",
+        )
+    
+@router.post("/llm/receipt")
+async def create_receipt(
     token_payload: dict = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = await get_current_user_id(token_payload, db)
-
     try:
-        result = await generate_bartender_reply(user_id, payload.text, db)
+        user_id = await get_current_user_id(token_payload, db)
+        
+        (_, _, _, _, receipt_chain, _) = CHAINS
 
-        if isinstance(result, tuple):
-            reply, emotion = result
-        else:
-            reply = result
-            emotion = ""
+        # 오늘 대화 조회
+        result = await db.execute(
+            text("""
+                SELECT role, content FROM chat_messages
+                WHERE user_id = :user_id
+                  AND created_at >= CURRENT_DATE
+                ORDER BY created_at ASC
+            """),
+            {"user_id": user_id},
+        )
+        rows = result.fetchall()
+        conversation_text = "\n".join(
+            f"{'사용자' if r[0] == 'user' else '바텐더'}: {r[1]}"
+            for r in rows
+        )
 
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-    except OpenAIError as exc:
-        raise HTTPException(status_code=502, detail=f"OpenAI API error: {exc}")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"LLM error: {exc}")
+        session_data = _user_session_data.get(user_id, {})
+        emotion = session_data.get("emotion", "")
+        cocktail = session_data.get("cocktail", "")
 
-    return LLMResponse(reply=reply, emotion=emotion)
+        await save_receipt(
+            db=db,
+            user_id=user_id,
+            emotion=emotion,       
+            sub_emotion=emotion,
+            cocktail=cocktail,
+            conversation_text=conversation_text,
+            receipt_chain=receipt_chain,
+        )
+
+        _user_cocktail_done.discard(user_id)
+        _user_session_data.pop(user_id, None)
+        _user_turn_counter.pop(user_id, None)
+
+        return {"status": "ok"}
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"영수증 생성 오류: {e}")
