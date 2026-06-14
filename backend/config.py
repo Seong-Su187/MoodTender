@@ -22,12 +22,8 @@ try:
     _mc   = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_mc)
     FFMPEG_PATH = _mc.FFMPEG_PATH
-    LP_DIR      = _mc.LP_DIR
-    LP_PYTHON   = _mc.LP_PYTHON
 except Exception:
     FFMPEG_PATH = os.environ.get("FFMPEG_PATH", "")
-    LP_DIR      = os.environ.get("LP_DIR", "")
-    LP_PYTHON   = os.environ.get("LP_PYTHON", "")
 
 os.environ["PATH"] = FFMPEG_PATH + ";" + os.environ.get("PATH", "")
 
@@ -43,12 +39,6 @@ if SECRET_KEY == "change-me-in-production":
     print("[경고] SECRET_KEY 환경변수를 설정하세요.")
 
 # ─── 상수 ─────────────────────────────────────────────────────
-LP_DRIVING_VIDEOS = {
-    "기본":  os.path.join(LP_DIR, "assets", "examples", "driving", "d0.mp4"),
-    "활발":  os.path.join(LP_DIR, "assets", "examples", "driving", "d9.mp4"),
-    "차분":  os.path.join(LP_DIR, "assets", "examples", "driving", "d13.mp4"),
-}
-
 VOICES = {
     "onyx":   "Onyx (중후한 남성)",
     "echo":   "Echo (남성)",

@@ -28,22 +28,35 @@ from musetalk.utils.blending import get_image_blending
 from musetalk.utils.utils import datagen
 
 
+def _blend_fast(image: np.ndarray, face: np.ndarray, face_box, mask_array: np.ndarray, crop_box) -> np.ndarray:
+    """get_image_blending의 PIL-free 버전.
+    1080p 풀프레임 전체를 PIL로 변환하지 않고 crop_box 영역만 numpy로 합성한다.
+    image(=ori, 호출 측에서 만든 복사본)를 in-place로 수정 후 반환."""
+    x, y, x1, y1 = face_box
+    x_s, y_s, x_e, y_e = crop_box
+    h, w = image.shape[:2]
+    if x_s < 0 or y_s < 0 or x_e > w or y_e > h:
+        return get_image_blending(image, face, face_box, mask_array, crop_box)
+
+    region = image[y_s:y_e, x_s:x_e]
+    patch  = region.copy()
+    patch[y - y_s:y1 - y_s, x - x_s:x1 - x_s] = face
+
+    mask = mask_array.astype(np.float32)
+    if mask.ndim == 2:
+        mask = mask[:, :, np.newaxis]
+    mask /= 255.0
+
+    region[:] = (patch.astype(np.float32) * mask + region.astype(np.float32) * (1.0 - mask)).astype(np.uint8)
+    return image
+
+
 def _black_bg_alpha(frame: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     """검정 배경 아바타에서 캐릭터 알파 마스크 생성 (RGB max-value 임계값 방식)."""
     max_rgb = frame.max(axis=2)                              # (H, W) 각 픽셀의 최대 채널값
     a = np.where(max_rgb > 12, np.uint8(255), np.uint8(0))  # 검정 배경(≤12) = 투명
     a = cv2.morphologyEx(a, cv2.MORPH_CLOSE, kernel, iterations=2)  # 옷 안의 작은 구멍 메우기 (윤곽선 위치는 유지)
     a = cv2.erode(a, kernel, iterations=1)                  # 가장자리 흰 fringe 1px 제거
-    a = cv2.GaussianBlur(a, (7, 7), 0)                      # 엣지 부드럽게
-    return a
-
-
-def _white_bg_alpha(frame: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """흰 배경 아바타에서 캐릭터 알파 마스크 생성 (RGB min-value 임계값 방식)."""
-    min_rgb = frame.min(axis=2)                              # (H, W) 각 픽셀의 최소 채널값
-    a = np.where(min_rgb < 243, np.uint8(255), np.uint8(0))  # 흰 배경(≥243) = 투명
-    a = cv2.morphologyEx(a, cv2.MORPH_CLOSE, kernel, iterations=2)  # 옷 안의 작은 구멍 메우기 (윤곽선 위치는 유지)
-    a = cv2.erode(a, kernel, iterations=1)                  # 가장자리 검정 fringe 1px 제거
     a = cv2.GaussianBlur(a, (7, 7), 0)                      # 엣지 부드럽게
     return a
 
@@ -55,7 +68,6 @@ def inference_stream(
     audio_pad_left=2, audio_pad_right=2,
     taesd=None,
     composite_bg=True,
-    bg_alpha_mode="black",
 ):
     """
     MuseTalk 추론 결과를 프레임 단위로 FFmpeg에 파이프하고
@@ -91,7 +103,7 @@ def inference_stream(
         bar_bg    = cv2.resize(_raw_bg, (W, H)) if _raw_bg is not None else None
         bar_bg_u16 = bar_bg.astype(np.uint16) if bar_bg is not None else None
         _erode_kernel = np.ones((3, 3), np.uint8)
-        _alpha_fn = _white_bg_alpha if bg_alpha_mode == "white" else _black_bg_alpha
+        _alpha_fn = _black_bg_alpha
     else:
         bar_bg_u16 = None
         _erode_kernel = None
@@ -162,8 +174,10 @@ def inference_stream(
             pairs = min(k - 1, interp.shape[0])
             merged = torch.stack([key_decoded[:pairs], interp[:pairs]], dim=1)
             merged = merged.reshape(pairs * 2, *key_decoded.shape[1:])
-            # 마지막 키프레임 추가 후 정확한 n개로 자름
-            image = torch.cat([merged, key_decoded[pairs:]], dim=0)[:n]
+            # 마지막 키프레임을 한 번 더 채워 n-1 → n장으로 보정
+            # (짝수 n에서는 원래 n-1장만 나와 배치당 1프레임씩 누락되어
+            #  오디오-입모양 동기화가 배치마다 40ms씩 누적 드리프트됨)
+            image = torch.cat([merged, key_decoded[pairs:], key_decoded[-1:]], dim=0)[:n]
         else:
             image = vae.vae.decode(latents.to(dtype)).sample
 
@@ -217,7 +231,7 @@ def inference_stream(
                 rf    = cv2.resize(raw.astype(np.uint8), (x2 - x1, y2 - y1))
                 mask  = avatar.mask_list_cycle[idx % len(avatar.mask_list_cycle)]
                 mc    = avatar.mask_coords_list_cycle[idx % len(avatar.mask_coords_list_cycle)]
-                frame = get_image_blending(ori, rf, bbox, mask, mc)
+                frame = _blend_fast(ori, rf, bbox, mask, mc)
                 if bar_bg_u16 is not None:
                     a_u8 = _alpha_fn(ori, _erode_kernel)
                     a = a_u8[:, :, np.newaxis].astype(np.uint16)

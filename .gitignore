@@ -10,11 +10,6 @@ __pycache__/
 .ipynb_checkpoints
 
 # ─── 모델 가중치 (용량 큼) ────────────────────────────────────
-# LivePortrait
-backend/LivePortrait/pretrained_weights/liveportrait/
-backend/LivePortrait/pretrained_weights/liveportrait_animals/
-backend/LivePortrait/pretrained_weights/insightface/
-backend/LivePortrait/pretrained_weights/.cache/
 **/*.pth
 **/*.onnx
 **/*.pkl
@@ -23,13 +18,7 @@ backend/LivePortrait/pretrained_weights/.cache/
 backend/MuseTalk/models/
 backend/MuseTalk/config.py
 
-# ─── 대용량 소스 파일 ─────────────────────────────────────────
-backend/LivePortrait/source/
-
 # ─── 생성 결과물 ──────────────────────────────────────────────
-backend/LivePortrait/animations/
-backend/LivePortrait/tmp/
-backend/LivePortrait/gradio_temp/
 backend/MuseTalk/results/
 
 # ─── 미디어 파일 (영상/오디오) ────────────────────────────────
