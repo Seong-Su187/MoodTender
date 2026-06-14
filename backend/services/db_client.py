@@ -116,6 +116,34 @@ async def get_emotion_dictionary(
     return _to_dicts(result)
 
 
+async def search_chat_messages(
+    db: AsyncSession,
+    user_id: int,
+    query_embedding: list[float],
+    session_id: str = "",
+    top_k: int = 3,
+) -> list[dict]:
+    result = await db.execute(
+        text("""
+            SELECT role, content, created_at,
+                   1 - (embedding <=> CAST(:vec AS vector)) AS similarity
+            FROM chat_messages
+            WHERE user_id = :user_id
+              AND embedding IS NOT NULL
+              AND session_id != :session_id
+            ORDER BY embedding <=> CAST(:vec AS vector)
+            LIMIT :top_k
+        """),
+        {
+            "vec": _vec(query_embedding),
+            "user_id": user_id,
+            "session_id": session_id,
+            "top_k": top_k,
+        },
+    )
+    return _to_dicts(result)
+
+
 async def save_chat_message(
     db: AsyncSession,
     user_id: int,
