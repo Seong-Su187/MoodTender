@@ -53,7 +53,6 @@
     </div>
   </div>
 
-  <!-- 감정 영수증 모달 -->
   <div id="receipt-modal" class="receipt-modal" style="display:none;">
     <div class="receipt-modal-panel">
       <div class="receipt-modal-header">
@@ -61,7 +60,6 @@
         <button onclick="closeReceiptModal()" aria-label="닫기">✕</button>
       </div>
       <div class="receipt-modal-body">
-        <!-- 왼쪽: 달력 -->
         <div class="receipt-left">
           <div class="receipt-calendar-nav">
             <button class="receipt-nav-btn" onclick="changeReceiptMonth(-1)">&#8592;</button>
@@ -76,7 +74,6 @@
           </div>
           <div class="receipt-month-summary" id="receipt-month-summary"></div>
         </div>
-        <!-- 오른쪽: 영수증 내용 -->
         <div class="receipt-right" id="receipt-right">
           <div class="receipt-empty-state" id="receipt-empty-state">
             <span>날짜를 선택하면<br>감정 영수증을 볼 수 있어요.</span>
@@ -445,9 +442,8 @@
     // 🚀 실시간 기기 연동 (WebSocket) 제어 로직
     // ---------------------------------------------------------
     let pairingSocket = null;
-    let currentWebUserId = null; // 🚨 1번 고정 제거! (빈 값으로 초기화)
+    let currentWebUserId = null;
 
-    // 🌟 서버에 내 토큰을 보내서 진짜 상태와 아이디를 가져오는 함수
     async function checkDevicePairingStatus() {
       try {
         const token = localStorage.getItem('access_token'); 
@@ -459,7 +455,7 @@
         
         if (response.ok) {
           const data = await response.json();
-          currentWebUserId = data.user_id; // 진짜 내 ID 저장!
+          currentWebUserId = data.user_id; 
           
           if (data.is_device_paired === true) {
             const overlay = document.getElementById('pairing-overlay');
@@ -467,7 +463,7 @@
               overlay.style.display = 'none'; 
             }
             showToast('로그인 완료!', '✓');
-          showToast('디바이스가 이미 연동되어 있어요.', '🔗');
+            showToast('디바이스가 이미 연동되어 있어요.', '🔗');
             console.log("✅ 이미 연동된 유저입니다. 자동 잠금 해제 완료!");
           } else {
              console.log("🔒 디바이스 연동이 필요합니다.");
@@ -482,7 +478,6 @@
       checkDevicePairingStatus();
     });
     function startPairing() {
-      // 내 ID가 아직 로드되지 않았다면 방어
       if (!currentWebUserId) {
         alert("유저 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
         return;
@@ -492,7 +487,6 @@
       document.getElementById('pin-state').style.display = 'block';
       closeSidebar();
 
-      // 이제 고정된 1번이 아닌, 내 진짜 ID로 웹소켓을 엽니다!
       pairingSocket = new WebSocket(`ws://${window.location.host}/api/pairing/ws/${currentWebUserId}`);
 
       pairingSocket.onmessage = function(event) {
@@ -617,7 +611,6 @@
         closeOrderPanel();
       } else {
         panel.classList.add('open');
-        // 메뉴창 탭으로 전환
         document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
         document.querySelectorAll('.panel-tab')[1].classList.add('active');
@@ -821,13 +814,16 @@
       appendChatMessage('assistant', music.message);
     }
 
+    // 🚀 수정된 부분: LLM 대화 시에도 영수증 발급 API 호출 추가
     async function endConversation() {
       const btn = document.querySelector('.end-chat-btn');
       if (btn) { btn.disabled = true; btn.textContent = '처리 중…'; }
 
-      if (selectedCocktail) {
-        try {
-          const token = localStorage.getItem('access_token');
+      try {
+        const token = localStorage.getItem('access_token');
+        
+        if (selectedCocktail) {
+          // 1. 메뉴에서 직접 칵테일을 고른 경우
           await fetch('/api/emotion/receipts/select-cocktail', {
             method: 'POST',
             headers: {
@@ -839,10 +835,20 @@
               cocktail_name: selectedCocktail.name
             })
           });
-        } catch (e) {
-          console.error('영수증 저장 실패:', e);
+          selectedCocktail = null;
+        } else {
+          // 2. LLM과 대화만 하고 종료한 경우
+          // 주의: 백엔드에 LLM 기반 영수증 생성 API(/api/emotion/receipts/generate)가 준비되어 있어야 합니다.
+          await fetch('/api/emotion/receipts/generate', { 
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
         }
-        selectedCocktail = null;
+      } catch (e) {
+        console.error('영수증 발급 실패:', e);
       }
 
       if (btn) { btn.disabled = false; btn.textContent = '대화 종료 · 영수증 발급'; }
@@ -850,6 +856,8 @@
       closeOrderPanel();
       if (typeof closeSidebar === 'function') closeSidebar();
       document.getElementById('receipt-modal').style.display = 'flex';
+      
+      // 새로 생성된 영수증 데이터를 다시 불러옴
       await loadReceiptData();
 
       const today = new Date();
@@ -859,8 +867,8 @@
 
       const pad = n => String(n).padStart(2, '0');
       const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+      
       if (receiptData[todayStr]) {
-        // 달력 셀 selected 표시
         const cells = document.querySelectorAll('#receipt-cal-days .cal-day');
         cells.forEach(cell => {
           const num = parseInt(cell.querySelector('span')?.textContent);
