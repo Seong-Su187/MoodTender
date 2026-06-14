@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from sqlalchemy.dialects.postgresql import insert
 from pydantic import BaseModel
 from datetime import date
 
@@ -45,8 +44,8 @@ async def get_emotion_receipts(
 
 
 # -------------------------------------------------------
-# POST: 칵테일 직접 선택 → 오늘 영수증 생성/업데이트
-# emotion_dictionary에서 해당 감정의 sub_category를 가져와 저장
+# POST: 칵테일 직접 선택 → 오늘 영수증 생성 (다중 발급 가능)
+# emotion_dictionary에서 해당 감정의 sub_category를 가져와 차곡차곡 추가 저장
 # -------------------------------------------------------
 class CocktailSelectRequest(BaseModel):
     emotion: str        # 기쁨 | 우울 | 불안 | 분노 | 지침 | 외로움 | 평온
@@ -72,22 +71,16 @@ async def select_cocktail_receipt(
     sub_category = entry.sub_category if entry else body.emotion
     cocktail_direction = entry.cocktail_direction if entry else body.cocktail_name
 
-    # 오늘 날짜로 영수증 저장 (이미 있으면 업데이트)
-    stmt = insert(domain.EmotionReceipt).values(
+    # 🚀 수정: 덮어쓰기(on_conflict_do_update)를 제거하고 데이터가 매번 쌓이도록 db.add 구조로 변경
+    new_receipt = domain.EmotionReceipt(
         user_id=user_id,
         receipt_date=date.today(),
         dominant_sub_category=sub_category,
         recommended_cocktail=cocktail_direction,
         summary_note=f"오늘은 {body.cocktail_name}을 직접 선택하셨어요.",
-    ).on_conflict_do_update(
-        index_elements=["user_id", "receipt_date"],
-        set_=dict(
-            dominant_sub_category=sub_category,
-            recommended_cocktail=cocktail_direction,
-            summary_note=f"오늘은 {body.cocktail_name}을 직접 선택하셨어요.",
-        ),
     )
-    await db.execute(stmt)
+    
+    db.add(new_receipt)
     await db.commit()
 
     return {"status": "ok", "sub_category": sub_category, "cocktail": cocktail_direction}
