@@ -298,49 +298,49 @@
                   <span class="menu-item-icon"><img src="/assets/orange.jpeg" alt="주황 칵테일"/></span>
                   <div class="menu-item-info">
                     <div class="menu-item-name">주황 칵테일</div>
-                    <div class="menu-item-sub">기쁨</div>
+                    <div class="menu-item-sub">기분이 들뜨는 날에</div>
                   </div>
                 </div>
                 <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="파랑 칵테일" data-emotion="우울">
                   <span class="menu-item-icon"><img src="/assets/blue.jpeg" alt="파랑 칵테일"/></span>
                   <div class="menu-item-info">
                     <div class="menu-item-name">파랑 칵테일</div>
-                    <div class="menu-item-sub">우울</div>
+                    <div class="menu-item-sub">마음이 가라앉는 날에</div>
                   </div>
                 </div>
                 <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="보라 칵테일" data-emotion="불안">
                   <span class="menu-item-icon"><img src="/assets/purple.jpeg" alt="보라 칵테일"/></span>
                   <div class="menu-item-info">
                     <div class="menu-item-name">보라 칵테일</div>
-                    <div class="menu-item-sub">불안</div>
+                    <div class="menu-item-sub">긴장이 풀리지 않을 때</div>
                   </div>
                 </div>
                 <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="빨강 칵테일" data-emotion="분노">
                   <span class="menu-item-icon"><img src="/assets/red.jpeg" alt="빨강 칵테일"/></span>
                   <div class="menu-item-info">
                     <div class="menu-item-name">빨강 칵테일</div>
-                    <div class="menu-item-sub">분노</div>
+                    <div class="menu-item-sub">열이 확 올라오는 순간</div>
                   </div>
                 </div>
                 <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="노랑 칵테일" data-emotion="지침">
                   <span class="menu-item-icon"><img src="/assets/yellow.jpeg" alt="노랑 칵테일"/></span>
                   <div class="menu-item-info">
                     <div class="menu-item-name">노랑 칵테일</div>
-                    <div class="menu-item-sub">지침</div>
+                    <div class="menu-item-sub">몸도 마음도 지쳤을 때</div>
                   </div>
                 </div>
-                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="회색 칵테일" data-emotion="외로움">
-                  <span class="menu-item-icon"><img src="/assets/black.jpeg" alt="회색 칵테일"/></span>
+                <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="검정 칵테일" data-emotion="외로움">
+                  <span class="menu-item-icon"><img src="/assets/black.jpeg" alt="검정 칵테일"/></span>
                   <div class="menu-item-info">
-                    <div class="menu-item-name">회색 칵테일</div>
-                    <div class="menu-item-sub">외로움</div>
+                    <div class="menu-item-name">검정 칵테일</div>
+                    <div class="menu-item-sub">혼자인 밤이 길게 느껴질 때</div>
                   </div>
                 </div>
                 <div class="menu-item" onclick="selectCocktail(this)" data-cocktail="초록 칵테일" data-emotion="평온">
                   <span class="menu-item-icon"><img src="/assets/green.jpeg" alt="초록 칵테일"/></span>
                   <div class="menu-item-info">
                     <div class="menu-item-name">초록 칵테일</div>
-                    <div class="menu-item-sub">평온</div>
+                    <div class="menu-item-sub">고요한 여유가 필요할 때</div>
                   </div>
                 </div>
               </div>
@@ -357,7 +357,11 @@
                   data-src="/assets/music/Amber%20After%20Hours.mp3"
                   data-message="은은한 호박빛처럼 따뜻한 곡을 고르셨군요.\n오늘의 여운을 천천히 음미해 볼까요?">
                   <span class="music-note" aria-hidden="true">♪</span>
-                  <span class="music-item-info"><strong>Amber After Hours</strong><small>Jazz · Warm · 4:01</small></span>
+                  <span class="music-item-info">
+                    <strong>Amber After Hours</strong>
+                    <small>Jazz · Warm · 4:01</small>
+                    <span class="music-item-desc">따뜻한 불빛 아래 느긋하게 쉬고 싶을 때</span>
+                  </span>
                   <span class="music-select-label">선택</span>
                 </button>
                 <button class="music-item" type="button" onclick="selectMusic(this)"
@@ -365,7 +369,11 @@
                   data-src="/assets/music/Midnight%20Walnut.mp3"
                   data-message="깊은 밤의 나무 향을 닮은 곡을 고르셨군요.\n조용히 가라앉은 마음속 이야기를 들려주시겠어요?">
                   <span class="music-note" aria-hidden="true">♪</span>
-                  <span class="music-item-info"><strong>Midnight Walnut</strong><small>Jazz · Deep · 4:03</small></span>
+                  <span class="music-item-info">
+                    <strong>Midnight Walnut</strong>
+                    <small>Jazz · Deep · 4:03</small>
+                    <span class="music-item-desc">깊은 생각에 잠기고 싶은 고요한 밤</span>
+                  </span>
                   <span class="music-select-label">선택</span>
                 </button>
                 <button class="music-item" type="button" onclick="selectMusic(this)"
@@ -373,7 +381,11 @@
                   data-src="/assets/music/Velvet%20Barometer.mp3"
                   data-message="부드러운 벨벳처럼 감싸는 곡을 고르셨군요.\n지금 마음의 날씨는 어떤가요?">
                   <span class="music-note" aria-hidden="true">♪</span>
-                  <span class="music-item-info"><strong>Velvet Barometer</strong><small>Ambient · Calm · 2:43</small></span>
+                  <span class="music-item-info">
+                    <strong>Velvet Barometer</strong>
+                    <small>Ambient · Calm · 2:43</small>
+                    <span class="music-item-desc">마음을 차분히 가라앉히고 싶을 때</span>
+                  </span>
                   <span class="music-select-label">선택</span>
                 </button>
                 <button class="music-item" type="button" onclick="selectMusic(this)"
@@ -381,7 +393,11 @@
                   data-src="/assets/music/Velvet%20Barometer%28remix%29.mp3"
                   data-message="조금 더 선명한 리듬의 벨벳 바로미터를 고르셨군요.\n멈춰 있던 기분을 가볍게 흔들어 볼까요?">
                   <span class="music-note" aria-hidden="true">♪</span>
-                  <span class="music-item-info"><strong>Velvet Barometer (remix)</strong><small>Remix · Moody · 2:41</small></span>
+                  <span class="music-item-info">
+                    <strong>Velvet Barometer (remix)</strong>
+                    <small>Remix · Moody · 2:41</small>
+                    <span class="music-item-desc">기분 전환이 필요할 때, 감정을 살짝 흔들어줄 한 곡</span>
+                  </span>
                   <span class="music-select-label">선택</span>
                 </button>
               </div>
