@@ -3,7 +3,7 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.database import SessionLocal # database.py의 세션 객체 이름에 맞게 수정하세요.
+from backend.database import AsyncSessionLocal
 from backend.models.domain import ActivityKnowledge
 from backend.services.rag_chain import _embed # 임베딩 함수 재사용
 
@@ -35,7 +35,7 @@ KNOWLEDGE_DATA = [
 
 async def seed_knowledge_base():
     """DB에 지식 베이스를 임베딩하여 삽입하는 함수"""
-    async with SessionLocal() as db:
+    async with AsyncSessionLocal() as db:
         for data in KNOWLEDGE_DATA:
             print(f"[{data['category']}] 임베딩 중...")
             # 1. 텍스트를 OpenAI 1536차원 벡터로 변환
