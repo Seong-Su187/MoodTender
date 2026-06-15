@@ -27,7 +27,11 @@ from backend.services.db_client import (
     save_chat_message,
     save_user_memory,
     save_emotion_receipt,
+    get_expert_knowledge, # 🚀 추가
 )
+
+# 🚀 2단계 비식별화 모듈 임포트 추가
+from backend.services.anonymizer import DataAnonymizer
 
 load_dotenv()
 
@@ -222,6 +226,9 @@ def build_chains():
 [최근 건강 상태]
 {health_context}
 
+[전문 지식 및 행동 근거 (RAG)]
+{expert_knowledge}
+
 [오늘 감정에 어울리는 칵테일]
 {emotion_context}
 
@@ -229,6 +236,11 @@ def build_chains():
 - 현재 발화와 관련 있는 기억만 자연스럽게 반영한다.
 - 관련 없는 기억은 말하지 않는다.
 - "예전에 말씀하셨죠", "기록에 따르면" 같은 표현은 쓰지 않는다.
+
+전문 지식 활용 규칙:
+- [전문 지식 및 행동 근거]에 내용이 있다면, 이를 바탕으로 사용자가 일상에서 바로 할 수 있는 '작은 행동'을 부드럽게 제안한다.
+- 논문 제목이나 딱딱한 학술 용어는 사용하지 말고, 다정한 바텐더의 언어로 풀어서 조언한다.
+- 건강 데이터의 신호와 전문 지식의 극복법을 자연스럽게 하나로 연결한다.
 
 건강 데이터 규칙:
 - 두드러진 건강 신호가 있으면 사용자가 직접 언급하지 않아도 자연스럽게 연결할 수 있다.
@@ -400,17 +412,19 @@ async def _build_context(
     emotion: str,
     session_id: str = "",
 ) -> dict:
-    memories, chats, past_chats, health_rows, emotion_rows = await asyncio.gather(
+    # 🚀 RAG: 전문 지식 검색(get_expert_knowledge)이 병렬로 같이 실행되도록 추가되었습니다.
+    memories, chats, past_chats, health_rows, emotion_rows, expert_knowledge = await asyncio.gather(
         search_user_memories(db, user_id, query_embedding, top_k=3),
         get_recent_chat_messages(db, user_id, session_id=session_id, limit=8),
         search_chat_messages(db, user_id, query_embedding, session_id=session_id, top_k=3),
         get_recent_health_metrics(db, user_id, days=7),
         get_emotion_dictionary(db, emotion),
+        get_expert_knowledge(db, emotion), # 🚀
     )
 
     print(
         f"[RAG] emotion={emotion}, memories={len(memories)}, "
-        f"chats={len(chats)}, past_chats={len(past_chats)}, health={len(health_rows)}, dict={len(emotion_rows)}"
+        f"chats={len(chats)}, past_chats={len(past_chats)}, health={len(health_rows)}, dict={len(emotion_rows)}, expert={len(expert_knowledge)}"
     )
 
     user_turn_count = sum(1 for c in chats if c["role"] == "user")
@@ -421,6 +435,7 @@ async def _build_context(
         "past_chat_context": _build_past_chat_context(past_chats),
         "health_context": _build_health_context(health_rows),
         "emotion_context": _build_emotion_context(emotion_rows),
+        "expert_knowledge": expert_knowledge, # 🚀
         "user_turn_count": user_turn_count,
     }
 
@@ -579,6 +594,7 @@ async def rag_chat(
                 "memory_context": ctx["memory_context"],
                 "past_chat_context": ctx["past_chat_context"],
                 "health_context": ctx["health_context"],
+                "expert_knowledge": ctx["expert_knowledge"], # 🚀 추가
                 "emotion_context": ctx["emotion_context"],
                 "history": ctx["history"],
                 "user_input": user_text,
@@ -604,6 +620,7 @@ async def rag_chat(
             "memory_context": ctx["memory_context"],
             "past_chat_context": ctx["past_chat_context"],
             "health_context": ctx["health_context"],
+            "expert_knowledge": ctx["expert_knowledge"], # 🚀 추가
             "emotion_context": ctx["emotion_context"],
             "history": ctx["history"],
             "user_input": user_text,
@@ -646,3 +663,62 @@ async def rag_chat(
     )
 
     return reply, emotion, cocktail_line
+
+
+# -------------------------------------------------------------------------------------
+# 🚀 4단계: 웹 대시보드 전용 분석 리포트 생성 파이프라인 (추가된 부분)
+# -------------------------------------------------------------------------------------
+
+dashboard_report_chain = ChatPromptTemplate.from_messages([
+    ("system", """
+    당신은 10년 차 전문 바텐더 'MoodTender'입니다.
+    사용자의 최근 라이프 로그 데이터를 분석한 결과와, 심리학/행동요법 전문 지식을 바탕으로
+    웹 대시보드에 띄울 '주간 상태 분석 리포트'를 작성해 주세요.
+    
+    [사용자 상태 (비식별화됨)]
+    분석된 감정 계열: {emotion}
+    수치 변화율(Delta): {deltas}
+    주요 사용 앱(마스킹됨): {app_usage}
+    
+    [전문 지식 및 근거 (RAG)]
+    {expert_knowledge}
+    
+    [작성 규칙]
+    1. 10년 차 바텐더 특유의 따뜻하고, 정중하며, 통찰력 있는 톤을 유지하세요.
+    2. 절대 사용자의 가명(USER_XXX)이나 시스템 변수명을 노출하지 마세요. (대신 "손님"이나 생략)
+    3. 수치 변화율을 기계처럼 읽지 마시고("활동량이 -30%네요"), 부드럽게 해석하세요("최근 걸음이 조금 무거우셨던 것 같네요").
+    4. 제공된 [전문 지식]을 반드시 참고하여, 일상에서 지금 당장 할 수 있는 아주 가벼운 행동을 제안하세요. (예: 5분 환기, 4-7-8 호흡 등)
+    5. 마지막엔 이 감정에 어울리는 가상의 칵테일 한 잔의 이름과 분위기를 추천하며 마무리하세요.
+    6. 대시보드에 바로 삽입되므로 <b>, <br> 등의 HTML 태그를 적극 사용하여 가독성 좋게 3~4문단으로 작성하세요.
+    """)
+]) | _make_llm(temperature=0.5, model="gpt-4o-mini") | StrOutputParser()
+
+
+async def generate_dashboard_rag_report(
+    db: AsyncSession, 
+    user_id: int, 
+    metrics_result: dict
+) -> str:
+    """
+    1~3단계의 데이터를 모아 LLM을 통해 최종 HTML 리포트를 생성하는 파이프라인
+    """
+    # 1. 예외 처리 (데이터 부족 시)
+    if metrics_result.get("status") == "insufficient_data":
+        return "💡 <b>데이터 수집 중</b><br><br>정확한 패턴 분석을 위해서는 최소 3일 이상의 데이터가 필요합니다. 기록을 더 쌓아주세요!"
+
+    # 2. 비식별화 처리 (2단계 방패 적용)
+    safe_context = DataAnonymizer.prepare_safe_context(user_id, metrics_result)
+    emotion = safe_context['emotion']
+
+    # 3. RAG 지식 검색 (3단계 책장 활용)
+    expert_knowledge = await get_expert_knowledge(db, emotion)
+
+    # 4. LLM 프롬프트 실행
+    llm_report = await dashboard_report_chain.ainvoke({
+        "emotion": emotion,
+        "deltas": safe_context['deltas'],
+        "app_usage": safe_context['app_usage'],
+        "expert_knowledge": expert_knowledge
+    })
+
+    return llm_report

@@ -264,3 +264,22 @@ async def save_emotion_receipt(
     )
     await db.commit()
     return result.scalar()
+
+# 🚀 새로 추가된 RAG 지식 검색 함수
+async def get_expert_knowledge(
+    db: AsyncSession,
+    emotion: str,
+) -> str:
+    result = await db.execute(
+        text("""
+            SELECT title, content
+            FROM activity_knowledge
+            WHERE emotion_category = :emotion
+            LIMIT 1
+        """),
+        {"emotion": emotion},
+    )
+    row = result.fetchone()
+    if row:
+        return f"[전문 지식/근거: {row.title}]\n{row.content}"
+    return "특별히 적용할 심리/행동 문헌이 없습니다."
