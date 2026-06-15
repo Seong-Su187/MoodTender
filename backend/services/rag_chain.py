@@ -248,7 +248,8 @@ def build_chains():
 {emotion_context}
 
 기억 활용 규칙:
-- 현재 발화와 관련 있는 기억만 자연스럽게 반영한다.
+- [손님 관련 기억]에 내용이 있으면, 현재 발화와 연결해서 먼저 꺼낸다.
+- "아직도 그 일이 계속되고 있나요?", "그때 일은 어떻게 되셨어요?", "요즘도 그러세요?" 같은 식으로 자연스럽게 물어본다.
 - 관련 없는 기억은 말하지 않는다.
 - "예전에 말씀하셨죠", "기록에 따르면" 같은 표현은 쓰지 않는다.
 
@@ -263,8 +264,9 @@ def build_chains():
 - 활동량이 적으면 무기력함, 활동량이 충분하면 긍정적으로 반영한다.
 - 스크린타임이 길면 도피 또는 고립의 신호로 부드럽게 연결한다.
 - 사람들과의 연락이 거의 없었다면 고립감과 연결할 수 있다.
-- 우울 지수가 높으면 평소보다 더 조심스럽고 따뜻하게 대한다.
-- 수치나 시간을 그대로 말하지 않는다. ("어제 스크린타임이 6시간이에요"가 아니라 "요즘 폰을 많이 보게 되는 것 같아요" 처럼 말한다.)
+- 수치나 시간을 절대 그대로 말하지 않는다. 상태를 감정 언어로만 표현한다.
+  잘못된 예: "수면 시간이 짧네요", "어제 3시간밖에 못 주무셨네요", "걸음수가 적네요"
+  올바른 예: "요즘 잠을 제대로 못 주무시는 것 같아요", "많이 피곤하실 것 같아요", "몸이 많이 무거우셨겠어요"
 - 가장 두드러진 신호 하나만 반영한다.
 
 [선제적 개인화 규칙]
@@ -458,12 +460,13 @@ async def _build_context(
     query_embedding: list[float],
     emotion: str,
     session_id: str = "",
+    session_start=None,
 ) -> dict:
     # 🚀 RAG: 전문 지식 검색(get_expert_knowledge)이 병렬로 같이 실행되도록 추가되었습니다.
     memories, chats, past_chats, health_rows, emotion_rows, expert_knowledge = await asyncio.gather(
         search_user_memories(db, user_id, query_embedding, top_k=3),
         get_recent_chat_messages(db, user_id, session_id=session_id, limit=8),
-        search_chat_messages(db, user_id, query_embedding, session_id=session_id, top_k=3),
+        search_chat_messages(db, user_id, query_embedding, session_id=session_id, session_start=session_start, top_k=3),
         get_recent_health_metrics(db, user_id, days=7),
         get_emotion_dictionary(db, emotion),
         get_expert_knowledge(db, emotion), # 🚀
@@ -473,6 +476,9 @@ async def _build_context(
         f"[RAG] emotion={emotion}, memories={len(memories)}, "
         f"chats={len(chats)}, past_chats={len(past_chats)}, health={len(health_rows)}, dict={len(emotion_rows)}, expert={len(expert_knowledge)}"
     )
+    print(f"[CTX] memory_context={_build_memory_context(memories)!r}")
+    print(f"[CTX] health_context={_build_health_context(health_rows)!r}")
+    print(f"[CTX] past_chat_context={_build_past_chat_context(past_chats)!r}")
 
     user_turn_count = sum(1 for c in chats if c["role"] == "user")
 
@@ -482,6 +488,8 @@ async def _build_context(
         "past_chat_context": _build_past_chat_context(past_chats),
         "health_context": _build_health_context(health_rows),
         "emotion_context": _build_emotion_context(emotion_rows),
+        "cocktail_emotion_context": _build_emotion_context_full(emotion_rows),
+        "emotion_rows_raw": emotion_rows,
         "expert_knowledge": expert_knowledge, # 🚀
         "user_turn_count": user_turn_count,
     }
@@ -589,6 +597,7 @@ async def rag_chat(
     user_text: str,
     speed: float = 1.0,
     session_id: str = "",
+    session_start=None,
     cocktail_done: bool = False,
     user_turn_count: int = 0,
 ) -> tuple[str, str, str]:
@@ -623,6 +632,7 @@ async def rag_chat(
         query_embedding=query_embedding,
         emotion=emotion,
         session_id=session_id,
+        session_start=session_start,
     )
 
     ctx.pop("user_turn_count", None)
