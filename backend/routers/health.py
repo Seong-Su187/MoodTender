@@ -135,7 +135,7 @@ async def analyze_data(
         f"<div style='font-size: 0.9em; color: #b3a48c; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(200, 160, 90, 0.2);'>"
         f"<b>오늘의 활동량:</b> 👣 {today['steps']}보<br>"
         f"<b>오늘의 수면량:</b> 🛏️ {today['sleep_minutes']//60}시간 {today['sleep_minutes']%60}분<br>"
-        f"<b>스마트폰 사용:</b> 📱 {today['screen_time_minutes']}분"
+        f"<b>스마트폰 사용:</b> 📱 {today['screen_time']}분"
         f"</div>"
         f"<div style='line-height: 1.6;'>"
         f"{llm_html_report}"
