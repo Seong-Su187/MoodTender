@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>감정 월간 분석</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/monthly.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100%;
+      background: linear-gradient(160deg, #1a1008 0%, #120c04 100%);
+      background-color: #120c04;
+      color: #f4ecd9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+    }
+    body {
+      overflow-y: auto;
+      padding: 40px;
+    }
+    * { scrollbar-width: thin; scrollbar-color: rgba(200,144,46,0.3) transparent; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(200,144,46,0.3); border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <div style="max-width:1024px; margin:0 auto; display:flex; flex-direction:column; gap:24px;">
+
+    <div class="monthly-summary-cards">
+      <div class="monthly-summary-card">
+        <div class="card-label">걸음수 (최근 달 평균)</div>
+        <div class="card-value" id="mval-steps" style="color:#c8902e;">-</div>
+        <div class="card-delta" id="mdelta-steps"></div>
+      </div>
+      <div class="monthly-summary-card">
+        <div class="card-label">수면 (최근 달 평균)</div>
+        <div class="card-value" id="mval-sleep" style="color:#7dc4e8;">-</div>
+        <div class="card-delta" id="mdelta-sleep"></div>
+      </div>
+      <div class="monthly-summary-card">
+        <div class="card-label">스크린타임 (최근 달 평균)</div>
+        <div class="card-value" id="mval-screen" style="color:#e0746b;">-</div>
+        <div class="card-delta" id="mdelta-screen"></div>
+      </div>
+    </div>
+
+    <div class="monthly-charts">
+      <div class="monthly-chart-box full-width">
+        <h3>수면 월별 추이</h3>
+        <div class="chart-wrap"><canvas id="mc-sleep"></canvas></div>
+      </div>
+      <div class="monthly-chart-box">
+        <h3>걸음수 월별 추이</h3>
+        <div class="chart-wrap"><canvas id="mc-steps"></canvas></div>
+      </div>
+      <div class="monthly-chart-box">
+        <h3>스크린타임 월별 추이</h3>
+        <div class="chart-wrap"><canvas id="mc-screen"></canvas></div>
+      </div>
+    </div>
+
+    <div class="monthly-report">
+      <div class="report-title">🥃 월간 흐름 분석</div>
+      <div id="mc-report-text">데이터를 불러오는 중입니다...</div>
+    </div>
+
+  </div>
+
+  <script src="/js/monthly.js"></script>
+</body>
+</html>

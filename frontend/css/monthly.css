@@ -1,0 +1,269 @@
+/* =============================================
+   monthly.css — 감정 월간 분석 모달
+   ============================================= */
+
+/* ---- 키프레임 ---- */
+@keyframes m-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes m-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes m-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes m-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- 모달 배경 ---- */
+.monthly-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.monthly-modal.show {
+  display: flex;
+  animation: m-fade-in 0.22s ease forwards;
+}
+
+/* ---- 패널 ---- */
+.monthly-modal-panel {
+  width: min(96vw, 1664px);
+  height: min(92vh, 1118px);
+  background: #140f0a;
+  border: 1px solid rgba(200, 160, 90, 0.32);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.58);
+  animation: m-panel-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ---- 헤더 ---- */
+.monthly-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(200, 160, 90, 0.14);
+  flex-shrink: 0;
+}
+
+.monthly-modal-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #e8c884;
+  letter-spacing: 0.04em;
+}
+
+.monthly-modal-header button {
+  background: none;
+  border: none;
+  color: rgba(200, 160, 90, 0.6);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.2s, transform 0.15s;
+}
+
+.monthly-modal-header button:hover {
+  color: #e8c884;
+  transform: rotate(90deg);
+}
+
+/* ---- iframe ---- */
+#monthly-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #120c04;
+}
+
+/* ---- 요약 카드 ---- */
+.monthly-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.monthly-summary-card {
+  background: linear-gradient(180deg, rgba(42, 30, 17, 0.6), rgba(28, 19, 11, 0.55));
+  border: 1px solid rgba(200, 160, 90, 0.18);
+  border-radius: 14px;
+  padding: 24px;
+  opacity: 0;
+  animation: m-card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s, border-color 0.25s;
+}
+
+.monthly-summary-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(200, 160, 90, 0.4);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+
+.monthly-summary-card:nth-child(1) { animation-delay: 0.05s; }
+.monthly-summary-card:nth-child(2) { animation-delay: 0.12s; }
+.monthly-summary-card:nth-child(3) { animation-delay: 0.19s; }
+
+.monthly-summary-card .card-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #a89060;
+  margin-bottom: 8px;
+}
+
+.monthly-summary-card .card-value {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+
+.monthly-summary-card .card-delta {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.delta-up   { color: #7dcea0; }
+.delta-down { color: #e98b82; }
+.delta-same { color: #a89060; }
+
+/* ---- 차트 그리드 ---- */
+.monthly-charts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.monthly-chart-box {
+  background: linear-gradient(180deg, rgba(42, 30, 17, 0.6), rgba(28, 19, 11, 0.55));
+  border: 1px solid rgba(200, 160, 90, 0.18);
+  border-radius: 14px;
+  padding: 24px;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s, border-color 0.25s;
+}
+
+.monthly-chart-box:hover {
+  transform: translateY(-3px);
+  border-color: rgba(200, 160, 90, 0.4);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+
+.monthly-chart-box.full-width {
+  grid-column: 1 / -1;
+}
+
+.monthly-chart-box h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #f0dca0;
+  margin-bottom: 16px;
+}
+
+.monthly-chart-box .chart-wrap {
+  position: relative;
+  height: 288px;
+}
+
+
+/* ---- 분석 텍스트 ---- */
+.monthly-report {
+  background: rgba(15, 10, 6, 0.5);
+  border: 1px solid rgba(200, 160, 90, 0.15);
+  border-radius: 14px;
+  padding: 20px;
+  font-size: 0.88rem;
+  color: #f4ecd9;
+  line-height: 1.8;
+  opacity: 0;
+  animation: m-fade-up 0.45s ease 0.62s forwards;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s, border-color 0.25s;
+}
+
+.monthly-report:hover {
+  transform: translateY(-3px);
+  border-color: rgba(200, 160, 90, 0.4);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+
+.monthly-report .report-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e8c884;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- 대시보드 하단 버튼 ---- */
+.monthly-open-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  margin-top: 8px;
+  background: rgba(232, 200, 132, 0.07);
+  border: 1px solid rgba(232, 200, 132, 0.2);
+  border-radius: 12px;
+  color: #e8c884;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.monthly-open-btn:hover {
+  background: rgba(232, 200, 132, 0.14);
+  border-color: rgba(232, 200, 132, 0.4);
+  transform: translateY(-1px);
+}
+
+.monthly-open-btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+  .monthly-charts { grid-template-columns: 1fr; }
+  .monthly-summary-cards { grid-template-columns: 1fr; }
+  .monthly-chart-box.full-width { grid-column: auto; }
+}

@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/css/panel.css" />
   <link rel="stylesheet" href="/css/menu.css" />
   <link rel="stylesheet" href="/css/music.css" />
+  <link rel="stylesheet" href="/css/monthly.css" />
 </head>
 <body>
   
@@ -136,6 +137,16 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="monthly-modal" class="monthly-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="감정 월간 분석">
+    <div class="monthly-modal-panel">
+      <div class="monthly-modal-header">
+        <h2>📈 감정 월간 분석</h2>
+        <button type="button" onclick="closeMonthlyModal()" aria-label="닫기">✕</button>
+      </div>
+      <iframe id="monthly-frame" title="감정 월간 분석" data-src="/monthly.html"></iframe>
     </div>
   </div>
 

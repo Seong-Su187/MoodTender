@@ -488,7 +488,6 @@ async def _build_context(
         "past_chat_context": _build_past_chat_context(past_chats),
         "health_context": _build_health_context(health_rows),
         "emotion_context": _build_emotion_context(emotion_rows),
-        "cocktail_emotion_context": _build_emotion_context_full(emotion_rows),
         "emotion_rows_raw": emotion_rows,
         "expert_knowledge": expert_knowledge, # 🚀
         "user_turn_count": user_turn_count,
@@ -654,7 +653,7 @@ async def rag_chat(
         )
         print(f"[sub분류] {sub_emotion} → {matched.get('cocktail_direction')}")
     else:
-        sub_emotion_context = ctx["cocktail_emotion_context"]
+        sub_emotion_context = ctx["emotion_context"]
 
     speed_key = min(_SPEED_RANGE, key=lambda v: abs(v - speed))
     char_limit = _SPEED_RANGE[speed_key][1]

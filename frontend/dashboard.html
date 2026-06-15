@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/monthly.css">
     <style>
         body {
             color: #f4ecd9;
@@ -133,9 +134,19 @@
             </div>
         </div>
 
+        <div style="padding-top: 8px;">
+            <button class="monthly-open-btn" onclick="openMonthlyFromParent()">
+                📈 감정 월간 분석
+            </button>
+        </div>
+
     </div>
 
     <script>
+        function openMonthlyFromParent() {
+            window.parent.postMessage({ type: 'openMonthly' }, '*');
+        }
+
         // 🚀 2. 전역 변수: 전체 데이터 보관 및 그래프 인스턴스 관리
         let allRecords = [];
         let stepChartInstance = null;
