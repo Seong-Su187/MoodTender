@@ -102,12 +102,12 @@ async def create_receipt(
         
         (_, _, _, _, receipt_chain, _, _, _) = CHAINS
 
-        # 오늘 대화 조회
+        # 🚀 수정: 오늘 대화 조회 시 KST(한국 시간) 기준으로 불러오도록 쿼리 변경
         result = await db.execute(
             text("""
                 SELECT role, content FROM chat_messages
                 WHERE user_id = :user_id
-                  AND created_at >= CURRENT_DATE
+                  AND created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
                 ORDER BY created_at ASC
             """),
             {"user_id": user_id},

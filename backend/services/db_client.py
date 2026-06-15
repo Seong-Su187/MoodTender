@@ -249,7 +249,8 @@ async def save_emotion_receipt(
                 (user_id, receipt_date, weather, dominant_sub_category,
                  recommended_cocktail, summary_note)
             VALUES
-                (:user_id, (NOW() AT TIME ZONE 'Asia/Seoul')::date, :weather, :dominant_sub_category,
+                /* 🚀 서버 UTC 시간 대신 한국 시간(Asia/Seoul)으로 날짜를 강제 지정합니다! */
+                (:user_id, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date, :weather, :dominant_sub_category,
                  :recommended_cocktail, :summary_note)
             RETURNING id
         """),
@@ -263,3 +264,22 @@ async def save_emotion_receipt(
     )
     await db.commit()
     return result.scalar()
+
+# 🚀 새로 추가된 RAG 지식 검색 함수
+async def get_expert_knowledge(
+    db: AsyncSession,
+    emotion: str,
+) -> str:
+    result = await db.execute(
+        text("""
+            SELECT title, content
+            FROM activity_knowledge
+            WHERE emotion_category = :emotion
+            LIMIT 1
+        """),
+        {"emotion": emotion},
+    )
+    row = result.fetchone()
+    if row:
+        return f"[전문 지식/근거: {row.title}]\n{row.content}"
+    return "특별히 적용할 심리/행동 문헌이 없습니다."

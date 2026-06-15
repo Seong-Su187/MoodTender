@@ -17,7 +17,4 @@ data class HealthDataRequest(
 
     @SerializedName("app_usage_json")
     val appUsageJson: Map<String, Int>,
-
-    @SerializedName("depression_score")
-    val depressionScore: Int? = null
 )
