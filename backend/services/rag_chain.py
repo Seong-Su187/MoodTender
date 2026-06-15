@@ -801,4 +801,11 @@ async def generate_dashboard_rag_report(
         "expert_knowledge": expert_knowledge
     })
 
+    # 5. 줄바꿈 정규화: LLM이 단락을 <br><br>, \n\n, 단일 \n 등
+    #    매번 다른 방식으로 구분해서 출력하므로, 먼저 <br> 계열 태그를
+    #    \n 하나로 통일한 뒤, 1개 이상의 연속된 \n을 모두 단락 구분(<br><br>)으로 변환합니다.
+    llm_report = llm_report.strip()
+    llm_report = re.sub(r'\s*<br\s*/?>\s*', '\n', llm_report, flags=re.IGNORECASE)
+    llm_report = re.sub(r'\n+', '<br><br>', llm_report)
+
     return llm_report
