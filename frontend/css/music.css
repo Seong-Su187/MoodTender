@@ -1,0 +1,237 @@
+/* =============================================
+   music.css — 음악 탭, 재생 플레이어
+   ============================================= */
+
+.music-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 90px 0 0;
+}
+
+.music-panel-title {
+  font-family: "Georgia", serif;
+  color: #7a4f10;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.music-panel-guide {
+  margin: 8px 20px 16px;
+  color: rgba(58, 28, 5, 0.6);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.music-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 18px;
+}
+
+.music-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 20px;
+  border: 0;
+  border-bottom: 1px solid rgba(110, 65, 15, 0.12);
+  border-radius: 0;
+  background: transparent;
+  color: #3a1c05;
+  text-align: left;
+}
+
+.music-item:hover {
+  background: rgba(154, 100, 24, 0.09);
+  transform: none;
+}
+
+.music-note {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(122, 79, 16, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 248, 224, 0.55);
+  color: #7050a0;
+  font-size: 1.25rem;
+}
+
+.music-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.music-item-info strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.music-item-info small {
+  color: rgba(58, 28, 5, 0.55);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.music-select-label {
+  flex-shrink: 0;
+  color: rgba(58, 28, 5, 0.5);
+  font-size: 0.68rem;
+}
+
+/* 채팅에 표시되는 음악 선택 카드 */
+.music-selection-message {
+  width: min(96%, 380px);
+}
+
+.music-selection-bubble {
+  width: 100%;
+  padding: 16px 18px !important;
+  border: 1px solid rgba(175, 120, 35, 0.35) !important;
+  border-radius: 16px 16px 16px 4px !important;
+  background: rgba(252, 241, 210, 0.9) !important;
+  color: #3a1c05 !important;
+  box-shadow:
+    0 2px 10px rgba(100, 55, 5, 0.2),
+    0 1px 3px rgba(100, 55, 5, 0.1) !important;
+}
+
+.selected-music-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.selected-music-info {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 16px 12px 28px;
+  border-bottom: 1px solid rgba(90, 50, 10, 0.7);
+  font-family: "Courier New", monospace;
+}
+
+.selected-music-info::before {
+  content: '♪';
+  position: absolute;
+  left: 8px;
+  top: 10px;
+  color: #8a5a14;
+  font-weight: 800;
+}
+
+.selected-music-info::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(#a56e1b, #a56e1b) left top / 1px 12px no-repeat,
+    linear-gradient(#a56e1b, #a56e1b) left top / 12px 1px no-repeat,
+    linear-gradient(#a56e1b, #a56e1b) right top / 1px 12px no-repeat,
+    linear-gradient(#a56e1b, #a56e1b) right top / 12px 1px no-repeat;
+}
+
+.selected-music-info strong {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+}
+
+.selected-music-info span {
+  font-size: 0.72rem;
+}
+
+.selected-music-player {
+  display: grid;
+  grid-template-columns: 28px minmax(70px, 1fr) 66px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.music-play-btn,
+.music-copy-btn {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.music-play-btn {
+  display: grid;
+  place-items: center;
+  color: #3a1c05;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.music-play-btn.playing {
+  color: #a56e1b;
+}
+
+.music-progress-track {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(90, 50, 10, 0.18);
+}
+
+.music-progress-value {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #a56e1b;
+}
+
+.music-playback-time {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  color: rgba(58, 28, 5, 0.64);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.music-play-btn:hover,
+.music-copy-btn:hover {
+  transform: none;
+  opacity: 0.65;
+}
+
+.music-copy-btn::before,
+.music-copy-btn span {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid #3a1c05;
+  border-radius: 3px;
+}
+
+.music-copy-btn::before { left: 7px; top: 8px; }
+.music-copy-btn span { left: 10px; top: 5px; background: #fcf1d2; }

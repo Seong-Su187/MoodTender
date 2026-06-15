@@ -1,0 +1,161 @@
+/* =============================================
+   base.css — 리셋, 변수, 전역 레이아웃
+   ============================================= */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #140f0a;
+  --surface: #1f1813;
+  --surface2: #2a2018;
+  --surface3: #352a1f;
+  --border: rgba(200, 160, 90, 0.18);
+  --accent: #c8902e;
+  --accent2: #d9b65a;
+  --text: #f4ecd9;
+  --muted: #b3a48c;
+  --danger: #e0746b;
+  --success: #9bbd6a;
+  --composer: #f5ecd6;
+}
+
+body {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(200, 144, 46, 0.18), transparent 32%),
+    radial-gradient(circle at 78% 18%, rgba(120, 60, 20, 0.22), transparent 34%),
+    linear-gradient(145deg, #140f0a 0%, #1c130b 48%, #0f0a06 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+}
+
+header {
+  display: none;
+}
+
+.header-left,
+.header-right,
+.model-bar {
+  display: flex;
+  align-items: center;
+}
+
+.header-left { gap: 10px; }
+.header-right { gap: 12px; min-width: 0; }
+
+h1 {
+  font-size: 1.28rem;
+  color: var(--text);
+  letter-spacing: 0;
+}
+
+.subtitle,
+.username-badge,
+.status-text,
+.field-label {
+  color: var(--muted);
+}
+
+.subtitle { font-size: 0.84rem; }
+.username-badge { font-size: 0.8rem; white-space: nowrap; }
+
+.model-bar {
+  gap: 10px;
+  min-height: 38px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#model-status-text {
+  min-width: 128px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+#model-status-text.ready { color: var(--success); }
+#model-status-text.error { color: var(--danger); }
+
+main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+}
+
+/* 전역 폼 요소 */
+select,
+input[type="text"] {
+  width: 100%;
+  border: 1px solid var(--border);
+  outline: none;
+  font-size: 0.9rem;
+}
+
+select {
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  background: rgba(12, 10, 16, 0.72);
+}
+
+select:focus,
+input[type="text"]:focus {
+  border-color: rgba(200, 144, 46, 0.75);
+}
+
+input[type="file"] {
+  width: 100%;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+/* 전역 버튼 베이스 */
+button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+#load-model-btn,
+.btn-secondary {
+  min-height: 34px;
+  padding: 8px 12px;
+  color: #110f15;
+  background: var(--composer);
+}
+
+#logout-btn {
+  min-height: 34px;
+  padding: 8px 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+#logout-btn:hover {
+  color: var(--danger);
+  border-color: rgba(255, 107, 122, 0.5);
+}
