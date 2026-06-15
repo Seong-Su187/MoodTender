@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import date
-from typing import Dict, Optional
+from typing import Dict
 
 # --- 기존 유저 및 인증 스키마 ---
 class UserCreate(BaseModel):
@@ -39,5 +39,4 @@ class HealthDataCreate(BaseModel):
     sleep_minutes: int              # 수면 시간 (분 단위)
     screen_time_minutes: int        # 총 스마트폰 사용 시간 (분 단위)
     # 카카오톡, 유튜브, 메시지, 전화 등의 사용 시간을 {"kakao": 120, "phone": 30} 형태로 저장
-    app_usage_json: Dict[str, int] 
-    depression_score: Optional[int] = None  # 우울 수치 (필요 시 선택적 입력)
+    app_usage_json: Dict[str, int]

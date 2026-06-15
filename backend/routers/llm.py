@@ -100,7 +100,7 @@ async def create_receipt(
     try:
         user_id = await get_current_user_id(token_payload, db)
         
-        (_, _, _, _, receipt_chain, _) = CHAINS
+        (_, _, _, _, receipt_chain, _, _, _) = CHAINS
 
         # 🚀 수정: 오늘 대화 조회 시 KST(한국 시간) 기준으로 불러오도록 쿼리 변경
         result = await db.execute(

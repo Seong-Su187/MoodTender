@@ -80,7 +80,7 @@ async def get_recent_health_metrics(
     result = await db.execute(
         text("""
             SELECT record_date, step_count, sleep_minutes,
-                   screen_time_minutes, app_usage_json, depression_score
+                   screen_time_minutes, app_usage_json
             FROM health_metrics
             WHERE user_id = :user_id
               AND record_date >= CURRENT_DATE - (:days || ' days')::interval
