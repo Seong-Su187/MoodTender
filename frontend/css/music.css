@@ -7,7 +7,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 90px 0 0;
+  padding: 110px 0 0;
 }
 
 .music-panel-title {
@@ -56,8 +56,8 @@
 }
 
 .music-note {
-  width: 40px;
-  height: 40px;
+  width: 72px;
+  height: 72px;
   flex-shrink: 0;
   display: grid;
   place-items: center;
@@ -65,7 +65,7 @@
   border-radius: 10px;
   background: rgba(255, 248, 224, 0.55);
   color: #7050a0;
-  font-size: 1.25rem;
+  font-size: 1.8rem;
 }
 
 .music-item-info {
@@ -73,12 +73,12 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .music-item-info strong {
   overflow: hidden;
-  font-size: 0.78rem;
+  font-size: 1.05rem;
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -86,8 +86,14 @@
 
 .music-item-info small {
   color: rgba(58, 28, 5, 0.55);
-  font-size: 0.7rem;
+  font-size: 0.88rem;
   font-weight: 500;
+}
+
+.music-item-desc {
+  color: rgba(58, 28, 5, 0.42);
+  font-size: 0.84rem;
+  font-style: italic;
 }
 
 .music-select-label {

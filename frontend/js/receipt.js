@@ -249,7 +249,7 @@ function closeReceiptCard() {
 
 const cocktailColorNameMap = {
   '기쁨': '주황 칵테일', '우울': '파랑 칵테일', '불안': '보라 칵테일',
-  '분노': '빨강 칵테일', '지침': '노랑 칵테일', '외로움': '회색 칵테일', '평온': '초록 칵테일'
+  '분노': '빨강 칵테일', '지침': '노랑 칵테일', '외로움': '검정 칵테일', '평온': '초록 칵테일'
 };
 
 function navigateReceipt(dir) {
