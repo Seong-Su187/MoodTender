@@ -82,3 +82,12 @@ class HealthMetric(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'record_date', name='uq_health_user_date'),
     )
+
+class ActivityKnowledge(Base):
+    __tablename__ = "activity_knowledge"
+
+    id = Column(Integer, primary_key=True)
+    emotion_category = Column(String(50))
+    title = Column(String(200))
+    content = Column(Text)
+    embedding = Column(Vector(1536))
