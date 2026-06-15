@@ -66,16 +66,6 @@ class ChatMessage(Base):
     embedding = Column(Vector(1536))
     created_at = Column(DateTime, server_default=func.now())
 
-# --- 🚀 RAG 전문 지식 베이스 (init_knowledge.py / get_expert_knowledge에서 사용) ---
-class ActivityKnowledge(Base):
-    __tablename__ = "activity_knowledge"
-
-    id = Column(Integer, primary_key=True)
-    emotion_category = Column(String(20), index=True)
-    title = Column(String(255))
-    content = Column(Text)
-    embedding = Column(Vector(1536))
-
 # --- 🚀 새로 추가된 모바일 건강 데이터 테이블 ---
 class HealthMetric(Base):
     __tablename__ = "health_metrics"
@@ -92,3 +82,12 @@ class HealthMetric(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'record_date', name='uq_health_user_date'),
     )
+
+class ActivityKnowledge(Base):
+    __tablename__ = "activity_knowledge"
+
+    id = Column(Integer, primary_key=True)
+    emotion_category = Column(String(50))
+    title = Column(String(200))
+    content = Column(Text)
+    embedding = Column(Vector(1536))

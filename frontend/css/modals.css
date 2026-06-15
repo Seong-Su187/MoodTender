@@ -336,6 +336,40 @@
   animation: history-pop 0.25s cubic-bezier(0.22,1,0.36,1);
 }
 
+/* 영수증 넘기기 네비게이션 */
+.rc-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.rc-nav-btn {
+  background: rgba(232, 200, 132, 0.15);
+  border: 1px solid rgba(232, 200, 132, 0.4);
+  color: #e8c884;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0 0 5px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.rc-nav-btn:hover {
+  background: rgba(232, 200, 132, 0.3);
+}
+.rc-nav-label {
+  color: #c8a86e;
+  font-size: 0.85rem;
+  min-width: 40px;
+  text-align: center;
+}
+
 /* 영수증 카드 */
 .rc-paper {
   width: min(100%, 380px);

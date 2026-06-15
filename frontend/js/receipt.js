@@ -5,6 +5,8 @@
 let receiptYear = new Date().getFullYear();
 let receiptMonth = new Date().getMonth();
 let receiptData = {};
+let currentReceiptDate = null;
+let currentReceiptIndex = 0;
 
 const emotionColorMap = {
   '기쁨': '#f4923a', '우울': '#4a7fc1', '불안': '#9b59b6',
@@ -91,8 +93,9 @@ function renderMonthSummary() {
   const pad = n => String(n).padStart(2, '0');
   const prefix = `${receiptYear}-${pad(receiptMonth + 1)}`;
   const counts = {};
-  Object.entries(receiptData).forEach(([dateStr, data]) => {
+  Object.entries(receiptData).forEach(([dateStr, list]) => {
     if (!dateStr.startsWith(prefix)) return;
+    const data = list[0];
     const main = getMainCategory(data.dominant_sub_category) || data.dominant_sub_category;
     if (main) counts[main] = (counts[main] || 0) + 1;
   });
@@ -134,7 +137,10 @@ async function loadReceiptData() {
     if (res.ok) {
       const data = await res.json();
       receiptData = {};
-      (data.receipts || []).forEach(r => { receiptData[r.receipt_date] = r; });
+      (data.receipts || []).forEach(r => {
+        if (!receiptData[r.receipt_date]) receiptData[r.receipt_date] = [];
+        receiptData[r.receipt_date].push(r);
+      });
     }
   } catch (e) {
     receiptData = {};
@@ -174,7 +180,7 @@ function renderReceiptCalendar() {
     cell.className = 'cal-day' + (hasReceipt ? ' has-receipt' : '') + (isToday ? ' is-today' : '');
 
     if (hasReceipt) {
-      const color = getEmotionColor(receiptData[dateStr].dominant_sub_category);
+      const color = getEmotionColor(receiptData[dateStr][0].dominant_sub_category);
       cell.dataset.emotionColor = color;
       cell.style.background = `${color}25`;
       cell.style.border = `1px solid ${color}66`;
@@ -246,17 +252,42 @@ const cocktailColorNameMap = {
   '분노': '빨강 칵테일', '지침': '노랑 칵테일', '외로움': '회색 칵테일', '평온': '초록 칵테일'
 };
 
+function navigateReceipt(dir) {
+  const list = receiptData[currentReceiptDate];
+  if (!list) return;
+  currentReceiptIndex = Math.max(0, Math.min(list.length - 1, currentReceiptIndex + dir));
+  _renderReceiptCard(currentReceiptDate, list[currentReceiptIndex], list.length);
+}
+
 function openReceiptCard(dateStr, data) {
+  currentReceiptDate = dateStr;
+  currentReceiptIndex = 0;
+
   document.getElementById('receipt-empty-state').style.display = 'none';
   document.getElementById('receipt-no-data').style.display = 'none';
   document.getElementById('receipt-detail').style.display = 'none';
 
-  if (!data) {
+  const list = Array.isArray(data) ? data : (data ? [data] : null);
+
+  if (!list || list.length === 0) {
     document.getElementById('rnd-date').textContent = dateStr;
     document.getElementById('receipt-no-data').style.display = 'flex';
     document.getElementById('rc-cocktail-badge').style.display = 'none';
     document.getElementById('rc-emotion-dot').style.background = 'transparent';
     return;
+  }
+
+  _renderReceiptCard(dateStr, list[0], list.length);
+}
+
+function _renderReceiptCard(dateStr, data, total) {
+  const nav = document.getElementById('rc-nav');
+  const navLabel = document.getElementById('rc-nav-label');
+  if (total > 1) {
+    nav.style.display = 'flex';
+    navLabel.textContent = `${currentReceiptIndex + 1} / ${total}`;
+  } else {
+    nav.style.display = 'none';
   }
 
   const isDirect = data.summary_note && data.summary_note.includes('직접 선택하셨어요');

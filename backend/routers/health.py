@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert 
+from sqlalchemy.dialects.postgresql import insert
 from backend.database import get_db
 from backend.models import schemas, domain
 from backend.routers.auth import get_current_user
+from typing import Optional
+from datetime import datetime, timezone, timedelta
 
 # 🚀 1~4단계에서 만든 서비스 모듈 임포트
 from backend.services.analytics_service import calculate_mood_metrics
@@ -86,22 +88,46 @@ async def get_web_data(
 # ---------------------------------------------------------
 @router.get("/api/web/analyze")
 async def analyze_data(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: domain.User = Depends(get_current_user)
 ):
-    # 1. DB에서 최신 데이터 28일치(Baseline 계산용) 추출
-    result = await db.execute(
+    # 1. 날짜 파싱 (기본값: 오늘 하루)
+    now_kst_date = datetime.now(timezone(timedelta(hours=9))).date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else now_kst_date
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else end_date_obj
+
+    # 분석 기간은 최대 7일로 제한 (방어적 처리)
+    if (end_date_obj - start_date_obj).days > 6:
+        start_date_obj = end_date_obj - timedelta(days=6)
+
+    # 2. 선택한 기간(start_date~end_date)의 기록 조회 -> '오늘'처럼 취급할 데이터
+    period_query = (
         select(domain.HealthMetric)
         .where(domain.HealthMetric.user_id == current_user.id)
+        .where(domain.HealthMetric.record_date >= start_date_obj)
+        .where(domain.HealthMetric.record_date <= end_date_obj)
         .order_by(domain.HealthMetric.record_date.asc())
-        .limit(28) 
     )
-    records = result.scalars().all()
+    period_records = (await db.execute(period_query)).scalars().all()
 
-    if not records:
-        return {"report": "💡 <b>분석 대기 중</b><br><br>Supabase DB에 수집된 데이터가 없습니다. 앱에서 동기화를 진행해주세요."}
+    if not period_records:
+        return {"report": "💡 <b>분석 대기 중</b><br><br>선택한 기간에 수집된 데이터가 없습니다. 앱에서 동기화를 진행해주세요."}
 
-    # 2. SQLAlchemy 객체를 분석 서비스용 Dictionary로 변환
+    # 3. 선택 기간 이전 데이터 최대 28일 (Baseline 계산용)
+    baseline_query = (
+        select(domain.HealthMetric)
+        .where(domain.HealthMetric.user_id == current_user.id)
+        .where(domain.HealthMetric.record_date < start_date_obj)
+        .order_by(domain.HealthMetric.record_date.desc())
+        .limit(28)
+    )
+    baseline_records = list(reversed((await db.execute(baseline_query)).scalars().all()))
+
+    records = baseline_records + list(period_records)
+
+    # 4. SQLAlchemy 객체를 분석 서비스용 Dictionary로 변환
     record_dicts = [
         {
             "step_count": r.step_count,
@@ -112,30 +138,43 @@ async def analyze_data(
         for r in records
     ]
 
-    # 🚀 Step 1: 데이터 기반 감정 룰 분석 (Baseline vs Delta)
-    metrics_result = calculate_mood_metrics(record_dicts)
+    # 🚀 Step 1: 데이터 기반 감정 룰 분석 (Baseline vs Delta) - 선택 기간을 '오늘'처럼 취급
+    metrics_result = calculate_mood_metrics(record_dicts, period_days=len(period_records))
 
     # 🚀 Step 2 ~ 4: RAG 파이프라인 실행 (비식별화 -> 지식 검색 -> LLM)
     llm_html_report = await generate_dashboard_rag_report(
-        db=db, 
-        user_id=current_user.id, 
+        db=db,
+        user_id=current_user.id,
         metrics_result=metrics_result
     )
 
-    # 데이터가 3일 미만이라 분석이 안 돌아갔을 경우 LLM 응답이 아닌 자체 메시지 출력
+    # 데이터가 부족해서 분석이 안 돌아갔을 경우 LLM 응답이 아닌 자체 메시지 출력
     if metrics_result.get("status") == "insufficient_data":
         return {"report": llm_html_report}
 
     # 🚀 Step 5: 최종 HTML 조립
-    # 바텐더의 LLM 리포트 상단에 오늘의 실제 기록을 예쁘게 얹어줍니다.
+    # 바텐더의 LLM 리포트 상단에 분석 기준 데이터를 예쁘게 얹어줍니다.
     today = metrics_result.get('today', {"steps": 0, "sleep_minutes": 0, "screen_time": 0})
-    
+
+    if start_date_obj == end_date_obj:
+        # 하루만 선택한 경우: 그날(또는 "오늘") 기준
+        date_label = "오늘" if end_date_obj == now_kst_date else f"{end_date_obj.month}/{end_date_obj.day}"
+        label_steps = f"{date_label}의 활동량"
+        label_sleep = f"{date_label}의 수면량"
+        label_screen = f"{date_label} 스마트폰 사용"
+    else:
+        # 여러 날을 선택한 경우: 기간 평균 기준
+        period_label = f"{start_date_obj.month}/{start_date_obj.day}~{end_date_obj.month}/{end_date_obj.day}"
+        label_steps = f"{period_label} 평균 활동량"
+        label_sleep = f"{period_label} 평균 수면량"
+        label_screen = f"{period_label} 평균 스마트폰 사용"
+
     final_report = (
         f"🥃 <b>MoodTender 데이터 진단 및 처방</b><br><br>"
         f"<div style='font-size: 0.9em; color: #b3a48c; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(200, 160, 90, 0.2);'>"
-        f"<b>오늘의 활동량:</b> 👣 {today['steps']}보<br>"
-        f"<b>오늘의 수면량:</b> 🛏️ {today['sleep_minutes']//60}시간 {today['sleep_minutes']%60}분<br>"
-        f"<b>스마트폰 사용:</b> 📱 {today['screen_time']}분"
+        f"<b>{label_steps}:</b> 👣 {today['steps']}보<br>"
+        f"<b>{label_sleep}:</b> 🛏️ {today['sleep_minutes']//60}시간 {today['sleep_minutes']%60}분<br>"
+        f"<b>{label_screen}:</b> 📱 {today['screen_time']}분"
         f"</div>"
         f"<div style='line-height: 1.6;'>"
         f"{llm_html_report}"

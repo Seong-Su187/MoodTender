@@ -1,39 +1,49 @@
 import statistics
 from typing import List, Dict, Any
 
-def calculate_mood_metrics(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+def calculate_mood_metrics(records: List[Dict[str, Any]], period_days: int = 1) -> Dict[str, Any]:
     """
     사용자의 최근 라이프 로그 데이터를 바탕으로 기준선(Baseline)과 변화율(Delta)을 계산하여,
     7가지 감정 계열(기쁨, 우울, 불안, 분노, 지침, 외로움, 평온) 중 하나를 추론합니다.
+
+    period_days: 분석 대상 기간(가장 최근 N일)입니다. 1이면 마지막 날(오늘) 하루를,
+    2~7이면 해당 기간 전체의 일별 평균을 '오늘'처럼 취급하여 baseline과 비교합니다.
     """
-    if not records or len(records) < 3:
+    if not records or len(records) < period_days + 2:
         return {
             "status": "insufficient_data",
             "analysis": {"emotion": "평온", "reason": "데이터가 충분하지 않아 일상적인 평온 상태로 가정합니다."}
         }
 
-    # 1. 데이터 분리 (오늘 데이터 vs 과거 데이터)
-    today_record = records[-1]
-    past_records = records[:-1]
+    # 1. 데이터 분리 (분석 대상 기간 vs 과거 baseline 데이터)
+    period_records = records[-period_days:]
+    past_records = records[:-period_days]
 
     # 2. 과거 데이터(Baseline) 목록 추출 (결측치 제외)
     steps_list = [r.get('step_count', 0) for r in past_records if r.get('step_count', 0) > 0]
     sleep_list = [r.get('sleep_minutes', 0) for r in past_records if r.get('sleep_minutes', 0) > 0]
     screen_list = [r.get('screen_time_minutes', 0) for r in past_records if r.get('screen_time_minutes', 0) > 0]
-    
+
     # 3. 중앙값(Median) 기준선 및 수면 변동성(표준편차) 계산
     b_steps = statistics.median(steps_list) if steps_list else 1
     b_sleep = statistics.median(sleep_list) if sleep_list else 1
     b_screen = statistics.median(screen_list) if screen_list else 1
     sleep_stdev = statistics.stdev(sleep_list) if len(sleep_list) > 1 else 0
 
-    # 4. 오늘 데이터 파싱
-    t_steps = today_record.get('step_count', 0)
-    t_sleep = today_record.get('sleep_minutes', 0)
-    t_screen = today_record.get('screen_time_minutes', 0)
-    
-    # 앱 사용량 분석 (소셜 vs 미디어 소비)
-    app_usage = today_record.get('app_usage_json') or {}
+    # 4. 분석 대상 기간 데이터 (period_days일 평균 -> '오늘'처럼 취급)
+    t_steps = round(statistics.mean([r.get('step_count', 0) for r in period_records]))
+    t_sleep = round(statistics.mean([r.get('sleep_minutes', 0) for r in period_records]))
+    t_screen = round(statistics.mean([r.get('screen_time_minutes', 0) for r in period_records]))
+
+    # 앱 사용량 분석 (기간 내 일별 평균 -> 소셜 vs 미디어 소비)
+    app_keys = set()
+    for r in period_records:
+        app_keys.update((r.get('app_usage_json') or {}).keys())
+
+    app_usage = {
+        k: round(sum((r.get('app_usage_json') or {}).get(k, 0) for r in period_records) / len(period_records))
+        for k in app_keys
+    }
     social_time = sum(v for k, v in app_usage.items() if k.lower() in ['kakao', 'kakaotalk', 'instagram', 'message'])
     media_time = sum(v for k, v in app_usage.items() if 'youtube' in k.lower() or 'netflix' in k.lower())
 
