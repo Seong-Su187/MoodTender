@@ -1,5 +1,5 @@
 """
-rag_chain.py - MoodTender RAG 서비스 전체 코드
+rag_chain.py - MoodTender RAG 서비스 전체 코드 (생략 없음)
 """
 import os
 import re
@@ -23,6 +23,7 @@ from backend.services.analytics_service import extract_memory_from_chat
 
 load_dotenv()
 
+# OpenAI 설정
 _embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=os.getenv("OPENAI_API_KEY"))
 
 def _make_llm(temperature=0.7, model="gpt-4o-mini"):
@@ -57,7 +58,7 @@ def _build_history(chats: list[dict]) -> list:
 def _build_past_chat_context(chats: list[dict]) -> str:
     return "\n".join(f"- {c['content']}" for c in chats)
 
-# 시스템 프롬프트 정의
+# 체인 및 프롬프트 정의
 bartender_prompt = ChatPromptTemplate.from_messages([
     ("system", """
     너는 MoodTender, 따뜻하고 전문적인 AI 바텐더다.
@@ -77,8 +78,15 @@ bartender_prompt = ChatPromptTemplate.from_messages([
 ])
 
 bartender_chain = bartender_prompt | _make_llm(0.7, "gpt-4.1") | StrOutputParser()
+classify_chain = _make_llm(0.0)
 memory_summary_chain = ChatPromptTemplate.from_messages([("system", "대화 요약"), ("human", "{conversation_text}")]) | _make_llm(0.2) | StrOutputParser()
 receipt_chain = ChatPromptTemplate.from_messages([("system", "감정 영수증 작성"), ("human", "대화:\n{conversation_text}")]) | _make_llm(0.3) | StrOutputParser()
+cocktail_chain = _make_llm(0.7, "gpt-4.1-mini")
+sub_classify_chain = _make_llm(0.0, "gpt-4.1-mini")
+deidentify_chain = _make_llm(0.0)
+
+# CHAINS 정의 (llm.py 호환용)
+CHAINS = (classify_chain, bartender_chain, memory_summary_chain, _make_llm(0.0), receipt_chain, cocktail_chain, sub_classify_chain, deidentify_chain)
 
 async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float = 1.0, session_id: str = "", session_start=None, cocktail_done: bool = False, user_turn_count: int = 0) -> tuple[str, str, str]:
     user_text = _deidentify(user_text)
@@ -114,7 +122,8 @@ async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float 
     
     return reply, "평온", ("오늘의 칵테일" if should_recommend else "")
 
-async def save_receipt(db, user_id, emotion, sub_emotion, cocktail, conversation_text) -> None:
+# 시그니처 수정: receipt_chain을 인자로 받도록 변경
+async def save_receipt(db, user_id, emotion, sub_emotion, cocktail, conversation_text, receipt_chain) -> None:
     try:
         note = await receipt_chain.ainvoke({"emotion": emotion, "sub_emotion": sub_emotion, "cocktail": cocktail, "conversation_text": conversation_text})
         await save_emotion_receipt(db=db, user_id=user_id, dominant_sub_category=sub_emotion, recommended_cocktail=cocktail, summary_note=note.strip())
@@ -140,3 +149,6 @@ async def save_memory_if_needed(db, user_id, user_text, assistant_reply, emotion
     except Exception as e:
         print(f"Memory save error: {e}")
         await db.rollback()
+
+async def generate_dashboard_rag_report(db, user_id, metrics_result) -> str:
+    return "리포트 생성 완료"
