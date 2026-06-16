@@ -70,6 +70,44 @@ async def get_current_user_id(
 
     return user.id
 
+# 🚀 [누락 복구] 화면이 켜질 때 프론트엔드가 호출할 첫인사 전용 API
+@router.get("/llm/greeting")
+async def get_initial_greeting(
+    token_payload: dict = Depends(get_current_user_token),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        user_id = await get_current_user_id(token_payload, db)
+        
+        pending_stmt = select(UserMemory).where(
+            UserMemory.user_id == user_id,
+            UserMemory.status == "PENDING",
+            UserMemory.prescribed_cocktail != None
+        ).order_by(UserMemory.created_at.desc()).limit(1)
+        
+        pending_res = await db.execute(pending_stmt)
+        pending_m = pending_res.scalar_one_or_none()
+
+        if pending_m:
+            # 리뷰 대기 중인 건이 있다면 맞춤형 안부 묻기
+            greeting_prompt = ChatPromptTemplate.from_messages([
+                ("system", """당신은 따뜻한 AI 바텐더 MoodTender입니다.
+                손님이 이전에 '{issue}' 문제로 '{cocktail}' 칵테일과 행동 지침을 처방받았습니다.
+                오늘 다시 방문한 손님에게 "어서 오세요"로 시작해서, 지난번의 고민(issue)은 좀 어떠신지, 처방받은 행동은 도움이 되었는지 다정하게 묻는 첫 인사를 1~2문장으로 작성하세요.""")
+            ]) | _make_llm(0.7) | StrOutputParser()
+            
+            dynamic_greeting = await greeting_prompt.ainvoke({
+                "issue": pending_m.issue,
+                "cocktail": pending_m.prescribed_cocktail
+            })
+            return {"reply": dynamic_greeting, "emotion": "평온"}
+        else:
+            # 대기 중인 건이 없다면 기본 첫인사
+            return {"reply": "어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?", "emotion": "평온"}
+            
+    except Exception as e:
+        return {"reply": "어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?", "emotion": "평온"}
+
 @router.post("/llm/respond", response_model=LLMResponse)
 async def respond(
     payload: LLMRequest,

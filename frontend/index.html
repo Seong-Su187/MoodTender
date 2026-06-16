@@ -284,13 +284,11 @@
             <div class="end-chat-bar" style="margin-top: 80px;">
               <button class="end-chat-btn" onclick="endConversation()">대화 종료 · 영수증 발급</button>
             </div>
+            
             <div id="chat-log" class="chat-log" aria-live="polite">
               <div class="chat-spacer"></div>
-              <div class="message-row assistant">
-                <div class="message-time">방금 전</div>
-                <div class="message-bubble">어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?</div>
-              </div>
             </div>
+
             <form class="chat-composer" onsubmit="event.preventDefault(); generateChat();">
               <button id="mic-btn" class="composer-icon-btn" type="button" title="음성 입력" aria-label="음성 입력">
                 <span class="icon-mic"></span>
@@ -428,26 +426,70 @@
   <script src="/js/chat.js"></script>
   <script src="/js/app.js"></script>
 
-  <!-- 🚀 [추가됨] 대시보드에서 보낸 '모달 닫기' 신호를 완벽히 처리하는 스크립트 -->
   <script>
     window.addEventListener("message", function(event) {
       if (event.data === "closeDashboardModal") {
-        // 기존 JS 파일(ui.js 등)에 구현되어 있는 모달 닫기 함수를 호출합니다.
         if (typeof closeDashboardModal === 'function') {
           closeDashboardModal();
         } else {
-          // 함수가 없을 경우를 대비하여 DOM을 직접 조작해 확실하게 닫아줍니다.
           const modal = document.getElementById("dashboard-modal");
           if (modal) {
             modal.style.display = "none";
             modal.setAttribute("aria-hidden", "true");
-            // iframe 내부 페이지 초기화 (필요시)
             const frame = document.getElementById("dashboard-frame");
             if (frame) frame.src = "";
           }
         }
       }
     });
+
+    // 🚀 [완벽 해결] 화면 로드 시 백엔드 API에서 능동적인 첫 인사를 가져옵니다.
+    async function fetchInitialGreeting() {
+      const chatLog = document.getElementById('chat-log');
+      try {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+        const response = await fetch('/api/llm/greeting', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        
+        // chat.js 내부 함수를 쓸 수 있으면 호출하고, 혹시 모르니 직접 DOM에 박는 방어 코드도 넣었습니다.
+        if (typeof appendMessage === 'function') {
+          appendMessage('assistant', data.reply);
+        } else {
+          const msgRow = document.createElement('div');
+          msgRow.className = 'message-row assistant';
+          msgRow.innerHTML = `
+            <div class="message-time">방금 전</div>
+            <div class="message-bubble">${data.reply}</div>
+          `;
+          chatLog.appendChild(msgRow);
+          chatLog.scrollTop = chatLog.scrollHeight;
+        }
+      } catch (error) {
+        console.error("첫인사 불러오기 실패:", error);
+        
+        // 서버 연결 실패 시 기존의 멘트를 띄워줍니다.
+        if (typeof appendMessage === 'function') {
+          appendMessage('assistant', "어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?");
+        } else {
+          const msgRow = document.createElement('div');
+          msgRow.className = 'message-row assistant';
+          msgRow.innerHTML = `
+            <div class="message-time">방금 전</div>
+            <div class="message-bubble">어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?</div>
+          `;
+          chatLog.appendChild(msgRow);
+          chatLog.scrollTop = chatLog.scrollHeight;
+        }
+      }
+    }
+
+    // 문서가 준비되면 위 함수를 실행시킵니다.
+    window.addEventListener('DOMContentLoaded', fetchInitialGreeting);
   </script>
 </body>
 </html>
