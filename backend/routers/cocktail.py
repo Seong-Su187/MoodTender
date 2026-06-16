@@ -32,7 +32,7 @@ async def get_current_user_id(token_payload: dict, db: AsyncSession) -> int:
         raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
     return user.id
 
-# 🚀 [버그 해결] response_model을 제거하여 Pydantic의 깐깐한 스키마 검증 오류(500 에러)를 원천 차단합니다.
+# 🚀 프론트엔드 자바스크립트가 Null 때문에 터지는 것을 방지하는 무적의 코드
 @router.get("/issues")
 async def get_pending_issues(
     token_payload: dict = Depends(get_current_user_token),
@@ -52,23 +52,16 @@ async def get_pending_issues(
     
     issues_list = []
     for m in memories:
-        safe_date = datetime.now().date()
-        if m.created_at:
-            if hasattr(m.created_at, "date"):
-                safe_date = m.created_at.date()
-            else:
-                try:
-                    safe_date = datetime.fromisoformat(str(m.created_at).replace("Z", "+00:00")).date()
-                except Exception:
-                    pass
-        
-        # 딕셔너리로 바로 리턴하여 렌더링 에러 방지
+        # 날짜 포맷 안전하게 변환
+        date_str = m.created_at.strftime("%Y-%m-%d") if m.created_at else "2026-06-16"
+            
         issues_list.append({
             "id": m.id,
-            "issue": m.issue,
+            "issue": m.issue or "일상적인 고민",
             "emotion": m.sub_category or "평온", 
-            "record_date": safe_date.isoformat(),
-            "prescribed_cocktail": m.prescribed_cocktail
+            "record_date": date_str,
+            # 🔥 핵심: 프론트엔드 에러 방지를 위해 None 대신 무조건 빈 문자열("") 반환
+            "prescribed_cocktail": m.prescribed_cocktail or "" 
         })
     return issues_list
 
