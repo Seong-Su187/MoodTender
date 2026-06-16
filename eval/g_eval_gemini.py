@@ -34,7 +34,7 @@ TESTSET_PATH = PROJECT_ROOT / "testset.jsonl"
 
 load_dotenv(PROJECT_ROOT / "backend" / ".env")
 
-JUDGE_MODEL = "gemini-2.5-flash"
+JUDGE_MODEL = "gemini-2.5-flash-lite"
 N_REPEATS = 3
 
 PERSONA = """
@@ -109,16 +109,24 @@ class _Tee(io.TextIOBase):
 
 def g_eval(client: genai.Client, judge_model: str, user_input: str, model_output: str, temperature: float = 0) -> dict:
     prompt = JUDGE_PROMPT.format(persona=PERSONA, input=user_input, output=model_output)
-    response = client.models.generate_content(
-        model=judge_model,
-        contents=prompt,
-        config=genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=SCORE_SCHEMA,
-            temperature=temperature,
-        ),
-    )
-    return json.loads(response.text)
+    for attempt in range(1, 6):
+        try:
+            response = client.models.generate_content(
+                model=judge_model,
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=SCORE_SCHEMA,
+                    temperature=temperature,
+                ),
+            )
+            return json.loads(response.text)
+        except Exception as e:
+            if attempt == 5:
+                raise
+            wait = 2 ** attempt  # 2, 4, 8, 16초
+            print(f"[RETRY {attempt}/5] {e.__class__.__name__} → {wait}초 후 재시도", flush=True)
+            time.sleep(wait)
 
 
 def _avg(runs: list[dict], key: str) -> float:
