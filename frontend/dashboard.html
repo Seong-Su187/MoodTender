@@ -18,10 +18,9 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', sans-serif; }
-        /* 🚀 캡처 화면처럼 모달 안에 들어갈 때를 대비해 배경색을 투명도 있게 조절할 수 있습니다 */
-        body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
+        body { background-color: transparent; color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
         
-        .container { width: 100%; max-width: 480px; padding: 24px; position: relative; overflow: hidden; }
+        .container { width: 100%; max-width: 480px; padding: 24px; position: relative; overflow: hidden; background-color: var(--bg-color); border-radius: 16px; }
         
         .view-section { display: none; animation: fadeIn 0.4s ease-out forwards; }
         .view-section.active { display: block; }
@@ -184,42 +183,15 @@
         document.getElementById(`step-${stepNumber}`).classList.add('active');
     }
 
-    // 🚀 [핵심 수정] 모달(iframe/팝업) 창을 닫는 로직으로 완벽 교체!
+    // 🚀 [완벽 해결] 복잡한 뒤로가기 로직 빼고 "닫아줘!" 신호만 부모창으로 쏩니다.
     function goBackToChat() {
-        // 1. 현재 창이 iframe 내부(모달)에서 실행 중인 경우 부모 창에 닫기 신호 전송
         if (window.parent && window.parent !== window) {
-            // 가장 표준적이고 안전한 방법 (부모 창에서 리스너가 필요할 수 있음)
+            // 부모 창(바텐더 화면)으로 모달을 꺼달라는 메세지를 보냅니다.
             window.parent.postMessage("closeDashboardModal", "*");
-            
-            // 동일 도메인이므로 직접 접근하여 강제 종료 시도
-            try {
-                // 부모 창의 모달 닫기 버튼 요소 클릭 유도 (캡처의 X 버튼과 연동)
-                // 만약 부모 창에 closeModal() 같은 전역 함수가 있다면 실행
-                if (typeof window.parent.closeModal === 'function') {
-                    window.parent.closeModal();
-                } else {
-                    // 강제로 iframe 부모의 모달 wrapper를 찾아서 숨기기
-                    const iframes = window.parent.document.querySelectorAll('iframe');
-                    iframes.forEach(iframe => {
-                        if (iframe.contentWindow === window) {
-                            // 모달을 띄우고 있는 컨테이너 요소를 찾아서 안보이게 처리
-                            let modalContainer = iframe.parentElement;
-                            if(modalContainer) modalContainer.style.display = 'none';
-                        }
-                    });
-                }
-            } catch(e) {
-                console.error("부모 요소 접근 불가:", e);
-            }
-        } 
-        
-        // 2. 새 팝업 창(window.open)으로 띄워졌을 경우
-        window.close();
-        
-        // 3. 위의 모든 게 작동하지 않을 경우 (단일 페이지 환경 등), 이전 페이지로 가기
-        setTimeout(() => {
-            window.history.back();
-        }, 100);
+        } else {
+            // 만약 모달이 아니라 아예 새 창(페이지 이동)으로 열렸던 경우라면 예비책
+            window.location.href = "/"; 
+        }
     }
 
     async function fetchWithAuth(url, options = {}) {
