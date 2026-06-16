@@ -1,7 +1,0 @@
-{
-  "decode_label": "decode100",
-  "whisper_model": "medium",
-  "n_items": 40,
-  "avg_CER": 0.0231,
-  "avg_WER": 0.1209
-}

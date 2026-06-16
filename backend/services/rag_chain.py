@@ -27,7 +27,7 @@ load_dotenv()
 # OpenAI 설정
 _embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=os.getenv("OPENAI_API_KEY"))
 
-def _make_llm(temperature=0.7, model="gpt-4o-mini"):
+def _make_llm(temperature: float = 0.7, model: str = "gpt-4.1-mini") -> ChatOpenAI:
     return ChatOpenAI(model=model, temperature=temperature, openai_api_key=os.getenv("OPENAI_API_KEY"))
 
 async def _embed(text: str) -> list[float]:
@@ -184,7 +184,7 @@ dashboard_report_chain = ChatPromptTemplate.from_messages([
     3. 마지막엔 이 감정에 어울리는 가상의 칵테일 한 잔을 추천하세요.
     4. <b>, <br> 등 HTML 태그를 적극 사용하여 3~4문단으로 작성하세요.
     """)
-]) | _make_llm(temperature=0.5, model="gpt-4o-mini") | StrOutputParser()
+]) | _make_llm(temperature=0.5, model="gpt-4.1-mini") | StrOutputParser()
 
 async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float = 1.0, session_id: str = "", session_start=None, cocktail_done: bool = False, user_turn_count: int = 0) -> tuple[str, str, str]:
     user_text = _deidentify(user_text)

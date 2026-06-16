@@ -18,7 +18,7 @@ object RetrofitClient {
     // 주의: 백엔드 서버가 8000번 포트가 아니라면 포트 번호를 맞춰주세요!
     // - 에뮬레이터 사용 시: "http://10.0.2.2:8000/"
     // - 실제 스마트폰 기기 사용 시: PC의 내부 IP 주소 (예: "http://192.168.0.15:8000/")
-    private const val BASE_URL = "http://10.0.2.2:7862/"
+    private const val BASE_URL = "http://192.168.200.156:7862/"
 
     val instance: ApiService by lazy {
         Retrofit.Builder()
