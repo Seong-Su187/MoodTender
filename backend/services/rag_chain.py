@@ -35,9 +35,9 @@ async def _embed(text: str) -> list[float]:
     return await loop.run_in_executor(None, lambda: _embeddings.embed_query(text))
 
 _SPEED_RANGE = {
-    1.2: (58, 62),
-    1.0: (48, 52),
-    0.8: (38, 42),
+    1.2: (160, 180),
+    1.0: (140, 160),
+    0.8: (110, 130),
 }
 
 def _trim(text: str, speed: float) -> str:
@@ -90,6 +90,44 @@ def _build_history(chats: list[dict]) -> list:
 def _build_past_chat_context(chats: list[dict]) -> str:
     return "\n".join(f"- {c['content']}" for c in chats)
 
+_MAIN_EMOTIONS = frozenset({"기쁨", "우울", "불안", "분노", "지침", "외로움", "평온"})
+
+async def _classify_emotion(user_text: str) -> str:
+    result = await classify_chain.ainvoke([
+        HumanMessage(content=(
+            "다음 발화에서 사용자의 감정을 아래 7가지 중 하나만 골라 단어만 답해라.\n"
+            "- 기쁨: 설렘, 성취감, 즐거움\n"
+            "- 우울: 무기력함, 슬픔, 의욕 없음, 기분 저조\n"
+            "- 불안: 걱정, 두려움, 초조함\n"
+            "- 분노: 짜증, 화남, 억울함\n"
+            "- 지침: 피로, 번아웃, 몸과 마음의 소진\n"
+            "- 외로움: 혼자라는 느낌, 누군가 그리움, 연결 부재, 소외감\n"
+            "- 평온: 안정, 차분함, 별다른 감정 없음\n\n"
+            f"발화: {user_text}"
+        ))
+    ])
+    emotion = result.content.strip()
+    return emotion if emotion in _MAIN_EMOTIONS else "평온"
+
+async def _build_cocktail_hint(db: AsyncSession, recommend: bool, emotion: str = "평온") -> str:
+    if not recommend:
+        return "대화"
+    entries = await get_emotion_dictionary(db, emotion)
+    if not entries:
+        entries = await get_emotion_dictionary(db)
+    if not entries:
+        return "추천"
+    db_lines = "\n".join(
+        f"- {e['sub_category']}: {e['cocktail_direction']} / 색상: {e['cocktail_color']}"
+        for e in entries
+    )
+    return (
+        f"추천 - 손님의 감정({emotion})과 상황을 참고해 아래 [감정-칵테일 DB]에서 "
+        "가장 어울리는 방향성과 색상을 반드시 반영해 창의적인 칵테일 이름을 지어 추천하라. "
+        "응답 마지막 줄에 반드시 [칵테일: 이름] 형식으로 이름을 명시하라.\n"
+        f"[감정-칵테일 DB ({emotion})]\n{db_lines}"
+    )
+
 # 체인 및 프롬프트 정의
 bartender_prompt = ChatPromptTemplate.from_messages([
     ("system", """
@@ -101,9 +139,10 @@ bartender_prompt = ChatPromptTemplate.from_messages([
     1. 손님이 "기억나?", "그때 어땠어?", "무슨 일 있었지?" 등 과거를 물어보는데 날짜나 시간대가 명시되지 않았다면, 
        절대 추측하지 마라. 대신 "언제 있었던 일을 말씀하시는 건가요? 오늘, 어제, 아니면 다른 날인가요?"라고 친절하게 되물어라.
     2. 손님이 날짜를 말하면 [손님 관련 기억]에서 해당 날짜를 찾아 사건과 감정을 상세히 말하며 공감해라.
-    3. 칵테일 추천 요청(술, 추천, 한잔 등)이 확실할 때만 추천 모드를 켜라. 과거를 묻는 도중에는 추천하지 마라.
+    3. [지시]가 '추천'일 때만 칵테일을 추천하라. [지시]가 '대화'이면 손님이 직접 요청해도 칵테일 이름을 절대 언급하거나 추천하지 말고 대화를 이어가라.
     4. "기록에 따르면" 같은 기계적인 표현은 쓰지 않는다.
     5. 한 번에 하나의 질문만 한다.
+    6. 답변은 2~3문장, 150자 이내로 간결하게 한다. 불필요한 부연 설명을 넣지 마라.
     """),
     MessagesPlaceholder(variable_name="history"),
     ("human", "{user_input}\n\n[지시] {cocktail_hint}"),
@@ -170,22 +209,37 @@ async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float 
     
     should_recommend = (user_turn_count >= 3 or (cocktail_request and not is_asking_past)) and not cocktail_done
     
+    recent_user_msgs = " / ".join(
+        c["content"] for c in chats[-6:] if c["role"] == "user"
+    )
+    classify_input = f"{recent_user_msgs} / {clean_user_text}".strip(" /")
+    main_emotion = await _classify_emotion(classify_input)
+    cocktail_hint = await _build_cocktail_hint(db, should_recommend, main_emotion)
+
     raw_reply = await bartender_chain.ainvoke({
         "memory_context": _build_memory_context(memories),
         "past_chat_context": _build_past_chat_context(past_chats),
         "history": _build_history(chats),
         "user_input": clean_user_text,
-        "cocktail_hint": "추천" if should_recommend else "대화"
+        "cocktail_hint": cocktail_hint
     })
-    
+
+    # 추천 시 [칵테일: 이름] 파싱 후 reply에서 제거
+    extracted_cocktail = "오늘의 칵테일"
+    if should_recommend:
+        cocktail_match = re.search(r'\[칵테일:\s*([^\]]+)\]', raw_reply)
+        if cocktail_match:
+            extracted_cocktail = cocktail_match.group(1).strip()
+            raw_reply = raw_reply[:cocktail_match.start()].strip()
+
     reply = _trim(raw_reply, speed)
-    
+
     user_message_id = await save_chat_message(db, user_id, "user", clean_user_text, query_embedding, session_id)
     await save_chat_message(db, user_id, "assistant", reply, await _embed(reply), session_id)
-    
-    await save_memory_if_needed(db, user_id, clean_user_text, reply, "평온", user_message_id)
-    
-    return reply, "평온", ("오늘의 칵테일" if should_recommend else "")
+
+    await save_memory_if_needed(db, user_id, clean_user_text, reply, main_emotion, user_message_id)
+
+    return reply, main_emotion, (extracted_cocktail if should_recommend else "")
 
 # 🚀 [버그 해결] 값이 비어있을 때 생기는 오류를 방어하고, 강제로 커밋을 발생시켜 영수증이 증발하지 않게 막습니다.
 async def save_receipt(db, user_id, emotion, sub_emotion, cocktail, conversation_text, receipt_chain) -> None:
