@@ -22,19 +22,38 @@ class MainActivity : ComponentActivity() {
         val loggedInUserId = sharedPref.getInt("USER_ID", -1)
         val token = sharedPref.getString("ACCESS_TOKEN", "") ?: ""
 
+        // 🚀 LoginActivity에서 저장한 연동 상태 불러오기
+        val isPaired = sharedPref.getBoolean("IS_PAIRED", false)
+
         setContent {
-            // 권한 체크 상태
             var hasPermission by remember { mutableStateOf(hasUsageStatsPermission()) }
             val navController = rememberNavController()
 
             if (!hasPermission) {
-                // PermissionScreen이 같은 패키지(com.example.moodtender)에 있는지 확인하세요!
                 PermissionScreen(onPermissionGranted = {
                     hasPermission = hasUsageStatsPermission()
                 })
             } else {
-                // 권한이 있을 때만 내비게이션 실행
-                NavHost(navController = navController, startDestination = "chat") {
+                // 🚀 연동 여부에 따라 첫 화면(startDestination)을 다르게 띄웁니다!
+                val startDest = if (isPaired) "chat" else "pairing"
+
+                NavHost(navController = navController, startDestination = startDest) {
+
+                    // 🔒 연동 안 된 유저용: 핀 번호 입력 화면
+                    composable("pairing") {
+                        PairingScreen(
+                            currentUserId = loggedInUserId, // 👈 준비물 1: 유저 ID 전달
+                            onPairingSuccess = {            // 👈 준비물 2: 성공 시 작동할 스위치 전달
+                                // ✅ 인증 성공 시 메인 채팅창으로 부드럽게 이동!
+                                navController.navigate("chat") {
+                                    // 사용자가 '뒤로 가기'를 눌렀을 때 핀 번호 창으로 다시 안 돌아가도록 방어
+                                    popUpTo("pairing") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+
+                    // ✅ 연동 완료된 유저용: 메인 채팅 화면
                     composable("chat") {
                         ChatScreen(
                             userId = loggedInUserId,
@@ -42,6 +61,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateToHealth = { navController.navigate("health") }
                         )
                     }
+
                     composable("health") {
                         HealthScreen(
                             token = token,

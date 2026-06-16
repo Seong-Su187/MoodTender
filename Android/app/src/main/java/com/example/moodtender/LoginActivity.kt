@@ -1,3 +1,4 @@
+// LoginActivity.kt
 package com.example.moodtender
 
 import android.content.Context
@@ -16,28 +17,27 @@ class LoginActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            // 🚀 아까 만든 그 예쁜 LoginScreen을 여기에 배치합니다.
             LoginScreen { username, password ->
-                // 로그인 버튼 클릭 시 동작할 로직
                 val request = UserCreate(username, password)
 
                 RetrofitClient.instance.login(request).enqueue(object : Callback<LoginResponse> {
                     override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                         if (response.isSuccessful) {
-                            val userId = response.body()!!.id
+                            val loginResponse = response.body() ?: return
 
-                            // ID 및 토큰 저장
+                            // 🚀 로그인 한 번으로 아이디, 토큰, 연동 상태를 다 받아서 저장!
                             val sharedPref = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
                             sharedPref.edit()
-                                .putInt("USER_ID", userId)
-                                .putString("ACCESS_TOKEN", response.body()!!.access_token)
+                                .putInt("USER_ID", loginResponse.id)
+                                .putString("ACCESS_TOKEN", loginResponse.access_token)
+                                .putBoolean("IS_PAIRED", loginResponse.is_device_paired) // 연동 상태 저장
                                 .apply()
 
-                            // 로그인 성공 -> MainActivity로 이동
+                            // 군더더기 없이 바로 메인으로 이동
                             startActivity(Intent(this@LoginActivity, MainActivity::class.java))
                             finish()
                         } else {
-                            Toast.makeText(this@LoginActivity, "로그인 실패", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@LoginActivity, "로그인 실패: 아이디나 비밀번호를 확인해주세요.", Toast.LENGTH_SHORT).show()
                         }
                     }
                     override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
