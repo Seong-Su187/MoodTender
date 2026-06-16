@@ -1,20 +1,16 @@
-"""
-llm.py
-/llm/respond 엔드포인트
-"""
-
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models.domain import User
+from backend.models.domain import User, UserMemory
 from backend.models.schemas import LLMRequest, LLMResponse
 from backend.routers.auth import get_current_user_token
 from backend.services.rag_chain import rag_chat, save_receipt, CHAINS
-from sqlalchemy import text
+# 🚀 새로 추가한 analyze_cocktail_feedback 가져오기
+from backend.services.analytics_service import extract_memory_from_chat, analyze_cocktail_feedback
 
 router = APIRouter()
 
@@ -22,6 +18,71 @@ _user_session_data: dict[int, dict] = {}
 _user_cocktail_done: set[int] = set()
 _user_turn_counter: dict[int, int] = {}
 _user_session_start: dict[int, datetime] = {}  # 현재 세션 시작 시각
+
+# ---------------------------------------------------------
+# [기존] 백그라운드에서 조용히 실행될 기억 저장 일꾼
+# ---------------------------------------------------------
+async def save_memory_task(user_id: int, chat_history: str):
+    try:
+        extracted = await extract_memory_from_chat(chat_history)
+        
+        if extracted.get("issue") and extracted.get("issue") != "없음":
+            async for db in get_db():
+                try:
+                    new_memory = UserMemory(
+                        user_id=user_id,
+                        memory_text=chat_history, 
+                        issue=extracted["issue"],
+                        sub_category=extracted["emotion"], 
+                        source_type="chat_auto_extract"
+                    )
+                    db.add(new_memory)
+                    await db.commit()
+                except Exception as db_error:
+                    print(f"DB 저장 중 에러 발생: {db_error}")
+                    await db.rollback() 
+                break 
+    except Exception as e:
+        print(f"백그라운드 기억 저장 중 오류 발생: {e}")
+
+# ---------------------------------------------------------
+# 🚀 [새로 추가됨] 사용자의 대답이 칵테일 피드백인지 확인하고 완료 처리하는 일꾼
+# ---------------------------------------------------------
+async def check_and_update_feedback_task(user_id: int, user_text: str):
+    try:
+        async for db in get_db():
+            try:
+                # 1. 리뷰를 기다리고 있는 최신 PENDING 칵테일 처방 찾기
+                pending_stmt = select(UserMemory).where(
+                    UserMemory.user_id == user_id,
+                    UserMemory.status == "PENDING",
+                    UserMemory.prescribed_cocktail != None
+                ).order_by(UserMemory.created_at.desc()).limit(1)
+                
+                pending_res = await db.execute(pending_stmt)
+                pending_m = pending_res.scalar_one_or_none()
+                
+                if pending_m:
+                    # 2. LLM에게 피드백인지 물어보기
+                    feedback_result = await analyze_cocktail_feedback(
+                        user_input=user_text, 
+                        cocktail_name=pending_m.prescribed_cocktail, 
+                        issue=pending_m.issue
+                    )
+                    
+                    # 3. 피드백이 맞다면 상태를 COMPLETED로 변경!
+                    if feedback_result.get("is_feedback") is True:
+                        pending_m.status = "COMPLETED"
+                        pending_m.taste_rating = feedback_result.get("taste_rating", 3)
+                        pending_m.user_review = feedback_result.get("user_review", user_text)
+                        await db.commit()
+                        print(f"🍹 [피드백 자동 감지 완료] 칵테일: {pending_m.prescribed_cocktail}, 평점: {pending_m.taste_rating}")
+            except Exception as db_error:
+                print(f"피드백 감지 DB 에러: {db_error}")
+                await db.rollback()
+            break
+    except Exception as e:
+        print(f"피드백 백그라운드 태스크 오류: {e}")
 
 async def get_current_user_id(
     token_payload: dict,
@@ -40,10 +101,10 @@ async def get_current_user_id(
 
     return user.id
 
-
 @router.post("/llm/respond", response_model=LLMResponse)
 async def respond(
     payload: LLMRequest,
+    background_tasks: BackgroundTasks, 
     token_payload: dict = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db),
 ):
@@ -68,7 +129,6 @@ async def respond(
         _user_turn_counter[user_id] = _user_turn_counter.get(user_id, 0) + 1
         turn_count = _user_turn_counter[user_id]
 
-        # 첫 번째 발화에 세션 시작 시각 기록
         if user_id not in _user_session_start:
             _user_session_start[user_id] = datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -86,6 +146,15 @@ async def respond(
         if cocktail_line and not cocktail_done:
             _user_cocktail_done.add(user_id)
             _user_session_data[user_id] = {"emotion": emotion, "cocktail": cocktail_line}
+
+        # ---------------------------------------------------------
+        # 🚀 [핵심] 백그라운드 일꾼 2명 동시 파견!
+        # 1. 새 사건을 감지해서 저장하는 일꾼
+        # 2. 바텐더의 질문에 피드백을 남겼는지 검사해서 PENDING을 닫는 일꾼
+        # ---------------------------------------------------------
+        current_chat_turn = f"사용자: {user_text}\n바텐더: {reply}"
+        background_tasks.add_task(save_memory_task, user_id, current_chat_turn)
+        background_tasks.add_task(check_and_update_feedback_task, user_id, user_text)
 
         return LLMResponse(reply=reply, emotion=emotion)
 
@@ -110,7 +179,6 @@ async def create_receipt(
         
         (_, _, _, _, receipt_chain, _, _, _) = CHAINS
 
-        # 🚀 수정: 오늘 대화 조회 시 KST(한국 시간) 기준으로 불러오도록 쿼리 변경
         result = await db.execute(
             text("""
                 SELECT role, content FROM chat_messages
@@ -143,7 +211,6 @@ async def create_receipt(
         _user_cocktail_done.discard(user_id)
         _user_session_data.pop(user_id, None)
         _user_turn_counter.pop(user_id, None)
-        # 대화 종료 시각을 다음 세션의 시작 기준으로 갱신
         _user_session_start[user_id] = datetime.now(timezone.utc).replace(tzinfo=None)
 
         return {"status": "ok"}

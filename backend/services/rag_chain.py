@@ -12,13 +12,14 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text as sql_text
+from sqlalchemy import select, text as sql_text
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 
+from backend.models.domain import UserMemory  # 🚀 최신 리뷰 미완료 처방 조회를 위해 임포트 추가
 from backend.services.db_client import (
     search_user_memories,
     search_chat_messages,
@@ -28,7 +29,7 @@ from backend.services.db_client import (
     save_chat_message,
     save_user_memory,
     save_emotion_receipt,
-    get_expert_knowledge, # 🚀 추가
+    get_expert_knowledge, 
 )
 
 # 🚀 2단계 비식별화 모듈 임포트 추가
@@ -247,11 +248,19 @@ def build_chains():
 [오늘 감정에 어울리는 칵테일]
 {emotion_context}
 
+[미완료된 칵테일 처방 및 고민 (리뷰 대기)]
+{pending_cocktail_context}
+
 기억 활용 규칙:
 - [손님 관련 기억]에 내용이 있으면, 현재 발화와 연결해서 먼저 꺼낸다.
 - "아직도 그 일이 계속되고 있나요?", "그때 일은 어떻게 되셨어요?", "요즘도 그러세요?" 같은 식으로 자연스럽게 물어본다.
 - 관련 없는 기억은 말하지 않는다.
 - "예전에 말씀하셨죠", "기록에 따르면" 같은 표현은 쓰지 않는다.
+
+🚀 [선제적 칵테일 피드백(리뷰) 유도 규칙]
+- 만약 [미완료된 칵테일 처방 및 고민 (리뷰 대기)]가 "없음"이 아니고, 손님이 대화방에 새로 진입했거나 첫 인사(history가 비어 있는 극초반 턴)를 건넸다면, 반갑게 맞이하며 지난번에 대시보드에서 처방받아 간 칵테일(약속한 행동 지침)을 실천해 보았는지 다정하게 먼저 질문한다.
+- 예: "어서 오세요 손님. 지난번에 처방해 드린 '미드나잇 릴렉서(상사 갈등 타개)'는 좀 마셔보셨나요? 마음이 조금은 맑아지셨는지 문득 궁금해지네요."
+- "기록을 보니", "DB에 따르면", "지난번에 처방받으신" 같은 기계적인 로봇 멘트는 절대 엄금한다. 단골 단골손님을 살뜰하게 기억하는 감성적인 진짜 바텐더의 어조로 대화를 자연스럽게 풀어가라.
 
 전문 지식 활용 규칙:
 - [전문 지식 및 행동 근거]에 내용이 있다면, 이를 바탕으로 사용자가 일상에서 바로 할 수 있는 '작은 행동'을 부드럽게 제안한다.
@@ -270,7 +279,6 @@ def build_chains():
 - 가장 두드러진 신호 하나만 반영한다.
 
 [선제적 개인화 규칙]
-
 - 사용자가 짧게 말하거나 막연하게 힘들다고 말하면 건강 데이터나 기억을 먼저 자연스럽게 연결할 수 있다.
 - "요즘", "최근", "어제" 같은 표현은 사용할 수 있다.
 - "기록에 따르면", "데이터상으로는", "저장된 기억에 따르면" 같은 표현은 사용하지 않는다.
@@ -278,7 +286,6 @@ def build_chains():
 - 기억이 여러 개 있더라도 현재 대화와 가장 관련 있는 1개만 활용한다.
 
 [원인 추정 규칙]
-
 - 사용자가 피곤하다, 지친다, 힘들다고 말할 때 건강 데이터나 기억에서 원인을 추정해 먼저 말해준다.
 - "요즘 [이유] 때문에 그러신 거 아닌가요?" 또는 "요즘 [이유]이 계속되다 보니 그럴 것 같아요." 형식으로 말한다.
 - 확신하지 않고 부드럽게 추정하는 톤으로 말한다.
@@ -301,7 +308,6 @@ def build_chains():
 응답 (사람 연락 없음): 오늘 연락을 주고받은 사람이 별로 없었나요? 그런 날은 유독 더 외롭게 느껴지기도 하죠.
 
 [부드러운 제안 규칙]
-
 - 사용자가 충분히 감정을 이야기한 경우에만 제안할 수 있다.
 - 첫 응답에서는 제안을 하지 않는다.
 - 제안은 해결책이 아니라 작은 행동 수준으로 한다.
@@ -322,8 +328,7 @@ def build_chains():
 - 잠깐 폰 내려두고 창밖 바라보는 것도 괜찮을 것 같아요. (스크린타임 높음)
 - 가까운 사람한테 짧게 안부 한 번 해보는 건 어떨까요? (연락 없음)
 - 물 한 잔 마시고 천천히 숨을 고르는 것도 괜찮을 것 같아요.
-      
-
+       
 응답 규칙:
 - 1~2문장으로 답한다.
 - 너무 빨리 해결책을 제시하지 않는다.
@@ -462,15 +467,25 @@ async def _build_context(
     session_id: str = "",
     session_start=None,
 ) -> dict:
-    # 🚀 RAG: 전문 지식 검색(get_expert_knowledge)이 병렬로 같이 실행되도록 추가되었습니다.
     memories, chats, past_chats, health_rows, emotion_rows, expert_knowledge = await asyncio.gather(
         search_user_memories(db, user_id, query_embedding, top_k=3),
         get_recent_chat_messages(db, user_id, session_id=session_id, limit=24),
         search_chat_messages(db, user_id, query_embedding, session_id=session_id, session_start=session_start, top_k=3),
         get_recent_health_metrics(db, user_id, days=7),
         get_emotion_dictionary(db, emotion),
-        get_expert_knowledge(db, emotion), # 🚀
+        get_expert_knowledge(db, emotion),
     )
+
+    # 🚀 [추가됨] 대시보드에서 처방은 받았으나, 평가(리뷰)를 아직 내리지 않은 최신 기록 단 건 가져오기
+    pending_stmt = select(UserMemory).where(
+        UserMemory.user_id == user_id,
+        UserMemory.status == "PENDING",
+        UserMemory.prescribed_cocktail != None
+    ).order_by(UserMemory.created_at.desc()).limit(1)
+    
+    pending_res = await db.execute(pending_stmt)
+    pending_m = pending_res.scalar_one_or_none()
+    pending_cocktail_context = f"처방된 칵테일: {pending_m.prescribed_cocktail} (관련 고민: {pending_m.issue})" if pending_m else "없음"
 
     print(
         f"[RAG] emotion={emotion}, memories={len(memories)}, "
@@ -479,6 +494,7 @@ async def _build_context(
     print(f"[CTX] memory_context={_build_memory_context(memories)!r}")
     print(f"[CTX] health_context={_build_health_context(health_rows)!r}")
     print(f"[CTX] past_chat_context={_build_past_chat_context(past_chats)!r}")
+    print(f"[CTX] pending_cocktail_context={pending_cocktail_context!r}")
 
     user_turn_count = sum(1 for c in chats if c["role"] == "user")
 
@@ -489,8 +505,9 @@ async def _build_context(
         "health_context": _build_health_context(health_rows),
         "emotion_context": _build_emotion_context(emotion_rows),
         "emotion_rows_raw": emotion_rows,
-        "expert_knowledge": expert_knowledge, # 🚀
+        "expert_knowledge": expert_knowledge,
         "user_turn_count": user_turn_count,
+        "pending_cocktail_context": pending_cocktail_context, # 🚀 컨텍스트에 칵테일 대기 데이터 주입!
     }
 
 
@@ -573,6 +590,7 @@ async def save_receipt(
             "sub_emotion": sub_emotion,
             "cocktail": cocktail,
             "conversation_text": conversation_text,
+            "receipt_chain": receipt_chain,
         })
 
         await save_emotion_receipt(
@@ -673,11 +691,12 @@ async def rag_chat(
                 "memory_context": ctx["memory_context"],
                 "past_chat_context": ctx["past_chat_context"],
                 "health_context": ctx["health_context"],
-                "expert_knowledge": ctx["expert_knowledge"], # 🚀 추가
+                "expert_knowledge": ctx["expert_knowledge"], 
                 "emotion_context": ctx["emotion_context"],
                 "history": ctx["history"],
                 "user_input": user_text,
                 "cocktail_hint": cocktail_hint,
+                "pending_cocktail_context": ctx["pending_cocktail_context"]  # 🚀 파라미터 전달 추가
             }),
             cocktail_chain.ainvoke({
                 "emotion": emotion,
@@ -699,11 +718,12 @@ async def rag_chat(
             "memory_context": ctx["memory_context"],
             "past_chat_context": ctx["past_chat_context"],
             "health_context": ctx["health_context"],
-            "expert_knowledge": ctx["expert_knowledge"], # 🚀 추가
+            "expert_knowledge": ctx["expert_knowledge"], 
             "emotion_context": ctx["emotion_context"],
             "history": ctx["history"],
             "user_input": user_text,
             "cocktail_hint": cocktail_hint,
+            "pending_cocktail_context": ctx["pending_cocktail_context"]  # 🚀 파라미터 전달 추가
         })
         cocktail_line = ""
         reply = _trim(raw_reply, speed)
@@ -745,7 +765,7 @@ async def rag_chat(
 
 
 # -------------------------------------------------------------------------------------
-# 🚀 4단계: 웹 대시보드 전용 분석 리포트 생성 파이프라인 (추가된 부분)
+# 🚀 4단계: 웹 대시보드 전용 분석 리포트 생성 파이프라인
 # -------------------------------------------------------------------------------------
 
 dashboard_report_chain = ChatPromptTemplate.from_messages([
@@ -781,18 +801,14 @@ async def generate_dashboard_rag_report(
     """
     1~3단계의 데이터를 모아 LLM을 통해 최종 HTML 리포트를 생성하는 파이프라인
     """
-    # 1. 예외 처리 (데이터 부족 시)
     if metrics_result.get("status") == "insufficient_data":
         return "💡 <b>데이터 수집 중</b><br><br>정확한 패턴 분석을 위해서는 최소 3일 이상의 데이터가 필요합니다. 기록을 더 쌓아주세요!"
 
-    # 2. 비식별화 처리 (2단계 방패 적용)
     safe_context = DataAnonymizer.prepare_safe_context(user_id, metrics_result)
     emotion = safe_context['emotion']
 
-    # 3. RAG 지식 검색 (3단계 책장 활용)
     expert_knowledge = await get_expert_knowledge(db, emotion)
 
-    # 4. LLM 프롬프트 실행
     llm_report = await dashboard_report_chain.ainvoke({
         "emotion": emotion,
         "deltas": safe_context['deltas'],
@@ -800,9 +816,6 @@ async def generate_dashboard_rag_report(
         "expert_knowledge": expert_knowledge
     })
 
-    # 5. 줄바꿈 정규화: LLM이 단락을 <br><br>, \n\n, 단일 \n 등
-    #    매번 다른 방식으로 구분해서 출력하므로, 먼저 <br> 계열 태그를
-    #    \n 하나로 통일한 뒤, 1개 이상의 연속된 \n을 모두 단락 구분(<br><br>)으로 변환합니다.
     llm_report = llm_report.strip()
     llm_report = re.sub(r'\s*<br\s*/?>\s*', '\n', llm_report, flags=re.IGNORECASE)
     llm_report = re.sub(r'\n+', '<br><br>', llm_report)
