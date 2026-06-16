@@ -206,6 +206,7 @@ def inference_stream(
                 ori   = avatar.frame_list_cycle[idx % len(avatar.frame_list_cycle)].copy()
                 if bbox is None:
                     proc.stdin.write(ori.tobytes())
+                    prev_frame = ori
                     idx += 1
                     continue
                 x1, y1, x2, y2 = bbox
