@@ -427,5 +427,27 @@
   <script src="/js/receipt.js"></script>
   <script src="/js/chat.js"></script>
   <script src="/js/app.js"></script>
+
+  <!-- 🚀 [추가됨] 대시보드에서 보낸 '모달 닫기' 신호를 완벽히 처리하는 스크립트 -->
+  <script>
+    window.addEventListener("message", function(event) {
+      if (event.data === "closeDashboardModal") {
+        // 기존 JS 파일(ui.js 등)에 구현되어 있는 모달 닫기 함수를 호출합니다.
+        if (typeof closeDashboardModal === 'function') {
+          closeDashboardModal();
+        } else {
+          // 함수가 없을 경우를 대비하여 DOM을 직접 조작해 확실하게 닫아줍니다.
+          const modal = document.getElementById("dashboard-modal");
+          if (modal) {
+            modal.style.display = "none";
+            modal.setAttribute("aria-hidden", "true");
+            // iframe 내부 페이지 초기화 (필요시)
+            const frame = document.getElementById("dashboard-frame");
+            if (frame) frame.src = "";
+          }
+        }
+      }
+    });
+  </script>
 </body>
 </html>
