@@ -46,7 +46,18 @@ def _deidentify(text: str) -> str:
     return text
 
 def _build_memory_context(memories: list[dict]) -> str:
-    return "\n".join(f"- 날짜: {m.created_at.strftime('%Y-%m-%d') if hasattr(m, 'created_at') else '알 수 없음'}, 내용: {m.memory_text}" for m in memories[:3]) if memories else "관련 기억 없음"
+    # 🚀 수정됨: memories 리스트의 요소가 dict이므로 m['memory_text']로 접근합니다.
+    # created_at 역시 dict에서 가져와 문자열 포맷팅을 처리합니다.
+    if not memories: return "관련 기억 없음"
+    lines = []
+    for m in memories[:3]:
+        date_str = m.get('created_at')
+        if hasattr(date_str, 'strftime'):
+            date_str = date_str.strftime('%Y-%m-%d')
+        elif not date_str:
+            date_str = '알 수 없음'
+        lines.append(f"- 날짜: {date_str}, 내용: {m.get('memory_text', '')}")
+    return "\n".join(lines)
 
 def _build_history(chats: list[dict]) -> list:
     history = []
@@ -122,7 +133,6 @@ async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float 
     
     return reply, "평온", ("오늘의 칵테일" if should_recommend else "")
 
-# 시그니처 수정: receipt_chain을 인자로 받도록 변경
 async def save_receipt(db, user_id, emotion, sub_emotion, cocktail, conversation_text, receipt_chain) -> None:
     try:
         note = await receipt_chain.ainvoke({"emotion": emotion, "sub_emotion": sub_emotion, "cocktail": cocktail, "conversation_text": conversation_text})
