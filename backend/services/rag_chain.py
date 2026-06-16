@@ -34,7 +34,6 @@ async def _embed(text: str) -> list[float]:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, lambda: _embeddings.embed_query(text))
 
-# 문장 잘림 방지용 _trim
 _SPEED_RANGE = {
     1.2: (58, 62),
     1.0: (48, 52),
@@ -114,7 +113,6 @@ bartender_chain = bartender_prompt | _make_llm(0.7, "gpt-4.1") | StrOutputParser
 classify_chain = _make_llm(0.0)
 memory_summary_chain = ChatPromptTemplate.from_messages([("system", "대화 요약"), ("human", "{conversation_text}")]) | _make_llm(0.2) | StrOutputParser()
 
-# 🚀 [버그 해결] 감정 영수증 프롬프트를 완벽하게 복구하여 에러를 없앴습니다.
 receipt_chain = ChatPromptTemplate.from_messages([
     ("system", "대화를 분석해 오늘의 감정, 주요 원인, 스스로 잘 버텨낸 점, 추천하는 칵테일의 의미, 그리고 따뜻한 위로를 각각 1문장씩 총 5문장으로 작성한다."),
     ("human", "감정: {emotion}\n세부감정: {sub_emotion}\n칵테일: {cocktail}\n대화:\n{conversation_text}")
@@ -189,15 +187,24 @@ async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float 
     
     return reply, "평온", ("오늘의 칵테일" if should_recommend else "")
 
+# 🚀 [버그 해결] 값이 비어있을 때 생기는 오류를 방어하고, 강제로 커밋을 발생시켜 영수증이 증발하지 않게 막습니다.
 async def save_receipt(db, user_id, emotion, sub_emotion, cocktail, conversation_text, receipt_chain) -> None:
     try:
+        emotion = emotion or "평온"
+        sub_emotion = sub_emotion or "평온"
+        cocktail = cocktail or "당신을 위한 따뜻한 위로 한 잔"
+        conversation_text = conversation_text or "오늘 하루도 정말 고생 많으셨습니다."
+        
         note = await receipt_chain.ainvoke({
             "emotion": emotion, 
             "sub_emotion": sub_emotion, 
             "cocktail": cocktail, 
             "conversation_text": conversation_text
         })
+        
         await save_emotion_receipt(db=db, user_id=user_id, dominant_sub_category=sub_emotion, recommended_cocktail=cocktail, summary_note=note.strip())
+        await db.commit()  # 영수증 내역을 DB에 확정
+        
     except Exception as e:
         print(f"Receipt save error: {e}")
 

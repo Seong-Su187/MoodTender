@@ -130,19 +130,24 @@ result_prompt = ChatPromptTemplate.from_messages([
 result_chain = result_prompt | _make_llm(temperature=0.7, model="gpt-4o-mini") | StrOutputParser()
 
 
+# 🚀 [버그 해결] LLM이 사용자의 입력을 읽도록 수정하고, 피드백 판단 기준을 극도로 깐깐하게 강화했습니다.
 feedback_prompt = ChatPromptTemplate.from_messages([
     ("system", """
     당신은 대화 맥락을 분석하는 AI입니다. 
-    바텐더가 이전에 '{cocktail_name}'(관련 고민: '{issue}')을 처방했고, 방금 그에 대한 안부나 피드백을 물어봤을 수 있습니다.
-    사용자의 발화가 이 처방된 행동이나 칵테일에 대한 피드백(후기, 실천 여부, 기분 변화 등)인지 판단하세요.
+    바텐더가 이전에 '{cocktail_name}'(관련 고민: '{issue}')을 처방했습니다.
+    이제 사용자가 한 발화가 이 처방에 대한 '직접적인 피드백(해결됨, 실천 여부, 후기)'인지 엄격하게 판단하세요.
     
-    만약 피드백이라면 평점(1~5점, 긍정적이고 효과가 좋았을수록 5점)과 리뷰 요약을 추출하세요.
+    [엄격한 판단 기준]
+    1. 사용자가 명시적으로 과거 고민('{issue}')이 나아졌다고 하거나, 처방받은 행동/칵테일('{cocktail_name}')을 언급하며 후기를 말할 때만 피드백으로 인정합니다.
+    2. 일상적인 인사, 전혀 다른 새로운 고민, 혹은 "기대되는 일이 있어요" 같은 다른 주제라면 절대 피드백이 아닙니다.
+    3. 피드백이 확실한 경우에만 is_feedback을 true로 설정하고, 긍정적일수록 높은 평점(1~5점)을 매기세요.
+    4. 조금이라도 다른 이야기라면 무조건 false로 반환하세요. 혼자서 추측하여 지어내지 마세요.
+    
     반드시 아래 JSON 형식으로만 대답하세요:
-    {{"is_feedback": true, "taste_rating": 4, "user_review": "리뷰 내용 요약"}}
-    
-    만약 피드백이 아니라 완전히 다른 이야기라면 아래와 같이 반환하세요:
-    {{"is_feedback": false, "taste_rating": 0, "user_review": ""}}
-    """)
+    피드백인 경우: {{"is_feedback": true, "taste_rating": 4, "user_review": "리뷰 요약"}}
+    피드백이 아닌 경우: {{"is_feedback": false, "taste_rating": 0, "user_review": ""}}
+    """),
+    ("human", "사용자 발화: {user_input}")
 ])
 feedback_chain = feedback_prompt | _make_llm(temperature=0.0, model="gpt-4o-mini") | StrOutputParser()
 
