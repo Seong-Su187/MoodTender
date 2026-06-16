@@ -1,4 +1,3 @@
-# 🚀 1. 첫 번째 줄에 Boolean 을 추가로 import 합니다.
 from sqlalchemy import Column, Integer, String, Text, BigInteger, Date, DateTime, ForeignKey, JSON, UniqueConstraint, Boolean
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
@@ -14,7 +13,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     
-    # 🚀 2. 새로 추가된 부분: 기기 연동 완료 여부 도장칸
+    # 🚀 기기 연동 완료 여부 도장칸
     is_device_paired = Column(Boolean, default=False) 
 
 class EmotionDictionary(Base):
@@ -44,6 +43,13 @@ class UserMemory(Base):
     source_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
+    # 🚀 [추가됨] 대시보드의 '나만의 칵테일 만들기' 및 리뷰 관리를 위한 필드
+    issue = Column(String(255), nullable=True)               # 예: "상사와의 말다툼"
+    status = Column(String(50), default="PENDING")           # PENDING(대기중) -> COMPLETED(리뷰완료)
+    taste_rating = Column(Integer, nullable=True)            # 칵테일 맛 평가 (1~5점)
+    user_review = Column(Text, nullable=True)                # 사용자 피드백 ("마음이 편해졌어요")
+    prescribed_cocktail = Column(String(100), nullable=True) # 처방된 칵테일 이름
+
 class EmotionReceipt(Base):
     __tablename__ = "emotion_receipts"
 
@@ -66,19 +72,19 @@ class ChatMessage(Base):
     embedding = Column(Vector(1536))
     created_at = Column(DateTime, server_default=func.now())
 
-# --- 🚀 새로 추가된 모바일 건강 데이터 테이블 ---
+# --- 새로 추가된 모바일 건강 데이터 테이블 ---
 class HealthMetric(Base):
     __tablename__ = "health_metrics"
 
     id = Column(BigInteger, primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False) # 기존 users 테이블과 연결!
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     record_date = Column(Date, nullable=False)
     step_count = Column(Integer, default=0)
     sleep_minutes = Column(Integer, default=0)
     screen_time_minutes = Column(Integer, default=0)
-    app_usage_json = Column(JSON, default=dict)  # 유연한 JSON 형태 저장
+    app_usage_json = Column(JSON, default=dict) 
     
-    # 한 유저당 하루에 하나의 기록만 있도록 제한 (Supabase에 설정한 제약조건과 동일)
+    # 한 유저당 하루에 하나의 기록만 있도록 제한
     __table_args__ = (
         UniqueConstraint('user_id', 'record_date', name='uq_health_user_date'),
     )

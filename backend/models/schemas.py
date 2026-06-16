@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import date
-from typing import Dict
+from typing import Dict, Optional
 
 # --- 기존 유저 및 인증 스키마 ---
 class UserCreate(BaseModel):
@@ -16,7 +16,7 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-    id: int  # 🚀 추가됨: 로그인 성공 시 유저 ID를 같이 반환하여 안드로이드 앱에서 저장 가능하게 함
+    id: int
 
 # --- 기존 LLM 및 대화 스키마 ---
 class LLMRequest(BaseModel):
@@ -34,9 +34,51 @@ class ChatRequest(BaseModel):
 
 # --- 모바일 건강 데이터 스키마 ---
 class HealthDataCreate(BaseModel):
-    record_date: date               # 데이터 기록 날짜 (예: "2026-06-09")
-    step_count: int                 # 걸음 수
-    sleep_minutes: int              # 수면 시간 (분 단위)
-    screen_time_minutes: int        # 총 스마트폰 사용 시간 (분 단위)
-    # 카카오톡, 유튜브, 메시지, 전화 등의 사용 시간을 {"kakao": 120, "phone": 30} 형태로 저장
+    record_date: date               
+    step_count: int                 
+    sleep_minutes: int              
+    screen_time_minutes: int        
     app_usage_json: Dict[str, int]
+
+# --- 장기 기억 스키마 ---
+class MemoryCreate(BaseModel):
+    issue: str
+    emotion: str
+
+class MemoryResponse(MemoryCreate):
+    id: int
+    user_id: int
+    status: str
+    prescribed_cocktail: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+# --- 대시보드 칵테일 제조 API용 스키마 ---
+class IssueResponse(BaseModel):
+    id: int
+    issue: str
+    emotion: str
+    record_date: date
+
+class SuggestionRequest(BaseModel):
+    issue_id: int
+
+class SuggestionResponse(BaseModel):
+    emotion_analysis: str
+    checklist: list[str]
+
+class CraftCocktailRequest(BaseModel):
+    issue_id: int
+    selected_actions: list[str]
+
+class CraftCocktailResponse(BaseModel):
+    expected_effect: str
+    cocktail_name: str
+    message: str
+
+# 🚀 [추가됨] 칵테일 맛 평가(리뷰) 제출용 스키마
+class ReviewRequest(BaseModel):
+    issue_id: int
+    taste_rating: int
+    user_review: str

@@ -3,489 +3,429 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MoodTender Health Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>MoodTender - 나만의 칵테일 처방</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/monthly.css">
     <style>
-        body {
-            color: #f4ecd9;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
-            background:
-                linear-gradient(rgba(15, 10, 6, 0.74), rgba(15, 10, 6, 0.84)),
-                url('/assets/dashboard-bg.jpeg') center center / cover no-repeat fixed;
-            background-color: #140f0a;
-            min-height: 100vh;
+        /* 기본 다크 테마 설정 */
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1E1E1E;
+            --primary: #7C4DFF;
+            --primary-hover: #651FFF;
+            --text-main: #FFFFFF;
+            --text-sub: #A0A0A0;
+            --success: #61D394;
         }
-        .serif { font-family: 'Playfair Display', serif; }
-        .surface {
-            background: linear-gradient(180deg, rgba(42, 30, 17, 0.62), rgba(28, 19, 11, 0.58));
-            border: 1px solid rgba(200, 160, 90, 0.22);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s, border-color 0.25s;
-        }
-        .surface:hover {
-            transform: translateY(-3px);
-            border-color: rgba(200, 160, 90, 0.4);
-            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
-        }
-        .accent-text { color: #d9b65a; }
-        .danger-text { color: #e0746b; }
-        .muted-text { color: #b3a48c; }
-        
-        /* 스크롤바 커스텀 */
-        html, body, * {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(200, 144, 46, 0.45) rgba(20, 15, 10, 0.92);
-        }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: rgba(20, 15, 10, 0.92); margin: 6px 0; }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(200, 144, 46, 0.4);
-            border-radius: 6px;
-            border: 2px solid transparent;
-            background-clip: padding-box;
-        }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(200, 144, 46, 0.65); }
 
-        /* 날짜 입력창 커스텀 (다크/골드 테마) */
-        input[type="date"] {
-            background-color: rgba(15, 10, 6, 0.6);
-            border: 1px solid rgba(200, 160, 90, 0.4);
-            color: #f4ecd9;
-            color-scheme: dark;
-        }
-        input[type="date"]:focus {
-            outline: none;
-            border-color: #d9b65a;
-            box-shadow: 0 0 8px rgba(217, 182, 90, 0.3);
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
+        
+        .container { width: 100%; max-width: 480px; padding: 24px; position: relative; overflow: hidden; }
+        
+        .view-section { display: none; animation: fadeIn 0.4s ease-out forwards; }
+        .view-section.active { display: block; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .header { display: flex; align-items: center; margin-bottom: 32px; }
+        .header i { font-size: 24px; cursor: pointer; color: var(--text-sub); }
+        .header h1 { flex: 1; text-align: center; font-size: 18px; font-weight: 600; }
+        
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 8px; line-height: 1.4; }
+        .subtitle { color: var(--text-sub); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+
+        /* 🚀 [추가됨] AI 바텐더 감정 리포트 뷰어 카드 스타일 */
+        .report-box { background: linear-gradient(145deg, #231B3A, #1A1A1A); border-radius: 20px; padding: 24px; margin-bottom: 24px; border: 1px solid rgba(124, 77, 255, 0.3); box-shadow: 0 8px 32px rgba(124, 77, 255, 0.15); }
+        .report-box h3 { font-size: 16px; margin-bottom: 14px; color: #D1C4E9; display: flex; align-items: center; gap: 8px; }
+        .report-content { font-size: 14px; line-height: 1.7; color: #E0E0E0; }
+        .report-content b { color: #B39DDB; font-weight: 600; }
+
+        /* 차트 컨테이너 스타일 */
+        .chart-box { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 32px; border: 1px solid rgba(124, 77, 255, 0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .chart-box h3 { font-size: 15px; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+
+        /* Step 1: 이슈 카드 목록 */
+        .issue-card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 16px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid transparent; }
+        .issue-card:hover { transform: translateY(-2px); border: 1px solid var(--primary); }
+        .issue-card .date { font-size: 12px; color: var(--primary); font-weight: bold; margin-bottom: 8px; }
+        .issue-card .issue-text { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+        .issue-card .emotion-tag { display: inline-block; background: rgba(124, 77, 255, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+
+        .empty-state { text-align: center; color: var(--text-sub); padding: 40px 0; }
+
+        /* Step 2: 처방전 (체크리스트) */
+        .analysis-box { background: rgba(124, 77, 255, 0.1); border-left: 4px solid var(--primary); padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 32px; font-size: 15px; line-height: 1.6; }
+        
+        .check-item { display: flex; align-items: center; background: var(--card-bg); padding: 16px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: background 0.2s; }
+        .check-item:hover { background: #2A2A2A; }
+        .check-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 16px; accent-color: var(--primary); cursor: pointer; }
+        .check-item label { flex: 1; font-size: 15px; cursor: pointer; }
+
+        /* Step 3: 쉐이킹 애니메이션 */
+        .animation-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; text-align: center; }
+        .shaker-box { width: 100px; height: 120px; background: linear-gradient(135deg, #E0E0E0, #9E9E9E); border-radius: 10px 10px 30px 30px; position: relative; animation: shake 0.5s infinite alternate ease-in-out; margin-bottom: 32px; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.2); }
+        .shaker-cap { width: 80px; height: 40px; background: #BDBDBD; border-radius: 20px 20px 0 0; position: absolute; top: -40px; left: 10px; }
+        @keyframes shake { 0% { transform: rotate(-15deg) translateY(0); } 100% { transform: rotate(15deg) translateY(-10px); } }
+        .loading-text { font-size: 18px; font-weight: bold; color: var(--primary); letter-spacing: 2px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* Step 4: 결과 화면 및 리뷰 */
+        .result-card { background: var(--card-bg); border-radius: 24px; padding: 32px 24px; text-align: center; border: 1px solid rgba(124, 77, 255, 0.3); box-shadow: 0 10px 30px rgba(124, 77, 255, 0.1); }
+        .cocktail-icon { font-size: 64px; margin-bottom: 16px; display: block; }
+        .cocktail-name { font-size: 28px; font-weight: bold; color: var(--primary); margin-bottom: 16px; }
+        .expected-effect { font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+        .bartender-message { background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; font-size: 14px; font-style: italic; color: var(--text-sub); margin-bottom: 24px; }
+
+        .review-section { margin-top: 24px; text-align: left; border-top: 1px dashed #333; padding-top: 20px; }
+        .review-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; color: var(--text-main); }
+        .rating-container { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; }
+        .rating-glass { font-size: 28px; cursor: pointer; color: #444; transition: color 0.2s; }
+        .rating-glass.active { color: var(--primary); }
+        .review-input { width: 100%; height: 70px; background: #252525; border: 1px solid #383838; border-radius: 10px; color: white; padding: 12px; font-size: 14px; resize: none; outline: none; }
+        .review-input:focus { border-color: var(--primary); }
+
+        .btn-primary { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 24px; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-primary:disabled { background: #444; color: #888; cursor: not-allowed; }
     </style>
 </head>
-<body class="p-6 md:p-10 min-h-screen">
+<body>
 
-    <div class="max-w-5xl mx-auto space-y-6">
-
-        <header class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-                <h1 class="serif text-3xl font-bold tracking-tight" style="color:#e8c884; text-shadow:0 2px 14px rgba(200,144,46,0.3);">MoodTender Analytics</h1>
-                <p class="muted-text text-sm mt-1">스마트폰에서 수집된 나의 생활 패턴과 멘탈 상태를 확인하세요.</p>
-            </div>
-        </header>
-
-        <div class="surface rounded-2xl p-4 shadow-lg flex flex-wrap gap-4 items-center justify-between">
-            <div class="flex items-center gap-2">
-                <span class="text-xl">📅</span>
-                <h2 class="text-base font-bold">기간 설정</h2>
-            </div>
-            <div class="flex items-center gap-2 md:gap-4 flex-wrap">
-                <input type="date" id="startDate" class="rounded-lg p-2 text-sm">
-                <span class="muted-text">~</span>
-                <input type="date" id="endDate" class="rounded-lg p-2 text-sm">
-                <button id="filterBtn" class="text-sm px-4 py-2 rounded-lg font-bold text-[#140f0a]" style="background: linear-gradient(135deg, #d9b65a, #c8902e); transition: opacity 0.2s;">
-                    조회
-                </button>
-                <button id="resetBtn" class="text-sm px-4 py-2 rounded-lg font-bold border border-[#c8902e] text-[#c8902e] hover:bg-[#c8902e] hover:text-[#140f0a] transition-colors">
-                    전체보기
-                </button>
-            </div>
+<div class="container">
+    
+    <div id="step-1" class="view-section active">
+        <div class="header">
+            <i class="ri-arrow-left-s-line" onclick="goBackToChat()"></i>
+            <h1>나만의 칵테일 처방</h1>
+            <div style="width: 24px;"></div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="surface rounded-2xl p-6 shadow-lg">
-                <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 걸음 수</h3>
-                <p id="card-steps" class="text-3xl font-bold accent-text">- 보</p>
-            </div>
-            <div class="surface rounded-2xl p-6 shadow-lg">
-                <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 수면</h3>
-                <p id="card-sleep" class="text-3xl font-bold" style="color:#7dc4e8;">- 시간 - 분</p>
-            </div>
-            <div class="surface rounded-2xl p-6 shadow-lg">
-                <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 스크린타임</h3>
-                <p id="card-screen" class="text-3xl font-bold danger-text">- 분</p>
-            </div>
+        <div class="report-box" id="ai-report-section" style="display: none;">
+            <h3><i class="ri-magic-line" style="color: #BA68C8;"></i> MoodTender AI 리포트</h3>
+            <div class="report-content" id="ai-report-text">리포트를 불러오는 중입니다...</div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="surface rounded-2xl p-6 shadow-lg">
-                <h2 class="text-lg font-bold mb-4">걸음 수 추이</h2>
-                <div class="relative h-72 w-full">
-                    <canvas id="stepChart"></canvas>
-                </div>
-            </div>
-            <div class="surface rounded-2xl p-6 shadow-lg">
-                <h2 class="text-lg font-bold mb-4">스마트폰 사용 추이</h2>
-                <div class="relative h-72 w-full">
-                    <canvas id="screenChart"></canvas>
-                </div>
-            </div>
+        <div class="chart-box" id="chart-section" style="display: none;">
+            <h3><i class="ri-line-chart-line" style="color: var(--success);"></i> 최근 마음 회복도</h3>
+            <canvas id="recoveryChart" height="180"></canvas>
         </div>
 
-        <div class="surface rounded-2xl p-6 shadow-lg">
-            <h2 class="text-lg font-bold mb-4">수면 추이</h2>
-            <div class="relative w-full" style="height: 288px;">
-                <canvas id="sleepChart"></canvas>
-            </div>
+        <h2 class="title">아직 비워내지 못한<br>마음의 조각들이 있네요.</h2>
+        <p class="subtitle">해결하고 싶은 고민을 하나 선택해 주세요.<br>MoodTender가 특별한 위로를 만들어 드릴게요.</p>
+        
+        <div id="issue-list-container">
+            <div class="empty-state">불러오는 중...</div>
         </div>
-
-        <div class="surface rounded-2xl p-6 shadow-lg">
-            <div class="flex items-center mb-4 gap-2">
-                <span class="text-xl">🥃</span>
-                <h2 class="text-lg font-bold">바텐더의 상태 분석</h2>
-            </div>
-            <div id="ai-report" class="text-sm leading-relaxed p-4 rounded-xl" style="background: rgba(15,10,6,0.5); border: 1px solid rgba(200,160,90,0.15); color:#f4ecd9;">
-                데이터를 분석하고 있습니다...
-            </div>
-        </div>
-
-        <div style="padding-top: 8px;">
-            <button class="monthly-open-btn" onclick="openMonthlyFromParent()">
-                📈 감정 월간 분석
-            </button>
-        </div>
-
     </div>
 
-    <script>
-        function openMonthlyFromParent() {
-            window.parent.postMessage({ type: 'openMonthly' }, '*');
+    <div id="step-2" class="view-section">
+        <div class="header">
+            <i class="ri-arrow-left-s-line" onclick="showStep(1)"></i>
+            <h1>처방전 작성 중</h1>
+            <div style="width: 24px;"></div>
+        </div>
+        
+        <div class="analysis-box" id="emotion-analysis-text"></div>
+        <h3 style="font-size: 16px; margin-bottom: 16px;">상황을 부드럽게 넘길 수 있는 작은 행동들</h3>
+        <p class="subtitle">오늘 실천해 볼 수 있는 것들을 선택해 주세요.</p>
+        <div id="checklist-container"></div>
+        <button class="btn-primary" id="btn-craft" onclick="startCrafting()" disabled>
+            바텐더에게 칵테일 부탁하기
+        </button>
+    </div>
+
+    <div id="step-3" class="view-section">
+        <div class="animation-container">
+            <div class="shaker-box"><div class="shaker-cap"></div></div>
+            <div class="loading-text">쉐이킹 중...</div>
+            <p style="color: var(--text-sub); margin-top: 16px; font-size: 14px;">선택하신 행동들을 담아<br>위로의 레시피를 만들고 있습니다.</p>
+        </div>
+    </div>
+
+    <div id="step-4" class="view-section">
+        <div class="header">
+            <i class="ri-close-line" onclick="goBackToChat()"></i>
+            <h1>처방 완료</h1>
+            <div style="width: 24px;"></div>
+        </div>
+
+        <div class="result-card">
+            <span class="cocktail-icon">🍸</span>
+            <div class="cocktail-name" id="result-cocktail-name">미드나잇 릴렉서</div>
+            <div class="expected-effect" id="result-effect"></div>
+            <div class="bartender-message" id="result-message"></div>
+
+            <div class="review-section">
+                <div class="review-title">🍸 칵테일 맛은 어떠셨나요? (마음 회복도)</div>
+                <div class="rating-container">
+                    <span class="rating-glass" onclick="setRating(1)">🍸</span>
+                    <span class="rating-glass" onclick="setRating(2)">🍸</span>
+                    <span class="rating-glass" onclick="setRating(3)">🍸</span>
+                    <span class="rating-glass" onclick="setRating(4)">🍸</span>
+                    <span class="rating-glass" onclick="setRating(5)">🍸</span>
+                </div>
+                <textarea class="review-input" id="review-text-input" placeholder="칵테일을 마신 후 가벼워진 소감을 남겨주세요."></textarea>
+            </div>
+        </div>
+
+        <button class="btn-primary" onclick="submitReviewAndExit()">
+            평가 등록하고 돌아가기
+        </button>
+    </div>
+
+</div>
+
+<script>
+    const token = localStorage.getItem("token") || localStorage.getItem("ACCESS_TOKEN") || localStorage.getItem("access_token") || ""; 
+    const API_BASE = "/api/dashboard"; 
+
+    let currentIssueId = null;
+    let selectedActions = [];
+    let selectedRating = 0; 
+    let recoveryChartInstance = null;
+
+    function showStep(stepNumber) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(`step-${stepNumber}`).classList.add('active');
+    }
+
+    function goBackToChat() {
+        window.location.href = "index.html"; 
+    }
+
+    async function fetchWithAuth(url, options = {}) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        const response = await fetch(url, { ...options, headers });
+        if (!response.ok) throw new Error('API 요청 실패');
+        return await response.json();
+    }
+
+    // 🚀 [추가됨] AI 바텐더 주간 감정 리포트 조회 함수
+    async function loadAIReport() {
+        const reportSection = document.getElementById('ai-report-section');
+        const reportText = document.getElementById('ai-report-text');
+        try {
+            reportSection.style.display = 'block';
+            const data = await fetchWithAuth(`${API_BASE}/report`);
+            reportText.innerHTML = data.report;
+        } catch (error) {
+            reportText.innerHTML = `<span style="color:#ff6b6b;">리포트를 생성하는 과정에서 에러가 발생했습니다. 기록이 충분한지 확인해 주세요.</span>`;
+            console.error(error);
         }
+    }
 
-        // 🚀 2. 전역 변수: 전체 데이터 보관 및 그래프 인스턴스 관리
-        let allRecords = [];
-        let stepChartInstance = null;
-        let sleepChartInstance = null;
-        let screenChartInstance = null;
-
-        // 차트 선이 왼쪽→오른쪽으로 부드럽게 그려지는 플러그인
-        const smoothRevealPlugin = {
-            id: 'smoothReveal',
-            beforeDatasetsDraw(chart) {
-                const p = chart._revealProgress;
-                if (p === undefined || p >= 1) return;
-                const { ctx, chartArea } = chart;
-                if (!chartArea) return;
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(chartArea.left, chartArea.top, chartArea.width * p, chartArea.height);
-                ctx.clip();
-            },
-            afterDatasetsDraw(chart) {
-                if ((chart._revealProgress ?? 1) < 1) chart.ctx.restore();
-            }
-        };
-        Chart.register(smoothRevealPlugin);
-
-        function animateReveal(chart) {
-            const duration = 1200;
-            const start = performance.now();
-            chart._revealProgress = 0;
-            function frame(now) {
-                const t = Math.min((now - start) / duration, 1);
-                chart._revealProgress = 1 - Math.pow(1 - t, 3);
-                chart.draw();
-                if (t < 1) requestAnimationFrame(frame);
-            }
-            requestAnimationFrame(frame);
-        }
-
-        // Date 객체 -> YYYY-MM-DD (로컬 기준) 문자열 변환
-        function formatDate(d) {
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        // 오늘 날짜(YYYY-MM-DD, 로컬 기준) 문자열 반환
-        function getTodayString() {
-            return formatDate(new Date());
-        }
-
-        // 🚀 기간 선택을 최대 7일로 제한 (start/end 중 방금 변경된 쪽을 기준으로 반대쪽 min/max 보정)
-        const MAX_RANGE_DAYS = 7;
-        function clampDateRange(changed) {
-            const startInput = document.getElementById('startDate');
-            const endInput = document.getElementById('endDate');
-            if (!startInput.value || !endInput.value) return;
-
-            if (changed === 'start') {
-                const start = new Date(startInput.value);
-                const maxEnd = new Date(start);
-                maxEnd.setDate(maxEnd.getDate() + (MAX_RANGE_DAYS - 1));
-
-                endInput.min = startInput.value;
-                endInput.max = formatDate(maxEnd);
-
-                // 기존 endDate가 새 범위를 벗어나면 -> 일단 startDate와 같은 날(1일 선택)로 맞춤
-                if (endInput.value < endInput.min || endInput.value > endInput.max) {
-                    endInput.value = startInput.value;
-                }
-            } else {
-                const end = new Date(endInput.value);
-                const minStart = new Date(end);
-                minStart.setDate(minStart.getDate() - (MAX_RANGE_DAYS - 1));
-
-                startInput.max = endInput.value;
-                startInput.min = formatDate(minStart);
-
-                // 기존 startDate가 새 범위를 벗어나면 -> 일단 endDate와 같은 날(1일 선택)로 맞춤
-                if (startInput.value < startInput.min || startInput.value > startInput.max) {
-                    startInput.value = endInput.value;
-                }
-            }
-        }
-
-        // 🚀 바텐더의 상태 분석 리포트 가져오기 (조회 기간: startDate~endDate, 최대 7일)
-        async function fetchAiReport(startDate, endDate) {
-            const token = localStorage.getItem("access_token");
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
-            document.getElementById('ai-report').innerHTML = "데이터를 분석하고 있습니다...";
-
-            try {
-                const params = new URLSearchParams();
-                if (startDate) params.set('start_date', startDate);
-                if (endDate) params.set('end_date', endDate);
-
-                const url = `/api/web/analyze?${params.toString()}`;
-                const aiResponse = await fetch(url, { headers });
-                const aiResult = await aiResponse.json();
-                document.getElementById('ai-report').innerHTML = aiResult.report;
-            } catch (error) {
-                console.error("AI 리포트 로드 실패:", error);
-                document.getElementById('ai-report').innerHTML = "<span style='color:#e0746b;'>리포트를 불러오지 못했습니다.</span>";
-            }
-        }
-
-        async function loadDashboard() {
-            const token = localStorage.getItem("access_token");
+    async function loadChart() {
+        try {
+            const data = await fetchWithAuth(`${API_BASE}/chart-data`);
+            if (data.length < 2) return; 
             
-            if (!token) {
-                alert("로그인이 필요합니다.");
-                window.location.href = "/login.html"; 
+            document.getElementById('chart-section').style.display = 'block';
+            const ctx = document.getElementById('recoveryChart').getContext('2d');
+            
+            let gradient = ctx.createLinearGradient(0, 0, 0, 180);
+            gradient.addColorStop(0, 'rgba(124, 77, 255, 0.5)');
+            gradient.addColorStop(1, 'rgba(124, 77, 255, 0.0)');
+
+            if (recoveryChartInstance) recoveryChartInstance.destroy();
+
+            recoveryChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.date),
+                    datasets: [{
+                        label: '마음 회복도 (별점)',
+                        data: data.map(d => d.rating),
+                        borderColor: '#7C4DFF',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#61D394',
+                        pointBorderColor: '#121212',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        fill: true,
+                        tension: 0.4 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#2A2A2A',
+                            titleColor: '#A0A0A0',
+                            bodyFont: { size: 14 },
+                            padding: 12,
+                            callbacks: {
+                                title: function(context) { return data[context[0].dataIndex].date + " 기록"; },
+                                label: function(context) {
+                                    let item = data[context.dataIndex];
+                                    return [` 평점: ${item.rating}잔`, ` 처방: ${item.cocktail_name}`, ` 고민: ${item.issue}`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            min: 0, max: 5.5, 
+                            ticks: { stepSize: 1, color: '#666', font: { size: 11 } }, 
+                            grid: { color: '#222', drawBorder: false } 
+                        },
+                        x: { 
+                            ticks: { color: '#888', font: { size: 11 } }, 
+                            grid: { display: false } 
+                        }
+                    },
+                    interaction: { mode: 'index', intersect: false }
+                }
+            });
+        } catch (error) {
+            console.error("차트 로드 실패:", error);
+        }
+    }
+
+    async function loadIssues() {
+        const container = document.getElementById('issue-list-container');
+        try {
+            const issues = await fetchWithAuth(`${API_BASE}/issues`);
+            
+            if (issues.length === 0) {
+                container.innerHTML = `<div class="empty-state">아직 해결해야 할 고민이 없습니다.<br>오늘도 평온한 하루 되세요!</div>`;
                 return;
             }
 
-            try {
-                const headers = {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                };
+            container.innerHTML = issues.map(item => `
+                <div class="issue-card" onclick="selectIssue(${item.id})">
+                    <div class="date">${item.record_date}</div>
+                    <div class="issue-text">${item.issue}</div>
+                    <div class="emotion-tag">${item.emotion}</div>
+                </div>
+            `).join('');
 
-                // 서버에서 데이터 전체 가져오기
-                const response = await fetch('/api/web/data', { headers });
-                
-                if (response.status === 401) {
-                    alert("세션이 만료되었습니다. 다시 로그인해주세요.");
-                    localStorage.removeItem("access_token");
-                    window.location.href = "/login.html";
-                    return;
-                }
-
-                const result = await response.json();
-                allRecords = result.data || [];
-
-                if (allRecords.length === 0) {
-                    document.getElementById('ai-report').innerHTML = "아직 수집된 모바일 데이터가 없습니다.";
-                    return;
-                }
-
-                // 날짜 기본값 세팅: 차트/카드/바텐더의 상태 분석 모두 '오늘' 기준이 기본값
-                const todayStr = getTodayString();
-                document.getElementById('startDate').value = todayStr;
-                document.getElementById('endDate').value = todayStr;
-                clampDateRange('end'); // 시작일의 선택 가능 범위를 오늘 기준 최대 7일로 초기화
-
-                // 🚀 화면 렌더링 호출 (기간 설정과 동일하게 '오늘' 기준으로 필터링)
-                renderDashboard(getFilteredRecords());
-
-                // AI 리포트 가져오기 (오늘 하루 기준)
-                await fetchAiReport(todayStr, todayStr);
-
-            } catch (error) {
-                console.error("데이터 로드 실패:", error);
-                document.getElementById('ai-report').innerHTML = "<span style='color:#e0746b;'>서버 연결에 실패했습니다.</span>";
-            }
+        } catch (error) {
+            container.innerHTML = `<div class="empty-state" style="color:#ff6b6b;">데이터를 불러오는 중 오류가 발생했습니다.</div>`;
+            console.error(error);
         }
+    }
 
-        // 🚀 2-1. 현재 선택된 기간(startDate~endDate)으로 allRecords를 걸러서 반환
-        function getFilteredRecords() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
+    async function selectIssue(issueId) {
+        currentIssueId = issueId;
+        showStep(2);
+        
+        const analysisBox = document.getElementById('emotion-analysis-text');
+        const checklistBox = document.getElementById('checklist-container');
+        const craftBtn = document.getElementById('btn-craft');
+        
+        analysisBox.innerHTML = `바텐더가 손님의 마음을 들여다보고 있습니다... <i class="ri-loader-4-line ri-spin"></i>`;
+        checklistBox.innerHTML = ``;
+        craftBtn.disabled = true;
 
-            let filtered = allRecords;
-            if (startDate) {
-                filtered = filtered.filter(r => r.recordDate >= startDate);
-            }
-            if (endDate) {
-                filtered = filtered.filter(r => r.recordDate <= endDate);
-            }
-            return filtered;
-        }
-
-        // 🚀 3. 화면을 그리는 전담 함수 (필터링 시 재사용)
-        function renderDashboard(recordsToRender) {
-            if (recordsToRender.length === 0) {
-                // 해당 기간에 데이터가 없으면 빈 상태로 표시 (알림창 없이 조용히 처리)
-                document.getElementById('card-steps').innerText = '- 보';
-                document.getElementById('card-sleep').innerText = '- 시간 - 분';
-                document.getElementById('card-screen').innerText = '- 분';
-
-                if (stepChartInstance) stepChartInstance.destroy();
-                if (sleepChartInstance) sleepChartInstance.destroy();
-                if (screenChartInstance) screenChartInstance.destroy();
-                stepChartInstance = null;
-                sleepChartInstance = null;
-                screenChartInstance = null;
-                return;
-            }
-
-            // 상단 카드 업데이트 (선택된 기간의 가장 최신 데이터 기준)
-            const latest = recordsToRender[recordsToRender.length - 1];
-            document.getElementById('card-steps').innerText = latest.stepCount.toLocaleString() + ' 보';
-
-            const sleepHours = Math.floor(latest.sleepMinutes / 60);
-            const sleepMins = latest.sleepMinutes % 60;
-            document.getElementById('card-sleep').innerText = `${sleepHours}시간 ${sleepMins}분`;
-            document.getElementById('card-screen').innerText = latest.screenTimeMinutes + ' 분';
-
-            // 차트 데이터 추출
-            const labels = recordsToRender.map(r => r.recordDate);
-            const stepData = recordsToRender.map(r => r.stepCount);
-            const sleepData = recordsToRender.map(r => r.sleepMinutes);
-            const screenData = recordsToRender.map(r => r.screenTimeMinutes);
-
-            // ⚠️ 중요: 기존 차트가 있다면 파괴(Destroy)해야 새로 그릴 때 에러가 나지 않습니다.
-            if (stepChartInstance) stepChartInstance.destroy();
-            if (sleepChartInstance) sleepChartInstance.destroy();
-            if (screenChartInstance) screenChartInstance.destroy();
-
-            // 걸음 수 차트 그리기
-            const stepCtx = document.getElementById('stepChart').getContext('2d');
-            stepChartInstance = new Chart(stepCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '걸음 수 (보)',
-                        data: stepData,
-                        borderColor: '#c8902e',
-                        backgroundColor: 'rgba(200, 144, 46, 0.15)',
-                        pointBackgroundColor: '#e8c884',
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: getChartOptions('걸음 수 (보)')
+        try {
+            const data = await fetchWithAuth(`${API_BASE}/analyze-and-suggest`, {
+                method: 'POST',
+                body: JSON.stringify({ issue_id: issueId })
             });
-            animateReveal(stepChartInstance);
 
-            // 수면 차트 그리기
-            const sleepCtx = document.getElementById('sleepChart').getContext('2d');
-            sleepChartInstance = new Chart(sleepCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '수면 (분)',
-                        data: sleepData,
-                        borderColor: '#7dc4e8',
-                        backgroundColor: 'rgba(125, 196, 232, 0.15)',
-                        pointBackgroundColor: '#b8e0f4',
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: getChartOptions('수면 (분)')
-            });
-            animateReveal(sleepChartInstance);
+            analysisBox.innerHTML = `"${data.emotion_analysis}"`;
+            
+            checklistBox.innerHTML = data.checklist.map((task, index) => `
+                <div class="check-item" onclick="toggleCheckbox('chk-${index}')">
+                    <input type="checkbox" id="chk-${index}" value="${task}" onchange="updateSelectedActions()">
+                    <label for="chk-${index}">${task}</label>
+                </div>
+            `).join('');
 
-            // 스크린타임 차트 그리기
-            const screenCtx = document.getElementById('screenChart').getContext('2d');
-            screenChartInstance = new Chart(screenCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '스마트폰 사용 (분)',
-                        data: screenData,
-                        borderColor: '#e0746b',
-                        backgroundColor: 'rgba(224, 116, 107, 0.15)',
-                        pointBackgroundColor: '#f4ecd9',
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: getChartOptions('사용 시간 (분)')
-            });
-            animateReveal(screenChartInstance);
+        } catch (error) {
+            analysisBox.innerHTML = `분석을 불러오지 못했습니다. 다시 시도해 주세요.`;
         }
+    }
 
-        // 차트 공통 옵션 추출 (코드 중복 방지)
-        function getChartOptions(yAxisTitle) {
-            return {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                color: '#b3a48c',
-                scales: {
-                    x: { grid: { color: 'rgba(200, 160, 90, 0.08)' }, ticks: { color: '#b3a48c' } },
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(200, 160, 90, 0.08)' },
-                        ticks: { color: '#b3a48c' },
-                        title: { display: true, text: yAxisTitle, color: '#b3a48c' }
-                    }
-                },
-                plugins: { legend: { labels: { color: '#f4ecd9' } } }
-            };
+    function toggleCheckbox(id) {
+        const checkbox = document.getElementById(id);
+        checkbox.checked = !checkbox.checked;
+        updateSelectedActions();
+    }
+
+    function updateSelectedActions() {
+        const checkboxes = document.querySelectorAll('#checklist-container input[type="checkbox"]');
+        selectedActions = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+        
+        const craftBtn = document.getElementById('btn-craft');
+        craftBtn.disabled = selectedActions.length === 0; 
+    }
+
+    async function startCrafting() {
+        showStep(3); 
+
+        try {
+            const [data] = await Promise.all([
+                fetchWithAuth(`${API_BASE}/craft-cocktail`, {
+                    method: 'POST',
+                    body: JSON.stringify({ issue_id: currentIssueId, selected_actions: selectedActions })
+                }),
+                new Promise(resolve => setTimeout(resolve, 2500)) 
+            ]);
+
+            document.getElementById('result-cocktail-name').innerText = data.cocktail_name;
+            document.getElementById('result-effect').innerText = data.expected_effect;
+            document.getElementById('result-message').innerText = `"${data.message}"`;
+
+            setRating(0);
+            document.getElementById('review-text-input').value = "";
+
+            showStep(4); 
+
+        } catch (error) {
+            alert('칵테일 제조 중 문제가 발생했습니다.');
+            showStep(2); 
         }
+    }
 
-        // 🚀 3-1. 기간 선택 입력(달력) 변경 시 최대 7일 제한 적용
-        document.getElementById('startDate').addEventListener('change', () => clampDateRange('start'));
-        document.getElementById('endDate').addEventListener('change', () => clampDateRange('end'));
-
-        // 🚀 4. 필터링 버튼 이벤트 리스너
-        document.getElementById('filterBtn').addEventListener('click', async () => {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-
-            // 선택한 날짜 범위에 맞게 데이터 걸러서 화면 다시 그리기
-            renderDashboard(getFilteredRecords());
-
-            // 🚀 바텐더의 상태 분석: 1일 선택 시 그날, 2~7일 선택 시 해당 기간 전체 분석
-            await fetchAiReport(startDate, endDate);
-        });
-
-        // 🚀 5. 전체보기 버튼 이벤트 리스너
-        document.getElementById('resetBtn').addEventListener('click', async () => {
-            if (allRecords.length > 0) {
-                const lastDate = allRecords[allRecords.length - 1].recordDate;
-                document.getElementById('startDate').value = allRecords[0].recordDate;
-                document.getElementById('endDate').value = lastDate;
-
-                // 전체보기는 7일 제한과 무관하므로 기간 입력의 min/max 제약을 해제
-                document.getElementById('startDate').removeAttribute('min');
-                document.getElementById('startDate').removeAttribute('max');
-                document.getElementById('endDate').removeAttribute('min');
-                document.getElementById('endDate').removeAttribute('max');
-
-                renderDashboard(allRecords);
-
-                // 🚀 바텐더의 상태 분석은 전체 기록 중 마지막 날 하루를 기준으로 갱신
-                await fetchAiReport(lastDate, lastDate);
+    function setRating(rating) {
+        selectedRating = rating;
+        const glasses = document.querySelectorAll('.rating-glass');
+        glasses.forEach((glass, idx) => {
+            if (idx < rating) {
+                glass.classList.add('active');
+            } else {
+                glass.classList.remove('active');
             }
         });
+    }
 
-        // 페이지 시작
-        loadDashboard();
-    </script>
+    async function submitReviewAndExit() {
+        const comment = document.getElementById('review-text-input').value.trim();
+        
+        if (selectedRating === 0) {
+            goBackToChat();
+            return;
+        }
+
+        try {
+            await fetchWithAuth(`${API_BASE}/review`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    issue_id: currentIssueId,
+                    taste_rating: selectedRating,
+                    user_review: comment || "말씀해주신 활동을 실천해 보았습니다."
+                })
+            });
+            goBackToChat();
+        } catch (error) {
+            alert('리뷰 등록 중 오류가 발생했습니다.');
+        }
+    }
+
+    // 🚀 페이지 로드 시 리포트, 차트, 이슈 리스트를 완벽하게 동시 로드
+    window.onload = () => {
+        loadAIReport();
+        loadChart();
+        loadIssues();
+    };
+</script>
 </body>
 </html>
