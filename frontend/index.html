@@ -264,7 +264,7 @@
 
           <div class="avatar-output" aria-label="아바타 영상 출력">
             <video id="video-output"></video>
-            <video id="loading-video" src="/assets/loading_start.mp4?v=2" muted loop playsinline></video>
+            <video id="loading-video" src="/assets/loading_start.mp4?v=3" muted loop playsinline></video>
             <div id="video-placeholder">
               <span>아바타 영상이 여기에 표시됩니다.</span>
             </div>
@@ -284,13 +284,11 @@
             <div class="end-chat-bar" style="margin-top: 80px;">
               <button class="end-chat-btn" onclick="endConversation()">대화 종료 · 영수증 발급</button>
             </div>
+            
             <div id="chat-log" class="chat-log" aria-live="polite">
               <div class="chat-spacer"></div>
-              <div class="message-row assistant">
-                <div class="message-time">방금 전</div>
-                <div class="message-bubble">어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?</div>
-              </div>
             </div>
+
             <form class="chat-composer" onsubmit="event.preventDefault(); generateChat();">
               <button id="mic-btn" class="composer-icon-btn" type="button" title="음성 입력" aria-label="음성 입력">
                 <span class="icon-mic"></span>
@@ -427,5 +425,71 @@
   <script src="/js/receipt.js"></script>
   <script src="/js/chat.js"></script>
   <script src="/js/app.js"></script>
+
+  <script>
+    window.addEventListener("message", function(event) {
+      if (event.data === "closeDashboardModal") {
+        if (typeof closeDashboardModal === 'function') {
+          closeDashboardModal();
+        } else {
+          const modal = document.getElementById("dashboard-modal");
+          if (modal) {
+            modal.style.display = "none";
+            modal.setAttribute("aria-hidden", "true");
+            const frame = document.getElementById("dashboard-frame");
+            if (frame) frame.src = "";
+          }
+        }
+      }
+    });
+
+    // 🚀 [완벽 해결] 화면 로드 시 백엔드 API에서 능동적인 첫 인사를 가져옵니다.
+    async function fetchInitialGreeting() {
+      const chatLog = document.getElementById('chat-log');
+      try {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+        const response = await fetch('/api/llm/greeting', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        
+        // chat.js 내부 함수를 쓸 수 있으면 호출하고, 혹시 모르니 직접 DOM에 박는 방어 코드도 넣었습니다.
+        if (typeof appendMessage === 'function') {
+          appendMessage('assistant', data.reply);
+        } else {
+          const msgRow = document.createElement('div');
+          msgRow.className = 'message-row assistant';
+          msgRow.innerHTML = `
+            <div class="message-time">방금 전</div>
+            <div class="message-bubble">${data.reply}</div>
+          `;
+          chatLog.appendChild(msgRow);
+          chatLog.scrollTop = chatLog.scrollHeight;
+        }
+      } catch (error) {
+        console.error("첫인사 불러오기 실패:", error);
+        
+        // 서버 연결 실패 시 기존의 멘트를 띄워줍니다.
+        if (typeof appendMessage === 'function') {
+          appendMessage('assistant', "어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?");
+        } else {
+          const msgRow = document.createElement('div');
+          msgRow.className = 'message-row assistant';
+          msgRow.innerHTML = `
+            <div class="message-time">방금 전</div>
+            <div class="message-bubble">어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?</div>
+          `;
+          chatLog.appendChild(msgRow);
+          chatLog.scrollTop = chatLog.scrollHeight;
+        }
+      }
+    }
+
+    // 문서가 준비되면 위 함수를 실행시킵니다.
+    window.addEventListener('DOMContentLoaded', fetchInitialGreeting);
+  </script>
 </body>
 </html>
