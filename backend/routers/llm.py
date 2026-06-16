@@ -8,7 +8,7 @@ from backend.database import get_db
 from backend.models.domain import User, UserMemory
 from backend.models.schemas import LLMRequest, LLMResponse
 from backend.routers.auth import get_current_user_token
-from backend.services.rag_chain import rag_chat, save_receipt, CHAINS
+from backend.services.rag_chain import rag_chat, save_receipt
 from backend.services.analytics_service import analyze_cocktail_feedback
 
 router = APIRouter()
