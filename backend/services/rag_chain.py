@@ -465,7 +465,7 @@ async def _build_context(
     # 🚀 RAG: 전문 지식 검색(get_expert_knowledge)이 병렬로 같이 실행되도록 추가되었습니다.
     memories, chats, past_chats, health_rows, emotion_rows, expert_knowledge = await asyncio.gather(
         search_user_memories(db, user_id, query_embedding, top_k=3),
-        get_recent_chat_messages(db, user_id, session_id=session_id, limit=8),
+        get_recent_chat_messages(db, user_id, session_id=session_id, limit=24),
         search_chat_messages(db, user_id, query_embedding, session_id=session_id, session_start=session_start, top_k=3),
         get_recent_health_metrics(db, user_id, days=7),
         get_emotion_dictionary(db, emotion),
