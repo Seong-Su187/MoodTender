@@ -7,7 +7,6 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* 기본 다크 테마 설정 */
         :root {
             --bg-color: #121212;
             --card-bg: #1E1E1E;
@@ -19,6 +18,7 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', sans-serif; }
+        /* 🚀 캡처 화면처럼 모달 안에 들어갈 때를 대비해 배경색을 투명도 있게 조절할 수 있습니다 */
         body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
         
         .container { width: 100%; max-width: 480px; padding: 24px; position: relative; overflow: hidden; }
@@ -35,17 +35,14 @@
         .title { font-size: 24px; font-weight: bold; margin-bottom: 8px; line-height: 1.4; }
         .subtitle { color: var(--text-sub); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
 
-        /* 🚀 [추가됨] AI 바텐더 감정 리포트 뷰어 카드 스타일 */
         .report-box { background: linear-gradient(145deg, #231B3A, #1A1A1A); border-radius: 20px; padding: 24px; margin-bottom: 24px; border: 1px solid rgba(124, 77, 255, 0.3); box-shadow: 0 8px 32px rgba(124, 77, 255, 0.15); }
         .report-box h3 { font-size: 16px; margin-bottom: 14px; color: #D1C4E9; display: flex; align-items: center; gap: 8px; }
         .report-content { font-size: 14px; line-height: 1.7; color: #E0E0E0; }
         .report-content b { color: #B39DDB; font-weight: 600; }
 
-        /* 차트 컨테이너 스타일 */
         .chart-box { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 32px; border: 1px solid rgba(124, 77, 255, 0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         .chart-box h3 { font-size: 15px; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
 
-        /* Step 1: 이슈 카드 목록 */
         .issue-card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 16px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid transparent; }
         .issue-card:hover { transform: translateY(-2px); border: 1px solid var(--primary); }
         .issue-card .date { font-size: 12px; color: var(--primary); font-weight: bold; margin-bottom: 8px; }
@@ -54,7 +51,6 @@
 
         .empty-state { text-align: center; color: var(--text-sub); padding: 40px 0; }
 
-        /* Step 2: 처방전 (체크리스트) */
         .analysis-box { background: rgba(124, 77, 255, 0.1); border-left: 4px solid var(--primary); padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 32px; font-size: 15px; line-height: 1.6; }
         
         .check-item { display: flex; align-items: center; background: var(--card-bg); padding: 16px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: background 0.2s; }
@@ -62,7 +58,6 @@
         .check-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 16px; accent-color: var(--primary); cursor: pointer; }
         .check-item label { flex: 1; font-size: 15px; cursor: pointer; }
 
-        /* Step 3: 쉐이킹 애니메이션 */
         .animation-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; text-align: center; }
         .shaker-box { width: 100px; height: 120px; background: linear-gradient(135deg, #E0E0E0, #9E9E9E); border-radius: 10px 10px 30px 30px; position: relative; animation: shake 0.5s infinite alternate ease-in-out; margin-bottom: 32px; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.2); }
         .shaker-cap { width: 80px; height: 40px; background: #BDBDBD; border-radius: 20px 20px 0 0; position: absolute; top: -40px; left: 10px; }
@@ -70,7 +65,6 @@
         .loading-text { font-size: 18px; font-weight: bold; color: var(--primary); letter-spacing: 2px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        /* Step 4: 결과 화면 및 리뷰 */
         .result-card { background: var(--card-bg); border-radius: 24px; padding: 32px 24px; text-align: center; border: 1px solid rgba(124, 77, 255, 0.3); box-shadow: 0 10px 30px rgba(124, 77, 255, 0.1); }
         .cocktail-icon { font-size: 64px; margin-bottom: 16px; display: block; }
         .cocktail-name { font-size: 28px; font-weight: bold; color: var(--primary); margin-bottom: 16px; }
@@ -157,7 +151,7 @@
             <div class="bartender-message" id="result-message"></div>
 
             <div class="review-section">
-                <div class="review-title">🍸 칵테일 맛은 어떠셨나요? (마음 회복도)</div>
+                <div class="review-title">🍸 칵테일 맛은 어떠셨나요?</div>
                 <div class="rating-container">
                     <span class="rating-glass" onclick="setRating(1)">🍸</span>
                     <span class="rating-glass" onclick="setRating(2)">🍸</span>
@@ -190,8 +184,42 @@
         document.getElementById(`step-${stepNumber}`).classList.add('active');
     }
 
+    // 🚀 [핵심 수정] 모달(iframe/팝업) 창을 닫는 로직으로 완벽 교체!
     function goBackToChat() {
-        window.location.href = "index.html"; 
+        // 1. 현재 창이 iframe 내부(모달)에서 실행 중인 경우 부모 창에 닫기 신호 전송
+        if (window.parent && window.parent !== window) {
+            // 가장 표준적이고 안전한 방법 (부모 창에서 리스너가 필요할 수 있음)
+            window.parent.postMessage("closeDashboardModal", "*");
+            
+            // 동일 도메인이므로 직접 접근하여 강제 종료 시도
+            try {
+                // 부모 창의 모달 닫기 버튼 요소 클릭 유도 (캡처의 X 버튼과 연동)
+                // 만약 부모 창에 closeModal() 같은 전역 함수가 있다면 실행
+                if (typeof window.parent.closeModal === 'function') {
+                    window.parent.closeModal();
+                } else {
+                    // 강제로 iframe 부모의 모달 wrapper를 찾아서 숨기기
+                    const iframes = window.parent.document.querySelectorAll('iframe');
+                    iframes.forEach(iframe => {
+                        if (iframe.contentWindow === window) {
+                            // 모달을 띄우고 있는 컨테이너 요소를 찾아서 안보이게 처리
+                            let modalContainer = iframe.parentElement;
+                            if(modalContainer) modalContainer.style.display = 'none';
+                        }
+                    });
+                }
+            } catch(e) {
+                console.error("부모 요소 접근 불가:", e);
+            }
+        } 
+        
+        // 2. 새 팝업 창(window.open)으로 띄워졌을 경우
+        window.close();
+        
+        // 3. 위의 모든 게 작동하지 않을 경우 (단일 페이지 환경 등), 이전 페이지로 가기
+        setTimeout(() => {
+            window.history.back();
+        }, 100);
     }
 
     async function fetchWithAuth(url, options = {}) {
@@ -203,7 +231,6 @@
         return await response.json();
     }
 
-    // 🚀 [추가됨] AI 바텐더 주간 감정 리포트 조회 함수
     async function loadAIReport() {
         const reportSection = document.getElementById('ai-report-section');
         const reportText = document.getElementById('ai-report-text');
@@ -420,7 +447,6 @@
         }
     }
 
-    // 🚀 페이지 로드 시 리포트, 차트, 이슈 리스트를 완벽하게 동시 로드
     window.onload = () => {
         loadAIReport();
         loadChart();
