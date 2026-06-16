@@ -849,16 +849,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(244, 236, 217, 0.16);
+  border: none;
   border-radius: 6px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.06);
+  background: none;
+  transition: color 0.2s, transform 0.15s, background 0.2s;
 }
 
 .dashboard-modal-header button:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.12);
-  transform: none;
+  background: none;
+  transform: rotate(90deg);
 }
 
 #dashboard-frame {

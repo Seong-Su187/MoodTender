@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>감정 월간 분석</title>
+  <link rel="stylesheet" href="/css/monthly.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100%;
+      background:
+        linear-gradient(rgba(15, 10, 6, 0.74), rgba(15, 10, 6, 0.84)),
+        url('/assets/dashboard-bg.jpeg') center center / cover no-repeat fixed;
+      background-color: #140f0a;
+      color: #f4ecd9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      font-size: 16px;
+    }
+    body { overflow-y: auto; padding: 44px 40px 56px; }
+    * { scrollbar-width: thin; scrollbar-color: rgba(200,144,46,0.3) transparent; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(200,144,46,0.3); border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <div class="monthly-page">
+
+    <!-- 월 네비게이션 -->
+    <div class="monthly-nav">
+      <button id="btn-prev" class="nav-btn" aria-label="이전 달">‹</button>
+      <div class="monthly-month-title" id="month-title">—</div>
+      <button id="btn-next" class="nav-btn" aria-label="다음 달">›</button>
+    </div>
+
+    <!-- 감정 흐름 타임라인 -->
+    <div class="emotion-flow-section">
+      <div class="section-label">감정 흐름</div>
+      <div class="emotion-flow" id="emotion-flow">
+        <div class="flow-loading">데이터를 불러오는 중입니다...</div>
+      </div>
+    </div>
+
+    <!-- 바텐더 월간 편지 -->
+    <div class="monthly-report-section">
+      <div class="section-label">바텐더 레터</div>
+      <div class="monthly-report">
+        <div class="report-header">
+          <span class="report-icon">🥃</span>
+          <div class="report-header-text">
+            <span class="report-title-main">월간 흐름 분석</span>
+            <span class="report-title-sub">MONTHLY EMOTIONAL REVIEW</span>
+          </div>
+        </div>
+        <div id="mc-report-text" class="report-body">데이터를 불러오는 중입니다...</div>
+      </div>
+    </div>
+
+    <!-- 올해 12개월 감정 흐름 -->
+    <div class="yearly-flow-section" id="yearly-section">
+      <div class="section-label" id="yearly-title">연간 감정 흐름</div>
+      <div class="yearly-flow" id="yearly-flow">
+        <div class="flow-loading">불러오는 중...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/js/monthly.js"></script>
+</body>
+</html>

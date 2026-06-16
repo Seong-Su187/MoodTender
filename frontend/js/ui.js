@@ -40,3 +40,25 @@ function closeDashboardModal() {
   modal.classList.remove('show');
   modal.setAttribute('aria-hidden', 'true');
 }
+
+function openMonthlyModal() {
+  const modal = document.getElementById('monthly-modal');
+  const frame = document.getElementById('monthly-frame');
+  frame.src = frame.dataset.src + '?t=' + Date.now();
+  modal.classList.add('show');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeMonthlyModal() {
+  const modal = document.getElementById('monthly-modal');
+  modal.classList.remove('show');
+  modal.setAttribute('aria-hidden', 'true');
+  openDashboardModal();
+}
+
+window.addEventListener('message', function (e) {
+  if (e.data && e.data.type === 'openMonthly') {
+    closeDashboardModal();
+    openMonthlyModal();
+  }
+});
