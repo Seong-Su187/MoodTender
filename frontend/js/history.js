@@ -1,11 +1,7 @@
-// =============================================
-// history.js — 대화 기록 모달 (정렬 해결)
-// =============================================
-
 async function openHistoryModal() {
   document.getElementById('history-modal').style.display = 'flex';
   const contentDiv = document.getElementById('history-content');
-  contentDiv.innerHTML = '<div style="text-align: center; color: #a8a1b3; margin-top: 50px;">데이터를 불러오는 중입니다...</div>';
+  contentDiv.innerHTML = '불러오는 중...';
 
   try {
     const response = await fetch('/api/chat/history', {
@@ -14,20 +10,11 @@ async function openHistoryModal() {
     const data = await response.json();
     contentDiv.innerHTML = '';
 
-    if (!data.history || Object.keys(data.history).length === 0) {
-      contentDiv.innerHTML = '<div style="text-align: center; color: #a8a1b3; margin-top: 50px;">대화 기록이 없습니다.</div>';
-      return;
-    }
-
     Object.keys(data.history).sort().forEach(dateStr => {
-      // 날짜 구분선 생성
-      const dateDivider = `<div style="text-align: center; margin: 20px 0; color: #cbb5ff; font-weight: bold;">${new Date(dateStr).toLocaleDateString()}</div>`;
-      contentDiv.innerHTML += dateDivider;
-
       data.history[dateStr].forEach(msg => {
-        // 🚀 role 판별: 정확하게 'user'만 오른쪽, 나머지는 왼쪽(AI)
+        // 🚀 role 값을 소문자로 강제 변환 후 비교 (대문자 user/User 대응)
         const role = (msg.role || "").toLowerCase();
-        const isUser = (role === 'user');
+        const isUser = (role === 'user'); 
 
         const alignSelf = isUser ? 'flex-end' : 'flex-start';
         const bgColor = isUser ? 'rgba(88, 44, 6, 0.84)' : 'rgba(252, 241, 210, 0.9)';
@@ -44,12 +31,7 @@ async function openHistoryModal() {
         `;
       });
     });
-    contentDiv.scrollTop = contentDiv.scrollHeight;
   } catch (error) {
-    contentDiv.innerHTML = '<div style="text-align: center; color: #ff6b7a;">불러오기 실패</div>';
+    contentDiv.innerHTML = '불러오기 실패';
   }
-}
-
-function closeHistoryModal() {
-  document.getElementById('history-modal').style.display = 'none';
 }
