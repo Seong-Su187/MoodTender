@@ -224,7 +224,6 @@ async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float 
         "cocktail_hint": cocktail_hint
     })
 
-    # 추천 시 [칵테일: 이름] 파싱 후 reply에서 제거
     extracted_cocktail = "오늘의 칵테일"
     if should_recommend:
         cocktail_match = re.search(r'\[칵테일:\s*([^\]]+)\]', raw_reply)
@@ -241,7 +240,6 @@ async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float 
 
     return reply, main_emotion, (extracted_cocktail if should_recommend else "")
 
-# 🚀 [버그 해결] 값이 비어있을 때 생기는 오류를 방어하고, 강제로 커밋을 발생시켜 영수증이 증발하지 않게 막습니다.
 async def save_receipt(db, user_id, emotion, sub_emotion, cocktail, conversation_text, receipt_chain) -> None:
     try:
         emotion = emotion or "평온"
@@ -257,7 +255,7 @@ async def save_receipt(db, user_id, emotion, sub_emotion, cocktail, conversation
         })
         
         await save_emotion_receipt(db=db, user_id=user_id, dominant_sub_category=sub_emotion, recommended_cocktail=cocktail, summary_note=note.strip())
-        await db.commit()  # 영수증 내역을 DB에 확정
+        await db.commit()
         
     except Exception as e:
         print(f"Receipt save error: {e}")
@@ -269,15 +267,34 @@ async def save_memory_if_needed(db, user_id, user_text, assistant_reply, emotion
         if not summary or summary.strip().upper() == "NONE": return
         
         extracted = await extract_memory_from_chat(conv)
-        new_memory = UserMemory(
-            user_id=user_id, memory_text=summary.strip(), embedding=await _embed(summary),
-            main_category=emotion, sub_category=extracted.get("emotion"),
-            memory_type="event", importance=3, source_type="chat", 
-            source_id=user_message_id, issue=extracted.get("issue") if extracted.get("issue") != "없음" else None,
-            status="PENDING" if extracted.get("issue") != "없음" else None
-        )
-        db.add(new_memory)
-        await db.commit()
+        new_issue = extracted.get("issue")
+        
+        if new_issue == "없음": 
+            return
+
+        existing_stmt = select(UserMemory).where(
+            UserMemory.user_id == user_id,
+            UserMemory.status == "PENDING",
+            UserMemory.prescribed_cocktail == None
+        ).order_by(UserMemory.created_at.desc()).limit(1)
+        
+        existing_res = await db.execute(existing_stmt)
+        existing_m = existing_res.scalar_one_or_none()
+
+        if existing_m:
+            existing_m.memory_text += f" / {summary.strip()}"
+            existing_m.issue = new_issue
+            await db.commit()
+        else:
+            new_memory = UserMemory(
+                user_id=user_id, memory_text=summary.strip(), embedding=await _embed(summary),
+                main_category=emotion, sub_category=extracted.get("emotion"),
+                memory_type="event", importance=3, source_type="chat", 
+                source_id=user_message_id, issue=new_issue, status="PENDING"
+            )
+            db.add(new_memory)
+            await db.commit()
+            
     except Exception as e:
         print(f"Memory save error: {e}")
         await db.rollback()
