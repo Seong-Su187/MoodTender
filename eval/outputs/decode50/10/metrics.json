@@ -1,0 +1,19 @@
+{
+  "id": 10,
+  "category": "일상",
+  "emotion": "분노",
+  "input": "친구가 약속을 또 어겨서 진짜 짜증나 죽겠어요",
+  "output": "아이고, 또 그런 일이 있었군요. 오늘은 어떤 약속이었는지 여쭤봐도 될까요?",
+  "llm_latency_sec": 1.028,
+  "tts_latency_sec": 2.342,
+  "audio_duration_sec": 6.138,
+  "ttfb_sec": 0.74,
+  "total_video_gen_sec": 5.33,
+  "total_frames": 153,
+  "fps": 28.7,
+  "avg_unet_ms": 112.8,
+  "avg_vae_ms": 406.9,
+  "realtime_ratio": 0.868,
+  "completed": true,
+  "error": null
+}

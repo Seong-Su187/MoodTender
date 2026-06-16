@@ -1,0 +1,8 @@
+{
+  "decode_label": "decode50",
+  "n_items": 40,
+  "completion_rate": 100.0,
+  "avg_ttfb_sec": 0.959,
+  "avg_fps": 27.84,
+  "avg_realtime_ratio": 0.913
+}

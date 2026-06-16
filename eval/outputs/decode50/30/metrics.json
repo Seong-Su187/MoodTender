@@ -1,0 +1,19 @@
+{
+  "id": 30,
+  "category": "엣지",
+  "emotion": null,
+  "input": "asdf1234!!!@@@",
+  "output": "무언가 마음속에 쌓인 게 있으신가요? 오늘 어떤 하루를 보내셨는지 궁금해요.",
+  "llm_latency_sec": 2.259,
+  "tts_latency_sec": 63.196,
+  "audio_duration_sec": 6.338,
+  "ttfb_sec": 0.754,
+  "total_video_gen_sec": 5.509,
+  "total_frames": 158,
+  "fps": 28.68,
+  "avg_unet_ms": 121.3,
+  "avg_vae_ms": 411.5,
+  "realtime_ratio": 0.869,
+  "completed": true,
+  "error": null
+}

@@ -1,0 +1,19 @@
+{
+  "id": 32,
+  "category": "엣지",
+  "emotion": null,
+  "input": "...",
+  "output": "무슨 일 있으셨나요? 오늘은 어떤 하루였는지 궁금해요.",
+  "llm_latency_sec": 1.033,
+  "tts_latency_sec": 1.375,
+  "audio_duration_sec": 4.625,
+  "ttfb_sec": 0.728,
+  "total_video_gen_sec": 4.092,
+  "total_frames": 115,
+  "fps": 28.1,
+  "avg_unet_ms": 110.6,
+  "avg_vae_ms": 392.4,
+  "realtime_ratio": 0.885,
+  "completed": true,
+  "error": null
+}

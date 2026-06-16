@@ -1,0 +1,19 @@
+{
+  "id": 28,
+  "category": "전문",
+  "emotion": null,
+  "input": "맥주랑 어울리는 안주 추천해주세요",
+  "output": "맥주 생각나실 때면 뭔가 기분이 좀 풀리고 싶으실 때도 많으신 것 같아요.",
+  "llm_latency_sec": 1.168,
+  "tts_latency_sec": 2.339,
+  "audio_duration_sec": 6.162,
+  "ttfb_sec": 0.731,
+  "total_video_gen_sec": 5.394,
+  "total_frames": 154,
+  "fps": 28.55,
+  "avg_unet_ms": 123.5,
+  "avg_vae_ms": 403.0,
+  "realtime_ratio": 0.875,
+  "completed": true,
+  "error": null
+}

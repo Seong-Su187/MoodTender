@@ -1,0 +1,19 @@
+{
+  "id": 18,
+  "category": "전문",
+  "emotion": null,
+  "input": "위스키랑 브랜디 차이가 뭐예요?",
+  "output": "좋은 질문이네요.두 술 다 풍미가 깊지만, 원재료와 만드는 방법이 조금 달라요.",
+  "llm_latency_sec": 1.112,
+  "tts_latency_sec": 1.635,
+  "audio_duration_sec": 6.325,
+  "ttfb_sec": 0.738,
+  "total_video_gen_sec": 5.506,
+  "total_frames": 158,
+  "fps": 28.69,
+  "avg_unet_ms": 109.1,
+  "avg_vae_ms": 423.9,
+  "realtime_ratio": 0.871,
+  "completed": true,
+  "error": null
+}

@@ -1,0 +1,19 @@
+{
+  "id": 23,
+  "category": "전문",
+  "emotion": null,
+  "input": "칵테일에 들어가는 시럽 종류가 궁금해요",
+  "output": "시럽에도 정말 다양한 종류가 있어요. 혹시 어떤 칵테일이나 맛이 궁금하신 게 있으신가요?",
+  "llm_latency_sec": 2.653,
+  "tts_latency_sec": 2.778,
+  "audio_duration_sec": 7.338,
+  "ttfb_sec": 0.722,
+  "total_video_gen_sec": 6.327,
+  "total_frames": 183,
+  "fps": 28.92,
+  "avg_unet_ms": 116.0,
+  "avg_vae_ms": 403.2,
+  "realtime_ratio": 0.862,
+  "completed": true,
+  "error": null
+}

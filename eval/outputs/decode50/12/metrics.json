@@ -1,0 +1,19 @@
+{
+  "id": 12,
+  "category": "일상",
+  "emotion": "지침",
+  "input": "밤새 일했는데 끝이 안 보여요, 너무 지쳤어요",
+  "output": "밤새도록 일하시느라 정말 힘드셨겠어요. 어떤 일 때문에 이렇게 오래 붙잡고 계신 건가요?",
+  "llm_latency_sec": 1.012,
+  "tts_latency_sec": 1.496,
+  "audio_duration_sec": 7.35,
+  "ttfb_sec": 0.746,
+  "total_video_gen_sec": 6.352,
+  "total_frames": 183,
+  "fps": 28.81,
+  "avg_unet_ms": 116.3,
+  "avg_vae_ms": 403.9,
+  "realtime_ratio": 0.864,
+  "completed": true,
+  "error": null
+}

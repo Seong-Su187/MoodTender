@@ -1,0 +1,19 @@
+{
+  "id": 10,
+  "category": "일상",
+  "emotion": "분노",
+  "input": "친구가 약속을 또 어겨서 진짜 짜증나 죽겠어요",
+  "output": "아이고, 친구가 계속 약속을 어기면 정말 속상하시겠어요.",
+  "llm_latency_sec": 1.748,
+  "tts_latency_sec": 1.385,
+  "audio_duration_sec": 4.812,
+  "ttfb_sec": 6.971,
+  "total_video_gen_sec": 48.114,
+  "total_frames": 120,
+  "fps": 2.49,
+  "avg_unet_ms": 95.1,
+  "avg_vae_ms": 5907.9,
+  "realtime_ratio": 9.998,
+  "completed": true,
+  "error": null
+}

@@ -1,0 +1,19 @@
+{
+  "id": 5,
+  "category": "일상",
+  "emotion": "우울",
+  "input": "그냥 다 무기력하고 의미 없는 것 같아요",
+  "output": "마음이 많이 지치신 것 같아요. 혹시 오늘 뭔가 특별히 힘든 일이 있으셨나요?",
+  "llm_latency_sec": 1.241,
+  "tts_latency_sec": 4.604,
+  "audio_duration_sec": 6.287,
+  "ttfb_sec": 0.763,
+  "total_video_gen_sec": 5.495,
+  "total_frames": 157,
+  "fps": 28.57,
+  "avg_unet_ms": 109.9,
+  "avg_vae_ms": 420.9,
+  "realtime_ratio": 0.874,
+  "completed": true,
+  "error": null
+}
