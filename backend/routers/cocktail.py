@@ -1,6 +1,7 @@
 """
-backend/routers/cocktail.py - 대시보드 및 칵테일 처방 로직 (전체 복구본)
+backend/routers/cocktail.py - 대시보드 및 칵테일 처방 로직 (오류 해결 및 컨텍스트 강화)
 """
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -48,15 +49,29 @@ async def get_pending_issues(
     )
     memories = result.scalars().all()
     
-    return [
-        IssueResponse(
-            id=m.id,
-            issue=m.issue,
-            emotion=m.sub_category or "평온", 
-            record_date=m.created_at.date(),
-            prescribed_cocktail=m.prescribed_cocktail
-        ) for m in memories
-    ]
+    issues_list = []
+    for m in memories:
+        # 🚀 [버그 해결] 날짜 형식이 깨져있거나 없는 경우에도 500 에러가 나지 않도록 강력하게 보호합니다.
+        safe_date = datetime.now().date()
+        if m.created_at:
+            if hasattr(m.created_at, "date"):
+                safe_date = m.created_at.date()
+            else:
+                try:
+                    safe_date = datetime.fromisoformat(str(m.created_at).replace("Z", "+00:00")).date()
+                except Exception:
+                    pass
+                    
+        issues_list.append(
+            IssueResponse(
+                id=m.id,
+                issue=m.issue,
+                emotion=m.sub_category or "평온", 
+                record_date=safe_date,
+                prescribed_cocktail=m.prescribed_cocktail
+            )
+        )
+    return issues_list
 
 @router.post("/analyze-and-suggest", response_model=SuggestionResponse)
 async def analyze_and_suggest(
@@ -74,8 +89,11 @@ async def analyze_and_suggest(
     if not memory:
         raise HTTPException(status_code=404, detail="해당 기억을 찾을 수 없습니다.")
 
+    # 🚀 [버그 해결] 행동 추천 시, 단순한 단어(issue)가 아니라 상세한 상황(memory_text)을 함께 넘겨줍니다.
+    context_issue = f"상황: {memory.memory_text} | 고민: {memory.issue}" if memory.memory_text else memory.issue
+
     llm_response = await generate_cocktail_prescription(
-        issue=memory.issue, 
+        issue=context_issue, 
         emotion=memory.sub_category or "평온"
     )
 
@@ -134,7 +152,6 @@ async def submit_dashboard_review(
     await db.commit()
     return {"status": "success", "message": "리뷰가 성공적으로 반영되었습니다."}
 
-# 🚀 누락되었던 대시보드 차트 데이터 API 복구
 @router.get("/chart-data")
 async def get_chart_data(
     token_payload: dict = Depends(get_current_user_token),
@@ -161,7 +178,6 @@ async def get_chart_data(
         } for m in memories
     ]
 
-# 🚀 누락되었던 주간 AI 리포트 API 복구
 @router.get("/report")
 async def get_weekly_ai_report(
     token_payload: dict = Depends(get_current_user_token),
