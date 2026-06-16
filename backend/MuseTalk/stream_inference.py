@@ -139,11 +139,19 @@ def inference_stream(
             key_latents = latents[::2]
             key_decoded = vae.vae.decode(key_latents.to(dtype)).sample  # n//2 프레임
 
+            # 키프레임 temporal smoothing: 인접 키프레임 간 노이즈를 줄여
+            # 보간 프레임과의 경계 아티팩트(우글거림) 완화.
+            # 0.15·prev + 0.70·curr + 0.15·next — VAE 추가 호출 없음.
+            k = key_decoded.shape[0]
+            if k >= 3:
+                prev_k = torch.cat([key_decoded[:1], key_decoded[:-1]])
+                next_k = torch.cat([key_decoded[1:], key_decoded[-1:]])
+                key_decoded = 0.15 * prev_k + 0.70 * key_decoded + 0.15 * next_k
+
             # 벡터화 보간: 인접 키프레임의 평균
             interp = (key_decoded[:-1] + key_decoded[1:]) / 2  # [k-1, C, H, W]
 
             # 키프레임 + 보간 프레임 인터리브
-            k = key_decoded.shape[0]
             pairs = min(k - 1, interp.shape[0])
             merged = torch.stack([key_decoded[:pairs], interp[:pairs]], dim=1)
             merged = merged.reshape(pairs * 2, *key_decoded.shape[1:])
