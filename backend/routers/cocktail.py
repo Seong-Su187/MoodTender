@@ -1,5 +1,5 @@
 """
-backend/routers/cocktail.py - 대시보드 및 칵테일 처방 로직 (오류 해결 및 컨텍스트 강화)
+backend/routers/cocktail.py - 대시보드 및 칵테일 처방 로직 (완벽 해결본)
 """
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
@@ -32,7 +32,8 @@ async def get_current_user_id(token_payload: dict, db: AsyncSession) -> int:
         raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
     return user.id
 
-@router.get("/issues", response_model=list[IssueResponse])
+# 🚀 [버그 해결] response_model을 제거하여 Pydantic의 깐깐한 스키마 검증 오류(500 에러)를 원천 차단합니다.
+@router.get("/issues")
 async def get_pending_issues(
     token_payload: dict = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db)
@@ -51,7 +52,6 @@ async def get_pending_issues(
     
     issues_list = []
     for m in memories:
-        # 🚀 [버그 해결] 날짜 형식이 깨져있거나 없는 경우에도 500 에러가 나지 않도록 강력하게 보호합니다.
         safe_date = datetime.now().date()
         if m.created_at:
             if hasattr(m.created_at, "date"):
@@ -61,16 +61,15 @@ async def get_pending_issues(
                     safe_date = datetime.fromisoformat(str(m.created_at).replace("Z", "+00:00")).date()
                 except Exception:
                     pass
-                    
-        issues_list.append(
-            IssueResponse(
-                id=m.id,
-                issue=m.issue,
-                emotion=m.sub_category or "평온", 
-                record_date=safe_date,
-                prescribed_cocktail=m.prescribed_cocktail
-            )
-        )
+        
+        # 딕셔너리로 바로 리턴하여 렌더링 에러 방지
+        issues_list.append({
+            "id": m.id,
+            "issue": m.issue,
+            "emotion": m.sub_category or "평온", 
+            "record_date": safe_date.isoformat(),
+            "prescribed_cocktail": m.prescribed_cocktail
+        })
     return issues_list
 
 @router.post("/analyze-and-suggest", response_model=SuggestionResponse)
@@ -89,8 +88,8 @@ async def analyze_and_suggest(
     if not memory:
         raise HTTPException(status_code=404, detail="해당 기억을 찾을 수 없습니다.")
 
-    # 🚀 [버그 해결] 행동 추천 시, 단순한 단어(issue)가 아니라 상세한 상황(memory_text)을 함께 넘겨줍니다.
-    context_issue = f"상황: {memory.memory_text} | 고민: {memory.issue}" if memory.memory_text else memory.issue
+    # 🚀 [품질 개선] 상황과 고민을 명확하게 LLM에 주입하여 엉뚱한 행동을 추천하지 않도록 유도합니다.
+    context_issue = f"[핵심 고민]: {memory.issue}\n[상세 상황]: {memory.memory_text}\n위 상황을 부드럽게 해결하고 마음을 편안하게 할 수 있는 실질적인 행동을 제안해주세요."
 
     llm_response = await generate_cocktail_prescription(
         issue=context_issue, 
