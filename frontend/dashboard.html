@@ -326,29 +326,24 @@
     // 🚀 [수정됨] 칵테일 처방 여부에 따라 카드를 다르게 렌더링
     async function loadIssues() {
         const container = document.getElementById('issue-list-container');
-        const countSpan = document.getElementById('issue-count');
         const actionCardText = document.getElementById('action-card-text');
         const actionCardArrow = document.getElementById('action-card-arrow');
         const actionCard = document.getElementById('issue-action-card');
 
         try {
             const issues = await fetchWithAuth(`${API_BASE}/issues`);
-            
+
             if (issues.length === 0) {
-                countSpan.innerText = '0';
-                actionCardText.innerText = "오늘도 평온한 하루 되세요!";
-                actionCardArrow.style.display = "none";
-                actionCard.style.pointerEvents = "none";
-                actionCard.style.opacity = "0.7";
-                container.innerHTML = `<div class="empty-state">모든 조각이 비워졌습니다.<br>수고하셨습니다!</div>`;
+                if (actionCardText) actionCardText.innerHTML = `오늘도 평온한 하루 되세요!`;
+                if (actionCardArrow) actionCardArrow.style.display = "none";
+                if (actionCard) { actionCard.style.pointerEvents = "none"; actionCard.style.opacity = "0.7"; }
+                if (container) container.innerHTML = `<div class="empty-state">모든 조각이 비워졌습니다.<br>수고하셨습니다!</div>`;
                 return;
             }
 
-            countSpan.innerText = issues.length;
-            actionCardText.innerHTML = `확인이 필요한 조각이 <span style="color: var(--primary); font-weight: bold;">${issues.length}</span>개 있습니다.`;
-            actionCardArrow.style.display = "block";
-            actionCard.style.pointerEvents = "auto";
-            actionCard.style.opacity = "1";
+            if (actionCardText) actionCardText.innerHTML = `확인이 필요한 조각이 <span style="color: var(--primary); font-weight: bold;">${issues.length}</span>개 있습니다.`;
+            if (actionCardArrow) actionCardArrow.style.display = "block";
+            if (actionCard) { actionCard.style.pointerEvents = "auto"; actionCard.style.opacity = "1"; }
 
             container.innerHTML = issues.map(item => {
                 // 처방된 칵테일이 있으면 '리뷰 대기', 없으면 '처방 대기'

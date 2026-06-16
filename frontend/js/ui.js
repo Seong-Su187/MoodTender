@@ -27,9 +27,7 @@ function closeSidebar() {
 function openDashboardModal() {
   const modal = document.getElementById('dashboard-modal');
   const frame = document.getElementById('dashboard-frame');
-  if (!frame.src) {
-    frame.src = frame.dataset.src;
-  }
+  frame.src = frame.dataset.src + '?t=' + Date.now();
   modal.classList.add('show');
   modal.setAttribute('aria-hidden', 'false');
   closeSidebar();

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoodTender — 기능 개요</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      background: #0e0a06;
+      color: #f4ecd9;
+      font-size: 15px;
+      line-height: 1.75;
+    }
+    .container { max-width: 780px; margin: 0 auto; padding: 60px 36px 100px; }
+
+    h1 { font-size: 1.6rem; font-weight: 800; color: #e8c884; margin-bottom: 6px; }
+    h2 { font-size: 1.05rem; font-weight: 700; color: #e8c884; margin: 40px 0 14px; padding-bottom: 8px; border-bottom: 1px solid rgba(200,160,90,0.18); }
+    h3 { font-size: 0.78rem; font-weight: 700; color: rgba(200,160,90,0.5); letter-spacing: 0.1em; text-transform: uppercase; margin: 22px 0 8px; }
+
+    .sub { font-size: 0.82rem; color: rgba(200,160,90,0.4); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 8px 0; }
+    thead th { text-align: left; padding: 7px 12px; color: rgba(200,160,90,0.45); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid rgba(200,160,90,0.15); }
+    tbody td { padding: 9px 12px; color: #b8a888; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    tbody td:first-child { color: #ddd0a8; font-weight: 600; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .card { background: rgba(20,14,8,0.85); border: 1px solid rgba(200,160,90,0.13); border-radius: 14px; padding: 26px 28px; margin-bottom: 20px; }
+
+    .badge { display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; margin-bottom: 14px; }
+    .b1 { background: rgba(125,196,232,0.12); color: #7dc4e8; border: 1px solid rgba(125,196,232,0.25); }
+    .b2 { background: rgba(200,160,90,0.12); color: #e8c884; border: 1px solid rgba(200,160,90,0.25); }
+
+    .purpose { font-size: 0.95rem; color: #c8b890; margin-bottom: 14px; line-height: 1.65; }
+    strong { color: #f0e0b0; }
+
+    hr { border: none; border-top: 1px solid rgba(200,160,90,0.08); margin: 36px 0; }
+    .foot { margin-top: 60px; font-size: 0.75rem; color: rgba(200,160,90,0.25); text-align: center; letter-spacing: 0.08em; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="sub">MoodTender · Feature Overview</div>
+  <h1>🥃 기능 개요</h1>
+
+  <!-- 건강 & 분석 -->
+  <h2>건강 &amp; 분석</h2>
+  <div class="card">
+    <span class="badge b1">Health Dashboard</span>
+    <p class="purpose">스마트폰 라이프로그(걸음수·수면·스크린타임)를 분석해 <strong>"왜 요즘 이상한지"</strong>를 데이터로 설명. 바텐더 어투로 즉시 실천 가능한 행동을 제안.</p>
+
+    <h3>학술적 근거</h3>
+    <table>
+      <thead><tr><th>근거</th><th>연구</th></tr></thead>
+      <tbody>
+        <tr><td>수면 부족 → 부정 감정 증폭</td><td>Harvey et al., 2011 / Walker, 2017</td></tr>
+        <tr><td>신체활동 감소 → 우울·무기력</td><td>Blumenthal et al., 2007</td></tr>
+        <tr><td>야간 스크린타임 → 과각성·불안</td><td>Saeb et al., 2015</td></tr>
+        <tr><td>보복성 철야 증후군</td><td>Kroese et al., 2014</td></tr>
+        <tr><td>소셜 고립 → 외로움</td><td>Holt-Lunstad et al., 2015</td></tr>
+        <tr><td>개인 내 변동성 기반 분석 (Baseline vs Delta)</td><td>Nesselroade, 1991</td></tr>
+        <tr><td>RAG — 검증된 심리·행동요법 지식 주입</td><td>activity_knowledge DB</td></tr>
+      </tbody>
+    </table>
+
+    <h3>핵심 로직</h3>
+    <table>
+      <thead><tr><th>단계</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td>Baseline</td><td>과거 28일 중앙값 → 개인 기준선 산출</td></tr>
+        <tr><td>Delta</td><td>선택 기간 평균과 기준선의 변화율 계산</td></tr>
+        <tr><td>감정 추론</td><td>휴리스틱 룰로 7대 감정 중 하나 결정</td></tr>
+        <tr><td>비식별화</td><td>개인정보 마스킹 후 LLM 전달</td></tr>
+        <tr><td>LLM 리포트</td><td>RAG 지식 + 감정·변화율 → gpt-4o-mini 생성</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr>
+
+  <!-- 월간 감정 분석 -->
+  <h2>월간 감정 분석</h2>
+  <div class="card">
+    <span class="badge b2">Monthly Analysis</span>
+    <p class="purpose">매일 대화로 쌓인 감정 기록을 월 단위로 돌아보며 <strong>"이번 달 나는 어떤 상태였나"</strong>를 흐름으로 파악. 심리학적 해석을 바텐더 언어로 제공.</p>
+
+    <h3>학술적 근거</h3>
+    <table>
+      <thead><tr><th>근거</th><th>연구</th></tr></thead>
+      <tbody>
+        <tr><td>EMA — 실생활 맥락의 감정 기록</td><td>Shiffman et al., 2008</td></tr>
+        <tr><td>감정 패턴 인식 → 자기 성찰·재평가</td><td>Gross, 1998 (감정 조절 이론)</td></tr>
+        <tr><td>감정 라벨링 → 감정 인식 향상</td><td>Lieberman et al., 2007</td></tr>
+        <tr><td>비단정적 해석 언어 → 방어심 완화</td><td>임상 심리 면담 기법</td></tr>
+        <tr><td>수면·활동·스크린타임 → 감정 맥락</td><td>Harvey 2011, Blumenthal 2007, Saeb 2015</td></tr>
+      </tbody>
+    </table>
+
+    <h3>핵심 로직</h3>
+    <table>
+      <thead><tr><th>단계</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td>데이터</td><td>daily 대화 → emotion_receipts (sub_category + 칵테일)</td></tr>
+        <tr><td>집계</td><td>7일 단위 1~4주차 분류 → 주차별 dominant 감정 결정</td></tr>
+        <tr><td>매핑</td><td>sub_category → main_category ("·" 분할 fallback 포함)</td></tr>
+        <tr><td>%</td><td>같은 main_emotion 계열 sub 일수 합산 / 참여 총일수</td></tr>
+        <tr><td>LLM 편지</td><td>흐름 요약 / 심리 해석(비단정) / 실천 제안 + 칵테일 — 3단락</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="foot">MoodTender · 2026</div>
+</div>
+</body>
+</html>
