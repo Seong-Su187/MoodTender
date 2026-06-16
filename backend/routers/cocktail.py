@@ -11,9 +11,8 @@ from backend.routers.auth import get_current_user_token
 from backend.services.analytics_service import (
     generate_cocktail_prescription, 
     generate_cocktail_result,
-    calculate_mood_metrics # 🚀 주간 통계 계산을 위해 임포트
+    calculate_mood_metrics 
 )
-# 🚀 rag_chain에 이미 만들어져 있는 리포트 생성 파이프라인 및 헬스 데이터 조회기 가져오기
 from backend.services.rag_chain import generate_dashboard_rag_report
 from backend.services.db_client import get_recent_health_metrics 
 
@@ -51,7 +50,8 @@ async def get_pending_issues(
             id=m.id,
             issue=m.issue,
             emotion=m.sub_category or "평온", 
-            record_date=m.created_at.date()
+            record_date=m.created_at.date(),
+            prescribed_cocktail=m.prescribed_cocktail # 🚀 추가됨
         ) for m in memories
     ]
 
@@ -157,21 +157,13 @@ async def get_chart_data(
         } for m in memories
     ]
 
-# 🚀 [새로 추가됨] 5. AI 바텐더의 주간 맞춤형 감정 리포트 조회 API
 @router.get("/report")
 async def get_weekly_ai_report(
     token_payload: dict = Depends(get_current_user_token),
     db: AsyncSession = Depends(get_db)
 ):
     user_id = await get_current_user_id(token_payload, db)
-    
-    # 1. DB에서 최근 7일간의 건강 데이터 원본 행들 가져오기
     health_rows = await get_recent_health_metrics(db, user_id, days=7)
-    
-    # 2. 헬스 데이터를 수치 변화율 알고리즘에 밀어넣기
     metrics_result = calculate_mood_metrics(health_rows, period_days=1)
-    
-    # 3. 비식별화 + RAG 전문 서적 매칭 + LLM 컴포지션을 거쳐 완성된 HTML 리포트 생성
     html_report = await generate_dashboard_rag_report(db, user_id, metrics_result)
-    
     return {"report": html_report}
