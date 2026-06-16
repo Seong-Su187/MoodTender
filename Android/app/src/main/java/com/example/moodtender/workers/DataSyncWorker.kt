@@ -76,7 +76,6 @@ class DataSyncWorker(
                 sleepMinutes = realSleepMinutes,
                 screenTimeMinutes = totalScreenTime,
                 appUsageJson = appUsageMap,
-                depressionScore = 0
             )
 
             val response = RetrofitClient.instance.sendHealthData(finalData).execute()

@@ -80,7 +80,7 @@ async def get_recent_health_metrics(
     result = await db.execute(
         text("""
             SELECT record_date, step_count, sleep_minutes,
-                   screen_time_minutes, app_usage_json, depression_score
+                   screen_time_minutes, app_usage_json
             FROM health_metrics
             WHERE user_id = :user_id
               AND record_date >= CURRENT_DATE - (:days || ' days')::interval
@@ -121,25 +121,32 @@ async def search_chat_messages(
     user_id: int,
     query_embedding: list[float],
     session_id: str = "",
+    session_start=None,
     top_k: int = 3,
 ) -> list[dict]:
+    if session_id:
+        # session_id가 있으면 다른 세션 메시지만 검색
+        where_extra = "AND session_id != :session_id"
+        params: dict = {"vec": _vec(query_embedding), "user_id": user_id, "session_id": session_id, "top_k": top_k}
+    elif session_start is not None:
+        # 대화 시작 시각 이전 메시지만 과거 대화로 검색
+        where_extra = "AND created_at < :session_start"
+        params = {"vec": _vec(query_embedding), "user_id": user_id, "session_start": session_start, "top_k": top_k}
+    else:
+        return []
+
     result = await db.execute(
-        text("""
+        text(f"""
             SELECT role, content, created_at,
                    1 - (embedding <=> CAST(:vec AS vector)) AS similarity
             FROM chat_messages
             WHERE user_id = :user_id
               AND embedding IS NOT NULL
-              AND session_id != :session_id
+              {where_extra}
             ORDER BY embedding <=> CAST(:vec AS vector)
             LIMIT :top_k
         """),
-        {
-            "vec": _vec(query_embedding),
-            "user_id": user_id,
-            "session_id": session_id,
-            "top_k": top_k,
-        },
+        params,
     )
     return _to_dicts(result)
 

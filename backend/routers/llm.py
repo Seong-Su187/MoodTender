@@ -3,6 +3,8 @@ llm.py
 /llm/respond 엔드포인트
 """
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +21,7 @@ router = APIRouter()
 _user_session_data: dict[int, dict] = {}
 _user_cocktail_done: set[int] = set()
 _user_turn_counter: dict[int, int] = {}
+_user_session_start: dict[int, datetime] = {}  # 현재 세션 시작 시각
 
 async def get_current_user_id(
     token_payload: dict,
@@ -65,12 +68,17 @@ async def respond(
         _user_turn_counter[user_id] = _user_turn_counter.get(user_id, 0) + 1
         turn_count = _user_turn_counter[user_id]
 
+        # 첫 번째 발화에 세션 시작 시각 기록
+        if user_id not in _user_session_start:
+            _user_session_start[user_id] = datetime.now(timezone.utc).replace(tzinfo=None)
+
         reply, emotion, cocktail_line = await rag_chat(
             db=db,
             user_id=user_id,
             user_text=user_text,
             speed=speed,
             session_id=session_id,
+            session_start=_user_session_start[user_id],
             cocktail_done=cocktail_done,
             user_turn_count=turn_count,
         )
@@ -100,7 +108,7 @@ async def create_receipt(
     try:
         user_id = await get_current_user_id(token_payload, db)
         
-        (_, _, _, _, receipt_chain, _) = CHAINS
+        (_, _, _, _, receipt_chain, _, _, _) = CHAINS
 
         # 🚀 수정: 오늘 대화 조회 시 KST(한국 시간) 기준으로 불러오도록 쿼리 변경
         result = await db.execute(
@@ -135,6 +143,8 @@ async def create_receipt(
         _user_cocktail_done.discard(user_id)
         _user_session_data.pop(user_id, None)
         _user_turn_counter.pop(user_id, None)
+        # 대화 종료 시각을 다음 세션의 시작 기준으로 갱신
+        _user_session_start[user_id] = datetime.now(timezone.utc).replace(tzinfo=None)
 
         return {"status": "ok"}
 

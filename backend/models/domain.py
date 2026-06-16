@@ -77,9 +77,17 @@ class HealthMetric(Base):
     sleep_minutes = Column(Integer, default=0)
     screen_time_minutes = Column(Integer, default=0)
     app_usage_json = Column(JSON, default=dict)  # 유연한 JSON 형태 저장
-    depression_score = Column(Integer, nullable=True)
-
+    
     # 한 유저당 하루에 하나의 기록만 있도록 제한 (Supabase에 설정한 제약조건과 동일)
     __table_args__ = (
         UniqueConstraint('user_id', 'record_date', name='uq_health_user_date'),
     )
+
+class ActivityKnowledge(Base):
+    __tablename__ = "activity_knowledge"
+
+    id = Column(Integer, primary_key=True)
+    emotion_category = Column(String(50))
+    title = Column(String(200))
+    content = Column(Text)
+    embedding = Column(Vector(1536))

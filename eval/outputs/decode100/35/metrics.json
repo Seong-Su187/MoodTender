@@ -1,0 +1,19 @@
+{
+  "id": 35,
+  "category": "엣지",
+  "emotion": null,
+  "input": "그래도 얘기하니까 조금 나아진 것 같아요",
+  "output": "이렇게 마음을 조금이라도 털어놓으실 수 있어서 다행이에요.",
+  "llm_latency_sec": 1.281,
+  "tts_latency_sec": 1.454,
+  "audio_duration_sec": 4.838,
+  "ttfb_sec": 6.98,
+  "total_video_gen_sec": 48.106,
+  "total_frames": 120,
+  "fps": 2.49,
+  "avg_unet_ms": 92.1,
+  "avg_vae_ms": 5909.2,
+  "realtime_ratio": 9.944,
+  "completed": true,
+  "error": null
+}

@@ -6,6 +6,7 @@ MoodTender RAG 개인화 서비스 레이어
 import os
 import re
 import json
+
 import asyncio
 from typing import Optional
 
@@ -85,6 +86,18 @@ def _trim(text: str, speed: float) -> str:
     return result.strip() or text[:limit]
 
 
+_DEIDENTIFY_PATTERNS = [
+    (re.compile(r'01[016789]-?\d{3,4}-?\d{4}'), '[전화번호]'),
+    (re.compile(r'[\w.+-]+@[\w-]+\.[\w.-]+'), '[이메일]'),
+    (re.compile(r'\d{6}-[1-4]\d{6}'), '[주민번호]'),
+]
+
+def _deidentify(text: str) -> str:
+    for pattern, replacement in _DEIDENTIFY_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
 def _build_memory_context(memories: list[dict]) -> str:
     if not memories:
         return "관련 기억 없음"
@@ -113,7 +126,6 @@ def _build_health_context(rows: list[dict]) -> str:
     sleep = latest.get("sleep_minutes") or 0
     steps = latest.get("step_count") or 0
     screen = latest.get("screen_time_minutes") or 0
-    depression_score = latest.get("depression_score")
     app_usage = latest.get("app_usage_json") or {}
 
     lines = []
@@ -158,13 +170,6 @@ def _build_health_context(rows: list[dict]) -> str:
         if youtube_time > 120:
             lines.append(f"어제 유튜브를 {youtube_time // 60}시간 이상 사용함")
 
-    # 우울 지수
-    if depression_score is not None:
-        if depression_score >= 70:
-            lines.append(f"우울 지수 {depression_score}점으로 높은 편")
-        elif depression_score >= 50:
-            lines.append(f"우울 지수 {depression_score}점으로 중간 수준")
-
     return "\n".join(lines) if lines else "건강 데이터에서 두드러진 이상 없음"
 
 
@@ -181,10 +186,20 @@ def _build_emotion_context(rows: list[dict]) -> str:
     if not rows:
         return "감정 사전 없음"
 
+    row = rows[0]
+    return (
+        f"세부감정: {row['sub_category']}, "
+        f"칵테일 분위기: {row.get('cocktail_direction')}, "
+        f"색상: {row.get('cocktail_color')}"
+    )
+
+
+def _build_emotion_context_full(rows: list[dict]) -> str:
+    if not rows:
+        return "감정 사전 없음"
+
     return "\n".join(
-        f"- {r['sub_category']}: 상황={r.get('situation_example')}, "
-        f"칵테일 분위기={r.get('cocktail_direction')}, "
-        f"색상={r.get('cocktail_color')}"
+        f"- {r['sub_category']}: 칵테일 분위기={r.get('cocktail_direction')}, 색상={r.get('cocktail_color')}"
         for r in rows
     )
 
@@ -233,7 +248,8 @@ def build_chains():
 {emotion_context}
 
 기억 활용 규칙:
-- 현재 발화와 관련 있는 기억만 자연스럽게 반영한다.
+- [손님 관련 기억]에 내용이 있으면, 현재 발화와 연결해서 먼저 꺼낸다.
+- "아직도 그 일이 계속되고 있나요?", "그때 일은 어떻게 되셨어요?", "요즘도 그러세요?" 같은 식으로 자연스럽게 물어본다.
 - 관련 없는 기억은 말하지 않는다.
 - "예전에 말씀하셨죠", "기록에 따르면" 같은 표현은 쓰지 않는다.
 
@@ -248,8 +264,9 @@ def build_chains():
 - 활동량이 적으면 무기력함, 활동량이 충분하면 긍정적으로 반영한다.
 - 스크린타임이 길면 도피 또는 고립의 신호로 부드럽게 연결한다.
 - 사람들과의 연락이 거의 없었다면 고립감과 연결할 수 있다.
-- 우울 지수가 높으면 평소보다 더 조심스럽고 따뜻하게 대한다.
-- 수치나 시간을 그대로 말하지 않는다. ("어제 스크린타임이 6시간이에요"가 아니라 "요즘 폰을 많이 보게 되는 것 같아요" 처럼 말한다.)
+- 수치나 시간을 절대 그대로 말하지 않는다. 상태를 감정 언어로만 표현한다.
+  잘못된 예: "수면 시간이 짧네요", "어제 3시간밖에 못 주무셨네요", "걸음수가 적네요"
+  올바른 예: "요즘 잠을 제대로 못 주무시는 것 같아요", "많이 피곤하실 것 같아요", "몸이 많이 무거우셨겠어요"
 - 가장 두드러진 신호 하나만 반영한다.
 
 [선제적 개인화 규칙]
@@ -392,14 +409,46 @@ importance:
 
     cocktail_chain = ChatPromptTemplate.from_messages([
         ("system", """
-감정 사전을 참고해서 지금 감정에 어울리는 칵테일 표현을 10자 이내로 출력한다.
-예: 달콤한 복숭아 소다, 부드러운 위스키 사워, 상큼한 진 토닉
-표현만 출력하고 다른 말은 하지 않는다.
+칵테일 표현 하나만 출력한다.
+
+규칙:
+- 10자 이내 명사구 하나만 출력한다.
+- 여러 후보를 나열하지 않는다.
+- 쉼표, 줄바꿈, 접속사를 사용하지 않는다.
+- 설명, 이유, 부연을 붙이지 않는다.
+- 예: 달콤한 복숭아 소다
 """),
         ("human", "감정: {emotion}\n칵테일 사전:\n{emotion_context}"),
+    ]) | _make_llm(0.7, model="gpt-4.1-mini") | StrOutputParser()
+
+    sub_classify_chain = ChatPromptTemplate.from_messages([
+        ("system", """
+사용자 발화를 보고 아래 세부감정 목록 중 가장 가까운 것을 하나 골라라.
+목록에 있는 단어만 출력한다. 다른 말은 하지 않는다.
+
+세부감정 목록:
+{sub_categories}
+"""),
+        ("human", "{user_input}"),
+    ]) | _make_llm(0.0) | StrOutputParser()
+
+    deidentify_chain = ChatPromptTemplate.from_messages([
+        ("system", """
+아래 텍스트에서 개인정보를 일반화한다. 원문의 감정과 맥락은 유지한다.
+
+규칙:
+- 사람 이름 → "지인", "친구", "가족", "동료", "상대방" 중 문맥에 맞게
+- 회사명, 학교명, 팀명, 기관명 → "회사", "학교", "조직", "팀" 중 문맥에 맞게
+- 구체적인 지역, 장소, 주소 → "특정 장소", "지역", "집", "학교", "회사" 중 문맥에 맞게
+- 전화번호, 이메일, 계좌번호, 주민번호, 학번, 사번 → 삭제
+- 날짜와 시간 → 꼭 필요한 경우에만 "최근", "오늘", "이전" 정도로 일반화
+- 사용자의 문장을 그대로 인용하지 않는다.
+- 비식별화된 텍스트만 출력한다. 설명을 붙이지 않는다.
+"""),
+        ("human", "{user_input}"),
     ]) | _make_llm(0.0, model="gpt-4.1-mini") | StrOutputParser()
 
-    return classify_chain, bartender_chain, memory_summary_chain, memory_classify_chain, receipt_chain, cocktail_chain
+    return classify_chain, bartender_chain, memory_summary_chain, memory_classify_chain, receipt_chain, cocktail_chain, sub_classify_chain, deidentify_chain
 
 
 CHAINS = build_chains()
@@ -411,12 +460,13 @@ async def _build_context(
     query_embedding: list[float],
     emotion: str,
     session_id: str = "",
+    session_start=None,
 ) -> dict:
     # 🚀 RAG: 전문 지식 검색(get_expert_knowledge)이 병렬로 같이 실행되도록 추가되었습니다.
     memories, chats, past_chats, health_rows, emotion_rows, expert_knowledge = await asyncio.gather(
         search_user_memories(db, user_id, query_embedding, top_k=3),
-        get_recent_chat_messages(db, user_id, session_id=session_id, limit=8),
-        search_chat_messages(db, user_id, query_embedding, session_id=session_id, top_k=3),
+        get_recent_chat_messages(db, user_id, session_id=session_id, limit=24),
+        search_chat_messages(db, user_id, query_embedding, session_id=session_id, session_start=session_start, top_k=3),
         get_recent_health_metrics(db, user_id, days=7),
         get_emotion_dictionary(db, emotion),
         get_expert_knowledge(db, emotion), # 🚀
@@ -426,6 +476,9 @@ async def _build_context(
         f"[RAG] emotion={emotion}, memories={len(memories)}, "
         f"chats={len(chats)}, past_chats={len(past_chats)}, health={len(health_rows)}, dict={len(emotion_rows)}, expert={len(expert_knowledge)}"
     )
+    print(f"[CTX] memory_context={_build_memory_context(memories)!r}")
+    print(f"[CTX] health_context={_build_health_context(health_rows)!r}")
+    print(f"[CTX] past_chat_context={_build_past_chat_context(past_chats)!r}")
 
     user_turn_count = sum(1 for c in chats if c["role"] == "user")
 
@@ -435,6 +488,7 @@ async def _build_context(
         "past_chat_context": _build_past_chat_context(past_chats),
         "health_context": _build_health_context(health_rows),
         "emotion_context": _build_emotion_context(emotion_rows),
+        "emotion_rows_raw": emotion_rows,
         "expert_knowledge": expert_knowledge, # 🚀
         "user_turn_count": user_turn_count,
     }
@@ -533,7 +587,7 @@ async def save_receipt(
 
     except Exception as e:
         print(f"[receipt 오류] {e}")
-        return
+        raise
 
 
 async def rag_chat(
@@ -542,6 +596,7 @@ async def rag_chat(
     user_text: str,
     speed: float = 1.0,
     session_id: str = "",
+    session_start=None,
     cocktail_done: bool = False,
     user_turn_count: int = 0,
 ) -> tuple[str, str, str]:
@@ -553,7 +608,12 @@ async def rag_chat(
         memory_classify_chain,
         receipt_chain,
         cocktail_chain,
+        sub_classify_chain,
+        deidentify_chain,
     ) = CHAINS
+
+    user_text = await deidentify_chain.ainvoke({"user_input": user_text})
+    user_text = _deidentify(user_text)
 
     query_embedding = await _embed(user_text)
 
@@ -571,10 +631,29 @@ async def rag_chat(
         query_embedding=query_embedding,
         emotion=emotion,
         session_id=session_id,
+        session_start=session_start,
     )
 
     ctx.pop("user_turn_count", None)
     should_recommend = user_turn_count >= 3 and not cocktail_done
+
+    emotion_rows = ctx.pop("emotion_rows_raw", [])
+    if should_recommend and emotion_rows:
+        sub_categories = "\n".join(r["sub_category"] for r in emotion_rows)
+        raw_sub = await sub_classify_chain.ainvoke({
+            "sub_categories": sub_categories,
+            "user_input": user_text,
+        })
+        sub_emotion = raw_sub.strip()
+        matched = next((r for r in emotion_rows if r["sub_category"] == sub_emotion), emotion_rows[0])
+        sub_emotion_context = (
+            f"세부감정: {matched['sub_category']}, "
+            f"칵테일 분위기: {matched.get('cocktail_direction')}, "
+            f"색상: {matched.get('cocktail_color')}"
+        )
+        print(f"[sub분류] {sub_emotion} → {matched.get('cocktail_direction')}")
+    else:
+        sub_emotion_context = ctx["emotion_context"]
 
     speed_key = min(_SPEED_RANGE, key=lambda v: abs(v - speed))
     char_limit = _SPEED_RANGE[speed_key][1]
@@ -602,7 +681,7 @@ async def rag_chat(
             }),
             cocktail_chain.ainvoke({
                 "emotion": emotion,
-                "emotion_context": ctx["emotion_context"],
+                "emotion_context": sub_emotion_context,
             }),
         )
         cocktail_name = cocktail_name.strip()
@@ -720,5 +799,12 @@ async def generate_dashboard_rag_report(
         "app_usage": safe_context['app_usage'],
         "expert_knowledge": expert_knowledge
     })
+
+    # 5. 줄바꿈 정규화: LLM이 단락을 <br><br>, \n\n, 단일 \n 등
+    #    매번 다른 방식으로 구분해서 출력하므로, 먼저 <br> 계열 태그를
+    #    \n 하나로 통일한 뒤, 1개 이상의 연속된 \n을 모두 단락 구분(<br><br>)으로 변환합니다.
+    llm_report = llm_report.strip()
+    llm_report = re.sub(r'\s*<br\s*/?>\s*', '\n', llm_report, flags=re.IGNORECASE)
+    llm_report = re.sub(r'\n+', '<br><br>', llm_report)
 
     return llm_report

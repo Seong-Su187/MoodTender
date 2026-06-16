@@ -1,0 +1,19 @@
+{
+  "id": 9,
+  "category": "일상",
+  "emotion": "분노",
+  "input": "오늘 상사한테 부당한 일을 당해서 너무 화나요",
+  "output": "정말 속상하셨겠어요. 어떤 일이 있었는지 조금 더 말씀해주실 수 있을까요?",
+  "llm_latency_sec": 1.205,
+  "tts_latency_sec": 1.572,
+  "audio_duration_sec": 6.175,
+  "ttfb_sec": 6.981,
+  "total_video_gen_sec": 61.808,
+  "total_frames": 154,
+  "fps": 2.49,
+  "avg_unet_ms": 89.6,
+  "avg_vae_ms": 6079.8,
+  "realtime_ratio": 10.009,
+  "completed": true,
+  "error": null
+}

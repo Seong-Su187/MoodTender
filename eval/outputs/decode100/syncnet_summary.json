@@ -1,0 +1,7 @@
+{
+  "decode_label": "decode100",
+  "n_items": 40,
+  "n_valid": 40,
+  "avg_LSE_C": 2.2173,
+  "avg_LSE_D": 10.8103
+}

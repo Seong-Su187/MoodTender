@@ -1,0 +1,19 @@
+{
+  "id": 5,
+  "category": "일상",
+  "emotion": "우울",
+  "input": "그냥 다 무기력하고 의미 없는 것 같아요",
+  "output": "요즘 뭔가 힘이 안 나고, 아무것도 의미 없어 보일 때 정말 답답하죠.",
+  "llm_latency_sec": 1.907,
+  "tts_latency_sec": 1.764,
+  "audio_duration_sec": 5.375,
+  "ttfb_sec": 6.967,
+  "total_video_gen_sec": 54.799,
+  "total_frames": 134,
+  "fps": 2.45,
+  "avg_unet_ms": 94.8,
+  "avg_vae_ms": 5984.2,
+  "realtime_ratio": 10.195,
+  "completed": true,
+  "error": null
+}

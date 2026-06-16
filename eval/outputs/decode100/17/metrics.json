@@ -1,0 +1,19 @@
+{
+  "id": 17,
+  "category": "전문",
+  "emotion": null,
+  "input": "와인은 어떻게 보관해야 오래 가요?",
+  "output": "와인 보관에 관심이 있으신가 봐요. 특별히 오래 두고 싶은 와인이 있으신 건가요?",
+  "llm_latency_sec": 2.308,
+  "tts_latency_sec": 1.925,
+  "audio_duration_sec": 6.013,
+  "ttfb_sec": 6.968,
+  "total_video_gen_sec": 61.606,
+  "total_frames": 150,
+  "fps": 2.43,
+  "avg_unet_ms": 94.7,
+  "avg_vae_ms": 6057.8,
+  "realtime_ratio": 10.246,
+  "completed": true,
+  "error": null
+}

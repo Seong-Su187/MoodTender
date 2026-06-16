@@ -1,0 +1,19 @@
+{
+  "id": 35,
+  "category": "엣지",
+  "emotion": null,
+  "input": "그래도 얘기하니까 조금 나아진 것 같아요",
+  "output": "조금이라도 나아지셨다니 다행이에요. 언제부터 이렇게 마음이 힘드셨는지 여쭤봐도 될까요?",
+  "llm_latency_sec": 1.136,
+  "tts_latency_sec": 2.307,
+  "audio_duration_sec": 7.412,
+  "ttfb_sec": 0.727,
+  "total_video_gen_sec": 6.413,
+  "total_frames": 185,
+  "fps": 28.85,
+  "avg_unet_ms": 113.0,
+  "avg_vae_ms": 411.6,
+  "realtime_ratio": 0.865,
+  "completed": true,
+  "error": null
+}

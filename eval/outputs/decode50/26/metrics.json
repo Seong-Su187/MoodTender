@@ -1,0 +1,19 @@
+{
+  "id": 26,
+  "category": "전문",
+  "emotion": null,
+  "input": "오늘 기분에 맞는 칵테일은 어떻게 골라주는 거예요?",
+  "output": "궁금해하셔서 고마워요. 오늘은 어떤 기분이신지, 혹시 특별히 떠오르는 감정이 있으신가요?",
+  "llm_latency_sec": 1.25,
+  "tts_latency_sec": 2.248,
+  "audio_duration_sec": 7.375,
+  "ttfb_sec": 0.737,
+  "total_video_gen_sec": 6.364,
+  "total_frames": 184,
+  "fps": 28.91,
+  "avg_unet_ms": 118.4,
+  "avg_vae_ms": 402.1,
+  "realtime_ratio": 0.863,
+  "completed": true,
+  "error": null
+}

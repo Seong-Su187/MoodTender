@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/monthly.css">
     <style>
         body {
             color: #f4ecd9;
@@ -100,7 +101,7 @@
             </div>
             <div class="surface rounded-2xl p-6 shadow-lg">
                 <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 수면</h3>
-                <p id="card-sleep" class="text-3xl font-bold" style="color:#c8902e;">- 시간 - 분</p>
+                <p id="card-sleep" class="text-3xl font-bold" style="color:#7dc4e8;">- 시간 - 분</p>
             </div>
             <div class="surface rounded-2xl p-6 shadow-lg">
                 <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 스크린타임</h3>
@@ -124,6 +125,13 @@
         </div>
 
         <div class="surface rounded-2xl p-6 shadow-lg">
+            <h2 class="text-lg font-bold mb-4">수면 추이</h2>
+            <div class="relative w-full" style="height: 288px;">
+                <canvas id="sleepChart"></canvas>
+            </div>
+        </div>
+
+        <div class="surface rounded-2xl p-6 shadow-lg">
             <div class="flex items-center mb-4 gap-2">
                 <span class="text-xl">🥃</span>
                 <h2 class="text-lg font-bold">바텐더의 상태 분석</h2>
@@ -133,13 +141,128 @@
             </div>
         </div>
 
+        <div style="padding-top: 8px;">
+            <button class="monthly-open-btn" onclick="openMonthlyFromParent()">
+                📈 감정 월간 분석
+            </button>
+        </div>
+
     </div>
 
     <script>
+        function openMonthlyFromParent() {
+            window.parent.postMessage({ type: 'openMonthly' }, '*');
+        }
+
         // 🚀 2. 전역 변수: 전체 데이터 보관 및 그래프 인스턴스 관리
-        let allRecords = []; 
+        let allRecords = [];
         let stepChartInstance = null;
+        let sleepChartInstance = null;
         let screenChartInstance = null;
+
+        // 차트 선이 왼쪽→오른쪽으로 부드럽게 그려지는 플러그인
+        const smoothRevealPlugin = {
+            id: 'smoothReveal',
+            beforeDatasetsDraw(chart) {
+                const p = chart._revealProgress;
+                if (p === undefined || p >= 1) return;
+                const { ctx, chartArea } = chart;
+                if (!chartArea) return;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(chartArea.left, chartArea.top, chartArea.width * p, chartArea.height);
+                ctx.clip();
+            },
+            afterDatasetsDraw(chart) {
+                if ((chart._revealProgress ?? 1) < 1) chart.ctx.restore();
+            }
+        };
+        Chart.register(smoothRevealPlugin);
+
+        function animateReveal(chart) {
+            const duration = 1200;
+            const start = performance.now();
+            chart._revealProgress = 0;
+            function frame(now) {
+                const t = Math.min((now - start) / duration, 1);
+                chart._revealProgress = 1 - Math.pow(1 - t, 3);
+                chart.draw();
+                if (t < 1) requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
+        }
+
+        // Date 객체 -> YYYY-MM-DD (로컬 기준) 문자열 변환
+        function formatDate(d) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // 오늘 날짜(YYYY-MM-DD, 로컬 기준) 문자열 반환
+        function getTodayString() {
+            return formatDate(new Date());
+        }
+
+        // 🚀 기간 선택을 최대 7일로 제한 (start/end 중 방금 변경된 쪽을 기준으로 반대쪽 min/max 보정)
+        const MAX_RANGE_DAYS = 7;
+        function clampDateRange(changed) {
+            const startInput = document.getElementById('startDate');
+            const endInput = document.getElementById('endDate');
+            if (!startInput.value || !endInput.value) return;
+
+            if (changed === 'start') {
+                const start = new Date(startInput.value);
+                const maxEnd = new Date(start);
+                maxEnd.setDate(maxEnd.getDate() + (MAX_RANGE_DAYS - 1));
+
+                endInput.min = startInput.value;
+                endInput.max = formatDate(maxEnd);
+
+                // 기존 endDate가 새 범위를 벗어나면 -> 일단 startDate와 같은 날(1일 선택)로 맞춤
+                if (endInput.value < endInput.min || endInput.value > endInput.max) {
+                    endInput.value = startInput.value;
+                }
+            } else {
+                const end = new Date(endInput.value);
+                const minStart = new Date(end);
+                minStart.setDate(minStart.getDate() - (MAX_RANGE_DAYS - 1));
+
+                startInput.max = endInput.value;
+                startInput.min = formatDate(minStart);
+
+                // 기존 startDate가 새 범위를 벗어나면 -> 일단 endDate와 같은 날(1일 선택)로 맞춤
+                if (startInput.value < startInput.min || startInput.value > startInput.max) {
+                    startInput.value = endInput.value;
+                }
+            }
+        }
+
+        // 🚀 바텐더의 상태 분석 리포트 가져오기 (조회 기간: startDate~endDate, 최대 7일)
+        async function fetchAiReport(startDate, endDate) {
+            const token = localStorage.getItem("access_token");
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            document.getElementById('ai-report').innerHTML = "데이터를 분석하고 있습니다...";
+
+            try {
+                const params = new URLSearchParams();
+                if (startDate) params.set('start_date', startDate);
+                if (endDate) params.set('end_date', endDate);
+
+                const url = `/api/web/analyze?${params.toString()}`;
+                const aiResponse = await fetch(url, { headers });
+                const aiResult = await aiResponse.json();
+                document.getElementById('ai-report').innerHTML = aiResult.report;
+            } catch (error) {
+                console.error("AI 리포트 로드 실패:", error);
+                document.getElementById('ai-report').innerHTML = "<span style='color:#e0746b;'>리포트를 불러오지 못했습니다.</span>";
+            }
+        }
 
         async function loadDashboard() {
             const token = localStorage.getItem("access_token");
@@ -174,17 +297,17 @@
                     return;
                 }
 
-                // 날짜 기본값 세팅 (최초 데이터부터 마지막 데이터까지)
-                document.getElementById('startDate').value = allRecords[0].recordDate;
-                document.getElementById('endDate').value = allRecords[allRecords.length - 1].recordDate;
+                // 날짜 기본값 세팅: 차트/카드/바텐더의 상태 분석 모두 '오늘' 기준이 기본값
+                const todayStr = getTodayString();
+                document.getElementById('startDate').value = todayStr;
+                document.getElementById('endDate').value = todayStr;
+                clampDateRange('end'); // 시작일의 선택 가능 범위를 오늘 기준 최대 7일로 초기화
 
-                // 🚀 화면 렌더링 호출
-                renderDashboard(allRecords);
+                // 🚀 화면 렌더링 호출 (기간 설정과 동일하게 '오늘' 기준으로 필터링)
+                renderDashboard(getFilteredRecords());
 
-                // AI 리포트 가져오기 (전체 데이터 기반)
-                const aiResponse = await fetch('/api/web/analyze', { headers });
-                const aiResult = await aiResponse.json();
-                document.getElementById('ai-report').innerHTML = aiResult.report;
+                // AI 리포트 가져오기 (오늘 하루 기준)
+                await fetchAiReport(todayStr, todayStr);
 
             } catch (error) {
                 console.error("데이터 로드 실패:", error);
@@ -192,10 +315,35 @@
             }
         }
 
+        // 🚀 2-1. 현재 선택된 기간(startDate~endDate)으로 allRecords를 걸러서 반환
+        function getFilteredRecords() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            let filtered = allRecords;
+            if (startDate) {
+                filtered = filtered.filter(r => r.recordDate >= startDate);
+            }
+            if (endDate) {
+                filtered = filtered.filter(r => r.recordDate <= endDate);
+            }
+            return filtered;
+        }
+
         // 🚀 3. 화면을 그리는 전담 함수 (필터링 시 재사용)
         function renderDashboard(recordsToRender) {
             if (recordsToRender.length === 0) {
-                alert("해당 기간에 데이터가 없습니다.");
+                // 해당 기간에 데이터가 없으면 빈 상태로 표시 (알림창 없이 조용히 처리)
+                document.getElementById('card-steps').innerText = '- 보';
+                document.getElementById('card-sleep').innerText = '- 시간 - 분';
+                document.getElementById('card-screen').innerText = '- 분';
+
+                if (stepChartInstance) stepChartInstance.destroy();
+                if (sleepChartInstance) sleepChartInstance.destroy();
+                if (screenChartInstance) screenChartInstance.destroy();
+                stepChartInstance = null;
+                sleepChartInstance = null;
+                screenChartInstance = null;
                 return;
             }
 
@@ -211,10 +359,12 @@
             // 차트 데이터 추출
             const labels = recordsToRender.map(r => r.recordDate);
             const stepData = recordsToRender.map(r => r.stepCount);
+            const sleepData = recordsToRender.map(r => r.sleepMinutes);
             const screenData = recordsToRender.map(r => r.screenTimeMinutes);
 
             // ⚠️ 중요: 기존 차트가 있다면 파괴(Destroy)해야 새로 그릴 때 에러가 나지 않습니다.
             if (stepChartInstance) stepChartInstance.destroy();
+            if (sleepChartInstance) sleepChartInstance.destroy();
             if (screenChartInstance) screenChartInstance.destroy();
 
             // 걸음 수 차트 그리기
@@ -235,6 +385,27 @@
                 },
                 options: getChartOptions('걸음 수 (보)')
             });
+            animateReveal(stepChartInstance);
+
+            // 수면 차트 그리기
+            const sleepCtx = document.getElementById('sleepChart').getContext('2d');
+            sleepChartInstance = new Chart(sleepCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '수면 (분)',
+                        data: sleepData,
+                        borderColor: '#7dc4e8',
+                        backgroundColor: 'rgba(125, 196, 232, 0.15)',
+                        pointBackgroundColor: '#b8e0f4',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: getChartOptions('수면 (분)')
+            });
+            animateReveal(sleepChartInstance);
 
             // 스크린타임 차트 그리기
             const screenCtx = document.getElementById('screenChart').getContext('2d');
@@ -254,6 +425,7 @@
                 },
                 options: getChartOptions('사용 시간 (분)')
             });
+            animateReveal(screenChartInstance);
         }
 
         // 차트 공통 옵션 추출 (코드 중복 방지)
@@ -261,6 +433,7 @@
             return {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 color: '#b3a48c',
                 scales: {
                     x: { grid: { color: 'rgba(200, 160, 90, 0.08)' }, ticks: { color: '#b3a48c' } },
@@ -275,30 +448,39 @@
             };
         }
 
+        // 🚀 3-1. 기간 선택 입력(달력) 변경 시 최대 7일 제한 적용
+        document.getElementById('startDate').addEventListener('change', () => clampDateRange('start'));
+        document.getElementById('endDate').addEventListener('change', () => clampDateRange('end'));
+
         // 🚀 4. 필터링 버튼 이벤트 리스너
-        document.getElementById('filterBtn').addEventListener('click', () => {
+        document.getElementById('filterBtn').addEventListener('click', async () => {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
 
-            // 선택한 날짜 범위에 맞게 데이터 걸러내기 (문자열 비교로도 충분히 필터링 가능)
-            let filteredRecords = allRecords;
-            if (startDate) {
-                filteredRecords = filteredRecords.filter(r => r.recordDate >= startDate);
-            }
-            if (endDate) {
-                filteredRecords = filteredRecords.filter(r => r.recordDate <= endDate);
-            }
+            // 선택한 날짜 범위에 맞게 데이터 걸러서 화면 다시 그리기
+            renderDashboard(getFilteredRecords());
 
-            // 걸러낸 데이터로 화면 다시 그리기
-            renderDashboard(filteredRecords);
+            // 🚀 바텐더의 상태 분석: 1일 선택 시 그날, 2~7일 선택 시 해당 기간 전체 분석
+            await fetchAiReport(startDate, endDate);
         });
 
         // 🚀 5. 전체보기 버튼 이벤트 리스너
-        document.getElementById('resetBtn').addEventListener('click', () => {
+        document.getElementById('resetBtn').addEventListener('click', async () => {
             if (allRecords.length > 0) {
+                const lastDate = allRecords[allRecords.length - 1].recordDate;
                 document.getElementById('startDate').value = allRecords[0].recordDate;
-                document.getElementById('endDate').value = allRecords[allRecords.length - 1].recordDate;
+                document.getElementById('endDate').value = lastDate;
+
+                // 전체보기는 7일 제한과 무관하므로 기간 입력의 min/max 제약을 해제
+                document.getElementById('startDate').removeAttribute('min');
+                document.getElementById('startDate').removeAttribute('max');
+                document.getElementById('endDate').removeAttribute('min');
+                document.getElementById('endDate').removeAttribute('max');
+
                 renderDashboard(allRecords);
+
+                // 🚀 바텐더의 상태 분석은 전체 기록 중 마지막 날 하루를 기준으로 갱신
+                await fetchAiReport(lastDate, lastDate);
             }
         });
 

@@ -1,0 +1,19 @@
+{
+  "id": 33,
+  "category": "엣지",
+  "emotion": null,
+  "input": "오늘 진짜 정신없었는데 아침에 알람을 못 들어서 늦잠을 자버렸고 그래서 출근길에 너무 급하게 가다가 커피도 못 마시고 회의에 들어갔는데 팀장님이 갑자기 일정을 당기자고 하셔서 너무 빡빡해졌고 점심도 제대로 못 먹고 오후엔 또 다른 회의에서 의견 충돌이 있어서 분위기가 싸했고 퇴근하고는 그냥 집에 와서 누워있었는데 뭔가 허무하기도 하고 오늘 하루가 다 그랬다는 느낌이에요",
+  "output": "오늘 하루 정말 정신없이 지나가셨네요.",
+  "llm_latency_sec": 4.795,
+  "tts_latency_sec": 1.947,
+  "audio_duration_sec": 3.462,
+  "ttfb_sec": 0.746,
+  "total_video_gen_sec": 3.08,
+  "total_frames": 86,
+  "fps": 27.92,
+  "avg_unet_ms": 113.0,
+  "avg_vae_ms": 382.2,
+  "realtime_ratio": 0.889,
+  "completed": true,
+  "error": null
+}
