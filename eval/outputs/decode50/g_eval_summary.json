@@ -1,8 +1,6 @@
 {
   "decode_label": "decode50",
-  "judge_model": "claude-sonnet-4-6 (in-conversation, Claude Code)",
-  "n_repeats": 1,
-  "note": "Anthropic API 미사용. Claude Code 대화 세션에서 g_eval.py와 동일한 PERSONA/JUDGE_PROMPT 기준으로 1회 직접 채점함 (g_eval.py의 N_REPEATS=3 평균과는 산출 방식이 다름).",
+  "judge_model": "gemini-2.0-flash",
   "n_items": 40,
   "avg_consistency": 4.42,
   "avg_usefulness": 3.25,
