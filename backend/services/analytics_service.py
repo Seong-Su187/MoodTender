@@ -1,10 +1,21 @@
 import statistics
 import json
+import os
 from typing import List, Dict, Any
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from backend.services.rag_chain import _make_llm
+from langchain_openai import ChatOpenAI
+
+# ---------------------------------------------------------
+# 🚀 [순환 참조 해결] rag_chain.py에서 가져오지 않고 독립적으로 LLM 생성 함수 정의
+# ---------------------------------------------------------
+def _make_llm(temperature: float = 0.7, model: str = "gpt-4o-mini") -> ChatOpenAI:
+    return ChatOpenAI(
+        model=model,
+        temperature=temperature,
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+    )
 
 def calculate_mood_metrics(records: List[Dict[str, Any]], period_days: int = 1) -> Dict[str, Any]:
     if not records or len(records) < period_days + 2:
@@ -119,7 +130,6 @@ result_prompt = ChatPromptTemplate.from_messages([
 result_chain = result_prompt | _make_llm(temperature=0.7, model="gpt-4o-mini") | StrOutputParser()
 
 
-# 🚀 [추가됨] 사용자의 발화가 칵테일 피드백인지 확인하는 체인
 feedback_prompt = ChatPromptTemplate.from_messages([
     ("system", """
     당신은 대화 맥락을 분석하는 AI입니다. 
@@ -176,7 +186,6 @@ async def generate_cocktail_result(selected_actions: list) -> dict:
             "message": "손님을 위한 맞춤형 칵테일이 완성되었습니다. 오늘 하루도 고생 많으셨어요."
         }
 
-# 🚀 [추가됨] 피드백 감지 실행 함수
 async def analyze_cocktail_feedback(user_input: str, cocktail_name: str, issue: str) -> dict:
     try:
         raw_res = await feedback_chain.ainvoke({"user_input": user_input, "cocktail_name": cocktail_name, "issue": issue})
