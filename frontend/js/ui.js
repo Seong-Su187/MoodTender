@@ -44,7 +44,7 @@ function closeDashboardModal() {
 function openMonthlyModal() {
   const modal = document.getElementById('monthly-modal');
   const frame = document.getElementById('monthly-frame');
-  frame.src = frame.dataset.src;
+  frame.src = frame.dataset.src + '?t=' + Date.now();
   modal.classList.add('show');
   modal.setAttribute('aria-hidden', 'false');
 }

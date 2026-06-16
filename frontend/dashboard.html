@@ -101,7 +101,7 @@
             </div>
             <div class="surface rounded-2xl p-6 shadow-lg">
                 <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 수면</h3>
-                <p id="card-sleep" class="text-3xl font-bold" style="color:#c8902e;">- 시간 - 분</p>
+                <p id="card-sleep" class="text-3xl font-bold" style="color:#7dc4e8;">- 시간 - 분</p>
             </div>
             <div class="surface rounded-2xl p-6 shadow-lg">
                 <h3 class="muted-text font-semibold text-sm mb-2">마지막 기록 스크린타임</h3>
@@ -121,6 +121,13 @@
                 <div class="relative h-72 w-full">
                     <canvas id="screenChart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <div class="surface rounded-2xl p-6 shadow-lg">
+            <h2 class="text-lg font-bold mb-4">수면 추이</h2>
+            <div class="relative w-full" style="height: 288px;">
+                <canvas id="sleepChart"></canvas>
             </div>
         </div>
 
@@ -150,7 +157,40 @@
         // 🚀 2. 전역 변수: 전체 데이터 보관 및 그래프 인스턴스 관리
         let allRecords = [];
         let stepChartInstance = null;
+        let sleepChartInstance = null;
         let screenChartInstance = null;
+
+        // 차트 선이 왼쪽→오른쪽으로 부드럽게 그려지는 플러그인
+        const smoothRevealPlugin = {
+            id: 'smoothReveal',
+            beforeDatasetsDraw(chart) {
+                const p = chart._revealProgress;
+                if (p === undefined || p >= 1) return;
+                const { ctx, chartArea } = chart;
+                if (!chartArea) return;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(chartArea.left, chartArea.top, chartArea.width * p, chartArea.height);
+                ctx.clip();
+            },
+            afterDatasetsDraw(chart) {
+                if ((chart._revealProgress ?? 1) < 1) chart.ctx.restore();
+            }
+        };
+        Chart.register(smoothRevealPlugin);
+
+        function animateReveal(chart) {
+            const duration = 1200;
+            const start = performance.now();
+            chart._revealProgress = 0;
+            function frame(now) {
+                const t = Math.min((now - start) / duration, 1);
+                chart._revealProgress = 1 - Math.pow(1 - t, 3);
+                chart.draw();
+                if (t < 1) requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
+        }
 
         // Date 객체 -> YYYY-MM-DD (로컬 기준) 문자열 변환
         function formatDate(d) {
@@ -299,8 +339,10 @@
                 document.getElementById('card-screen').innerText = '- 분';
 
                 if (stepChartInstance) stepChartInstance.destroy();
+                if (sleepChartInstance) sleepChartInstance.destroy();
                 if (screenChartInstance) screenChartInstance.destroy();
                 stepChartInstance = null;
+                sleepChartInstance = null;
                 screenChartInstance = null;
                 return;
             }
@@ -317,10 +359,12 @@
             // 차트 데이터 추출
             const labels = recordsToRender.map(r => r.recordDate);
             const stepData = recordsToRender.map(r => r.stepCount);
+            const sleepData = recordsToRender.map(r => r.sleepMinutes);
             const screenData = recordsToRender.map(r => r.screenTimeMinutes);
 
             // ⚠️ 중요: 기존 차트가 있다면 파괴(Destroy)해야 새로 그릴 때 에러가 나지 않습니다.
             if (stepChartInstance) stepChartInstance.destroy();
+            if (sleepChartInstance) sleepChartInstance.destroy();
             if (screenChartInstance) screenChartInstance.destroy();
 
             // 걸음 수 차트 그리기
@@ -341,6 +385,27 @@
                 },
                 options: getChartOptions('걸음 수 (보)')
             });
+            animateReveal(stepChartInstance);
+
+            // 수면 차트 그리기
+            const sleepCtx = document.getElementById('sleepChart').getContext('2d');
+            sleepChartInstance = new Chart(sleepCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '수면 (분)',
+                        data: sleepData,
+                        borderColor: '#7dc4e8',
+                        backgroundColor: 'rgba(125, 196, 232, 0.15)',
+                        pointBackgroundColor: '#b8e0f4',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: getChartOptions('수면 (분)')
+            });
+            animateReveal(sleepChartInstance);
 
             // 스크린타임 차트 그리기
             const screenCtx = document.getElementById('screenChart').getContext('2d');
@@ -360,6 +425,7 @@
                 },
                 options: getChartOptions('사용 시간 (분)')
             });
+            animateReveal(screenChartInstance);
         }
 
         // 차트 공통 옵션 추출 (코드 중복 방지)
@@ -367,6 +433,7 @@
             return {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
                 color: '#b3a48c',
                 scales: {
                     x: { grid: { color: 'rgba(200, 160, 90, 0.08)' }, ticks: { color: '#b3a48c' } },

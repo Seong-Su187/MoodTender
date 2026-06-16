@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import FRONTEND_DIR, VIDEO_DIR
 from backend.database import engine, Base
 # 🚀 1. 라우터 import (auth, chat, health 등 모두 포함)
-from backend.routers import auth, chat, generation, llm, model_status, stt, health, pairing, emotion_receipt
+from backend.routers import auth, chat, generation, llm, model_status, stt, health, pairing, emotion_receipt, monthly
 
 # ─── FastAPI 앱 ───────────────────────────────────────────────
 app = FastAPI(title="MoodTender API")
@@ -53,6 +53,7 @@ app.include_router(chat.router)
 app.include_router(emotion_receipt.router)
 # 🚀 2. 헬스 데이터 라우터 포함
 app.include_router(health.router)
+app.include_router(monthly.router)
 
 # ─── 프론트엔드 ───────────────────────────────────────────────
 @app.get("/")
