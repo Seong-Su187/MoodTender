@@ -28,7 +28,8 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .header { display: flex; align-items: center; margin-bottom: 32px; }
-        .header i { font-size: 24px; cursor: pointer; color: var(--text-sub); }
+        .header i { font-size: 24px; cursor: pointer; color: var(--text-sub); transition: color 0.2s; }
+        .header i:hover { color: var(--text-main); }
         .header h1 { flex: 1; text-align: center; font-size: 18px; font-weight: 600; }
         
         .title { font-size: 24px; font-weight: bold; margin-bottom: 8px; line-height: 1.4; }
@@ -39,8 +40,12 @@
         .report-content { font-size: 14px; line-height: 1.7; color: #E0E0E0; }
         .report-content b { color: #B39DDB; font-weight: 600; }
 
-        .chart-box { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 32px; border: 1px solid rgba(124, 77, 255, 0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .chart-box { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 24px; border: 1px solid rgba(124, 77, 255, 0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         .chart-box h3 { font-size: 15px; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+
+        /* 🚀 [추가됨] 고민 선택 화면으로 넘어가는 진입 버튼 카드 */
+        .action-card { background: var(--card-bg); border-radius: 16px; padding: 20px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid rgba(124, 77, 255, 0.4); box-shadow: 0 4px 20px rgba(124, 77, 255, 0.1); margin-top: 10px; }
+        .action-card:hover { transform: translateY(-2px); border: 1px solid var(--primary); }
 
         .issue-card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 16px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid transparent; }
         .issue-card:hover { transform: translateY(-2px); border: 1px solid var(--primary); }
@@ -90,7 +95,7 @@
     <div id="step-1" class="view-section active">
         <div class="header">
             <i class="ri-arrow-left-s-line" onclick="goBackToChat()"></i>
-            <h1>나만의 칵테일 처방</h1>
+            <h1>건강 & 분석 대시보드</h1>
             <div style="width: 24px;"></div>
         </div>
 
@@ -101,9 +106,30 @@
 
         <div class="chart-box" id="chart-section" style="display: none;">
             <h3><i class="ri-line-chart-line" style="color: var(--success);"></i> 최근 마음 회복도</h3>
-            <canvas id="recoveryChart" height="180"></canvas>
+            <div style="position: relative; height: 200px; width: 100%;">
+                <canvas id="recoveryChart"></canvas>
+            </div>
         </div>
 
+        <div class="action-card" id="issue-action-card" onclick="showStep(2)">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin-bottom: 4px; font-size: 16px;">미해결 고민 처방받기</h3>
+                    <p id="action-card-text" style="color: var(--text-sub); font-size: 13px;">
+                        아직 비워내지 못한 조각이 <span id="issue-count" style="color: var(--primary); font-weight: bold;">0</span>개 있습니다.
+                    </p>
+                </div>
+                <i class="ri-arrow-right-s-line" id="action-card-arrow" style="font-size: 24px; color: var(--primary);"></i>
+            </div>
+        </div>
+    </div>
+
+    <div id="step-2" class="view-section">
+        <div class="header">
+            <i class="ri-arrow-left-s-line" onclick="showStep(1)"></i>
+            <h1>나만의 칵테일 처방</h1>
+            <div style="width: 24px;"></div>
+        </div>
         <h2 class="title">아직 비워내지 못한<br>마음의 조각들이 있네요.</h2>
         <p class="subtitle">해결하고 싶은 고민을 하나 선택해 주세요.<br>MoodTender가 특별한 위로를 만들어 드릴게요.</p>
         
@@ -112,9 +138,9 @@
         </div>
     </div>
 
-    <div id="step-2" class="view-section">
+    <div id="step-3" class="view-section">
         <div class="header">
-            <i class="ri-arrow-left-s-line" onclick="showStep(1)"></i>
+            <i class="ri-arrow-left-s-line" onclick="showStep(2)"></i>
             <h1>처방전 작성 중</h1>
             <div style="width: 24px;"></div>
         </div>
@@ -128,7 +154,7 @@
         </button>
     </div>
 
-    <div id="step-3" class="view-section">
+    <div id="step-4" class="view-section">
         <div class="animation-container">
             <div class="shaker-box"><div class="shaker-cap"></div></div>
             <div class="loading-text">쉐이킹 중...</div>
@@ -136,9 +162,9 @@
         </div>
     </div>
 
-    <div id="step-4" class="view-section">
+    <div id="step-5" class="view-section">
         <div class="header">
-            <i class="ri-close-line" onclick="goBackToChat()"></i>
+            <i class="ri-close-line" onclick="showStep(1)"></i>
             <h1>처방 완료</h1>
             <div style="width: 24px;"></div>
         </div>
@@ -150,7 +176,7 @@
             <div class="bartender-message" id="result-message"></div>
 
             <div class="review-section">
-                <div class="review-title">🍸 칵테일 맛은 어떠셨나요?</div>
+                <div class="review-title">🍸 칵테일 맛은 어떠셨나요? (마음 회복도)</div>
                 <div class="rating-container">
                     <span class="rating-glass" onclick="setRating(1)">🍸</span>
                     <span class="rating-glass" onclick="setRating(2)">🍸</span>
@@ -162,8 +188,8 @@
             </div>
         </div>
 
-        <button class="btn-primary" onclick="submitReviewAndExit()">
-            평가 등록하고 돌아가기
+        <button class="btn-primary" onclick="submitReviewAndReturn()">
+            평가 등록하고 처음으로 돌아가기
         </button>
     </div>
 
@@ -183,13 +209,10 @@
         document.getElementById(`step-${stepNumber}`).classList.add('active');
     }
 
-    // 🚀 [완벽 해결] 복잡한 뒤로가기 로직 빼고 "닫아줘!" 신호만 부모창으로 쏩니다.
     function goBackToChat() {
         if (window.parent && window.parent !== window) {
-            // 부모 창(바텐더 화면)으로 모달을 꺼달라는 메세지를 보냅니다.
             window.parent.postMessage("closeDashboardModal", "*");
         } else {
-            // 만약 모달이 아니라 아예 새 창(페이지 이동)으로 열렸던 경우라면 예비책
             window.location.href = "/"; 
         }
     }
@@ -224,7 +247,7 @@
             document.getElementById('chart-section').style.display = 'block';
             const ctx = document.getElementById('recoveryChart').getContext('2d');
             
-            let gradient = ctx.createLinearGradient(0, 0, 0, 180);
+            let gradient = ctx.createLinearGradient(0, 0, 0, 200);
             gradient.addColorStop(0, 'rgba(124, 77, 255, 0.5)');
             gradient.addColorStop(1, 'rgba(124, 77, 255, 0.0)');
 
@@ -289,13 +312,32 @@
 
     async function loadIssues() {
         const container = document.getElementById('issue-list-container');
+        const countSpan = document.getElementById('issue-count');
+        const actionCardText = document.getElementById('action-card-text');
+        const actionCardArrow = document.getElementById('action-card-arrow');
+        const actionCard = document.getElementById('issue-action-card');
+
         try {
             const issues = await fetchWithAuth(`${API_BASE}/issues`);
             
+            // 🚀 대기 중인 처방이 없을 때 버튼 처리
             if (issues.length === 0) {
+                countSpan.innerText = '0';
+                actionCardText.innerText = "오늘도 평온한 하루 되세요!";
+                actionCardArrow.style.display = "none";
+                actionCard.style.pointerEvents = "none";
+                actionCard.style.opacity = "0.7";
+                
                 container.innerHTML = `<div class="empty-state">아직 해결해야 할 고민이 없습니다.<br>오늘도 평온한 하루 되세요!</div>`;
                 return;
             }
+
+            // 대기 중인 처방이 있을 때 버튼 활성화
+            countSpan.innerText = issues.length;
+            actionCardText.innerHTML = `아직 비워내지 못한 조각이 <span id="issue-count" style="color: var(--primary); font-weight: bold;">${issues.length}</span>개 있습니다.`;
+            actionCardArrow.style.display = "block";
+            actionCard.style.pointerEvents = "auto";
+            actionCard.style.opacity = "1";
 
             container.innerHTML = issues.map(item => `
                 <div class="issue-card" onclick="selectIssue(${item.id})">
@@ -313,7 +355,7 @@
 
     async function selectIssue(issueId) {
         currentIssueId = issueId;
-        showStep(2);
+        showStep(3); // 🚀 스텝 3으로 진입
         
         const analysisBox = document.getElementById('emotion-analysis-text');
         const checklistBox = document.getElementById('checklist-container');
@@ -358,7 +400,7 @@
     }
 
     async function startCrafting() {
-        showStep(3); 
+        showStep(4); // 🚀 스텝 4 애니메이션으로 진입
 
         try {
             const [data] = await Promise.all([
@@ -376,11 +418,11 @@
             setRating(0);
             document.getElementById('review-text-input').value = "";
 
-            showStep(4); 
+            showStep(5); // 🚀 스텝 5 결과/리뷰로 진입
 
         } catch (error) {
             alert('칵테일 제조 중 문제가 발생했습니다.');
-            showStep(2); 
+            showStep(3); 
         }
     }
 
@@ -396,11 +438,13 @@
         });
     }
 
-    async function submitReviewAndExit() {
+    // 🚀 [핵심 수정] 리뷰 제출 후 1단계 대시보드(차트 화면)로 복귀하고 데이터 갱신
+    async function submitReviewAndReturn() {
         const comment = document.getElementById('review-text-input').value.trim();
         
         if (selectedRating === 0) {
-            goBackToChat();
+            // 평점을 매기지 않고 돌아가면 PENDING 유지한 채 첫 화면으로
+            showStep(1);
             return;
         }
 
@@ -413,7 +457,13 @@
                     user_review: comment || "말씀해주신 활동을 실천해 보았습니다."
                 })
             });
-            goBackToChat();
+            
+            // 데이터 갱신 후 메인 대시보드로 돌아가기
+            loadAIReport();
+            loadChart();
+            loadIssues();
+            showStep(1);
+            
         } catch (error) {
             alert('리뷰 등록 중 오류가 발생했습니다.');
         }
