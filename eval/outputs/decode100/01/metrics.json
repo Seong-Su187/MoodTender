@@ -1,0 +1,19 @@
+{
+  "id": 1,
+  "category": "일상",
+  "emotion": "기쁨",
+  "input": "오늘 진짜 기분 좋은 일이 있었어요! 들어보실래요?",
+  "output": "와, 정말 궁금한데요! 어떤 일이 있었는지 이야기해주실 수 있으세요?",
+  "llm_latency_sec": 1.36,
+  "tts_latency_sec": 2.211,
+  "audio_duration_sec": 5.55,
+  "ttfb_sec": 10.879,
+  "total_video_gen_sec": 58.835,
+  "total_frames": 138,
+  "fps": 2.35,
+  "avg_unet_ms": 59.3,
+  "avg_vae_ms": 6041.2,
+  "realtime_ratio": 10.601,
+  "completed": true,
+  "error": null
+}

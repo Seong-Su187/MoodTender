@@ -1,0 +1,19 @@
+{
+  "id": 24,
+  "category": "전문",
+  "emotion": null,
+  "input": "레드와인이랑 화이트와인 중에 뭐가 더 달아요?",
+  "output": "와인마다 종류가 워낙 다양해서 단맛도 조금씩 다르거든요.",
+  "llm_latency_sec": 1.104,
+  "tts_latency_sec": 1.413,
+  "audio_duration_sec": 5.0,
+  "ttfb_sec": 0.735,
+  "total_video_gen_sec": 4.418,
+  "total_frames": 125,
+  "fps": 28.3,
+  "avg_unet_ms": 123.1,
+  "avg_vae_ms": 410.2,
+  "realtime_ratio": 0.884,
+  "completed": true,
+  "error": null
+}

@@ -1,0 +1,19 @@
+{
+  "id": 2,
+  "category": "일상",
+  "emotion": "기쁨",
+  "input": "드디어 프로젝트 끝났어요! 너무 후련하고 신나요",
+  "output": "정말 고생 많으셨어요!끝나고 나니 마음이 좀 가벼워지셨겠어요.",
+  "llm_latency_sec": 1.423,
+  "tts_latency_sec": 2.079,
+  "audio_duration_sec": 5.162,
+  "ttfb_sec": 3.937,
+  "total_video_gen_sec": 7.738,
+  "total_frames": 129,
+  "fps": 16.67,
+  "avg_unet_ms": 76.0,
+  "avg_vae_ms": 422.0,
+  "realtime_ratio": 1.499,
+  "completed": true,
+  "error": null
+}

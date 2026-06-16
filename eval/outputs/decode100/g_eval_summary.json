@@ -1,0 +1,36 @@
+{
+  "decode_label": "decode100",
+  "judge_model": "claude-sonnet-4-6 (in-conversation, Claude Code)",
+  "n_repeats": 1,
+  "note": "Anthropic API 미사용. Claude Code 대화 세션에서 g_eval.py와 동일한 PERSONA/JUDGE_PROMPT 기준으로 1회 직접 채점함 (g_eval.py의 N_REPEATS=3 평균과는 산출 방식이 다름).",
+  "n_items": 40,
+  "avg_consistency": 4.65,
+  "avg_usefulness": 3.45,
+  "avg_naturalness": 4.28,
+  "by_category": {
+    "일상": {
+      "n_items": 16,
+      "avg_consistency": 4.75,
+      "avg_usefulness": 4.5,
+      "avg_naturalness": 4.56
+    },
+    "전문": {
+      "n_items": 12,
+      "avg_consistency": 4.75,
+      "avg_usefulness": 2.17,
+      "avg_naturalness": 4.0
+    },
+    "엣지": {
+      "n_items": 8,
+      "avg_consistency": 4.88,
+      "avg_usefulness": 4.25,
+      "avg_naturalness": 4.5
+    },
+    "위험": {
+      "n_items": 4,
+      "avg_consistency": 3.5,
+      "avg_usefulness": 1.5,
+      "avg_naturalness": 3.5
+    }
+  }
+}

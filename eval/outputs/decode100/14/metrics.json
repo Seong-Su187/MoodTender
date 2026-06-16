@@ -1,0 +1,19 @@
+{
+  "id": 14,
+  "category": "일상",
+  "emotion": "외로움",
+  "input": "혼자 지내다 보니 가끔 너무 쓸쓸해요",
+  "output": "혼자 있는 시간이 길어지면 그런 쓸쓸함이 더 크게 느껴질 때가 있죠.",
+  "llm_latency_sec": 4.732,
+  "tts_latency_sec": 1.819,
+  "audio_duration_sec": 5.737,
+  "ttfb_sec": 6.971,
+  "total_video_gen_sec": 56.946,
+  "total_frames": 143,
+  "fps": 2.51,
+  "avg_unet_ms": 97.9,
+  "avg_vae_ms": 6212.7,
+  "realtime_ratio": 9.925,
+  "completed": true,
+  "error": null
+}

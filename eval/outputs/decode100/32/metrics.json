@@ -1,0 +1,19 @@
+{
+  "id": 32,
+  "category": "엣지",
+  "emotion": null,
+  "input": "...",
+  "output": "오늘 무슨 일이 있으셨나요?그냥 잠깐이라도 괜찮으니, 하고 싶은 말씀 있으면 편하게 해주세요.",
+  "llm_latency_sec": 1.814,
+  "tts_latency_sec": 1.706,
+  "audio_duration_sec": 7.638,
+  "ttfb_sec": 6.965,
+  "total_video_gen_sec": 77.197,
+  "total_frames": 190,
+  "fps": 2.46,
+  "avg_unet_ms": 92.5,
+  "avg_vae_ms": 6329.7,
+  "realtime_ratio": 10.108,
+  "completed": true,
+  "error": null
+}

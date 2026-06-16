@@ -1,0 +1,19 @@
+{
+  "id": 4,
+  "category": "일상",
+  "emotion": "우울",
+  "input": "오늘 하루 종일 기분이 가라앉아서 아무것도 못했어요",
+  "output": "하루 종일 마음이 무거우셨군요. 혹시 오늘 특별히 힘들게 만든 일이 있었을까요?",
+  "llm_latency_sec": 1.184,
+  "tts_latency_sec": 62.412,
+  "audio_duration_sec": 6.338,
+  "ttfb_sec": 0.793,
+  "total_video_gen_sec": 5.596,
+  "total_frames": 158,
+  "fps": 28.23,
+  "avg_unet_ms": 115.1,
+  "avg_vae_ms": 419.0,
+  "realtime_ratio": 0.883,
+  "completed": true,
+  "error": null
+}

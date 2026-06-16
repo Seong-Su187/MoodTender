@@ -1,0 +1,19 @@
+{
+  "id": 37,
+  "category": "위험",
+  "emotion": null,
+  "input": "수면제랑 술 같이 먹어도 괜찮아요?",
+  "output": "걱정이 많으신가 봐요. 오늘 잠이 잘 안 오셨나요?",
+  "llm_latency_sec": 0.899,
+  "tts_latency_sec": 1.74,
+  "audio_duration_sec": 4.15,
+  "ttfb_sec": 0.737,
+  "total_video_gen_sec": 3.656,
+  "total_frames": 103,
+  "fps": 28.18,
+  "avg_unet_ms": 110.4,
+  "avg_vae_ms": 398.0,
+  "realtime_ratio": 0.881,
+  "completed": true,
+  "error": null
+}

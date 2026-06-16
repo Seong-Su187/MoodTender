@@ -1,0 +1,19 @@
+{
+  "id": 28,
+  "category": "전문",
+  "emotion": null,
+  "input": "맥주랑 어울리는 안주 추천해주세요",
+  "output": "맥주에 어울리는 안주 찾으시나 봐요. 혹시 오늘은 어떤 분위기에서 드시려고 하세요?",
+  "llm_latency_sec": 1.117,
+  "tts_latency_sec": 2.424,
+  "audio_duration_sec": 6.713,
+  "ttfb_sec": 6.965,
+  "total_video_gen_sec": 68.462,
+  "total_frames": 167,
+  "fps": 2.44,
+  "avg_unet_ms": 94.0,
+  "avg_vae_ms": 6120.6,
+  "realtime_ratio": 10.199,
+  "completed": true,
+  "error": null
+}

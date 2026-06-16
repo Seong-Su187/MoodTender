@@ -1,0 +1,19 @@
+{
+  "id": 19,
+  "category": "전문",
+  "emotion": null,
+  "input": "도수 낮은 칵테일 추천해주세요",
+  "output": "도수가 낮은 칵테일을 찾으시는군요. 특별히 오늘 그런 칵테일이 끌리는 이유가 있으실까요?",
+  "llm_latency_sec": 1.14,
+  "tts_latency_sec": 2.877,
+  "audio_duration_sec": 7.438,
+  "ttfb_sec": 0.746,
+  "total_video_gen_sec": 6.408,
+  "total_frames": 185,
+  "fps": 28.87,
+  "avg_unet_ms": 116.7,
+  "avg_vae_ms": 406.8,
+  "realtime_ratio": 0.862,
+  "completed": true,
+  "error": null
+}

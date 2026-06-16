@@ -1,0 +1,19 @@
+{
+  "id": 21,
+  "category": "전문",
+  "emotion": null,
+  "input": "모히토는 어떤 맛이에요?",
+  "output": "모히토는 상큼하고 시원한 맛이 나는 칵테일이에요.",
+  "llm_latency_sec": 1.057,
+  "tts_latency_sec": 2.076,
+  "audio_duration_sec": 4.35,
+  "ttfb_sec": 0.74,
+  "total_video_gen_sec": 3.822,
+  "total_frames": 108,
+  "fps": 28.25,
+  "avg_unet_ms": 117.7,
+  "avg_vae_ms": 406.9,
+  "realtime_ratio": 0.879,
+  "completed": true,
+  "error": null
+}

@@ -54,6 +54,7 @@ def inference_stream(
     whisper_model, audio_processor, weight_dtype, device,
     audio_pad_left=2, audio_pad_right=2,
     taesd=None,
+    full_decode=False,
 ):
     """
     MuseTalk 추론 결과를 프레임 단위로 FFmpeg에 파이프하고
@@ -126,12 +127,14 @@ def inference_stream(
         """VAE 디코딩: 홀수 프레임만 디코딩 후 짝수 프레임은 선형 보간
         - VAE 연산 절반으로 줄임 (~3.5초 단축 예상)
         - 인접 프레임 평균이라 립싱크 품질 영향 최소
+
+        full_decode=True면 보간 없이 모든 프레임을 VAE로 디코딩한다 (decode100).
         """
         latents = (1 / vae.scaling_factor) * pred
         dtype   = vae.vae.dtype
         n       = latents.shape[0]
 
-        if n >= 4:
+        if not full_decode and n >= 4:
             # 키프레임(짝수 인덱스)만 VAE 디코딩
             key_latents = latents[::2]
             key_decoded = vae.vae.decode(key_latents.to(dtype)).sample  # n//2 프레임
