@@ -30,7 +30,6 @@ from backend.services.db_client import (
     get_expert_knowledge, 
 )
 
-# 🚀 새로 추가: 텍스트 비식별화 및 대시보드용 고민 추출 모듈
 from backend.services.anonymizer import DataAnonymizer
 from backend.services.analytics_service import extract_memory_from_chat 
 
@@ -299,9 +298,6 @@ async def save_memory_if_needed(
 
         memory_embedding = await _embed(summary)
 
-        # ----------------------------------------------------------------------
-        # 🚀 [핵심 통합 로직] 여기서 대시보드용 이슈도 한 번에 뽑아서 완벽한 한 줄을 만듭니다!
-        # ----------------------------------------------------------------------
         extracted = await extract_memory_from_chat(conversation_text)
         issue_val = extracted.get("issue")
         is_issue = bool(issue_val and issue_val != "없음")
@@ -309,7 +305,7 @@ async def save_memory_if_needed(
         new_memory = UserMemory(
             user_id=user_id,
             memory_text=summary,
-            embedding=memory_embedding, # RAG용 벡터
+            embedding=memory_embedding, 
             main_category=emotion,
             sub_category=extracted.get("emotion") if is_issue else None,
             emotion_intensity=60,
@@ -317,13 +313,11 @@ async def save_memory_if_needed(
             importance=importance,
             source_type="chat",
             source_id=user_message_id,
-            issue=issue_val if is_issue else None, # 대시보드용 고민
-            status="PENDING" if is_issue else None # 대시보드용 상태
+            issue=issue_val if is_issue else None,
+            status="PENDING" if is_issue else None 
         )
         db.add(new_memory)
         await db.commit()
-
-        print(f"[memory 완벽 통합 저장 완료] 요약: {summary} / 이슈: {issue_val}")
 
     except Exception as e:
         print(f"[memory 통합 저장 오류] {e}")
@@ -363,7 +357,12 @@ async def rag_chat(
 
     ctx = await _build_context(db=db, user_id=user_id, query_embedding=query_embedding, emotion=emotion, session_id=session_id, session_start=session_start)
     ctx.pop("user_turn_count", None)
-    should_recommend = user_turn_count >= 3 and not cocktail_done
+    
+    # 🚀 [버그 해결 1] 사용자가 칵테일을 달라고 '직접적으로' 요청했는지 체크합니다!
+    explicit_request = any(keyword in user_text for keyword in ["칵테일", "추천", "한잔", "한 잔", "메뉴", "술", "줘"])
+    
+    # 🚀 3턴이 넘었거나 OR 사용자가 명시적으로 달라고 했으면 추천 모드로 돌입!
+    should_recommend = (user_turn_count >= 3 or explicit_request) and not cocktail_done
 
     emotion_rows = ctx.pop("emotion_rows_raw", [])
     if should_recommend and emotion_rows:
@@ -377,7 +376,9 @@ async def rag_chat(
 
     speed_key = min(_SPEED_RANGE, key=lambda v: abs(v - speed))
     char_limit = _SPEED_RANGE[speed_key][1]
-    cocktail_hint = "아직은 칵테일을 추천하지 말고 손님의 이야기를 더 들어준다." if not should_recommend else "손님의 이야기에 공감하는 한 문장으로만 답한다."
+    
+    # 🚀 강력 지시어
+    cocktail_hint = "아직은 칵테일을 추천하지 말고 손님의 이야기를 더 들어준다." if not should_recommend else "손님의 이야기에 짧게 공감하고, 더 이상 질문하지 않는다."
 
     if should_recommend:
         raw_reply, cocktail_name = await asyncio.gather(
