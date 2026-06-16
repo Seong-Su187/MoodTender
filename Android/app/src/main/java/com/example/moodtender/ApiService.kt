@@ -5,15 +5,14 @@ import retrofit2.Call
 import retrofit2.http.*
 
 // 1. 로그인/연동 관련 데이터 상자
-// ApiService.kt 안의 로그인 응답 데이터 상자
 data class LoginResponse(
     val access_token: String,
     val token_type: String,
-    val id: Int,
-    val is_device_paired: Boolean // 🚀 서버에서 주는 이 값 하나면 끝납니다!
+    val id: Int
+    // 🚀 백엔드에서 값을 안 줄 수 있으므로 여기서 is_device_paired는 뺐습니다.
 )
 
-// 🚀 추가됨: 서버에서 유저의 연동 상태를 받아올 데이터 상자
+// 🚀 추가됨: 서버에서 유저의 진짜 연동 상태를 받아올 데이터 상자
 data class UserStatusResponse(
     val user_id: Int,
     val is_device_paired: Boolean
@@ -34,7 +33,7 @@ interface ApiService {
     @POST("/api/login")
     fun login(@Body request: UserCreate): Call<LoginResponse>
 
-    // 🚀 내 기기 연동 상태 확인 API
+    // 🚀 내 기기 연동 상태 확인 API (이걸로 진짜 상태를 가져옵니다!)
     @GET("/api/users/me/status")
     fun getUserStatus(@Header("Authorization") token: String): Call<UserStatusResponse>
 
