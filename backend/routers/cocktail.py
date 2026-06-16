@@ -1,5 +1,5 @@
 """
-backend/routers/cocktail.py - 대시보드 및 칵테일 처방 로직
+backend/routers/cocktail.py - 대시보드 및 칵테일 처방 로직 (전체 복구본)
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +41,9 @@ async def get_pending_issues(
     result = await db.execute(
         select(UserMemory)
         .where(UserMemory.user_id == user_id)
+        .where(UserMemory.status == "PENDING")
         .where(UserMemory.issue != None)
+        .where(UserMemory.issue != "없음")
         .order_by(UserMemory.created_at.desc())
     )
     memories = result.scalars().all()
@@ -131,3 +133,45 @@ async def submit_dashboard_review(
     
     await db.commit()
     return {"status": "success", "message": "리뷰가 성공적으로 반영되었습니다."}
+
+# 🚀 누락되었던 대시보드 차트 데이터 API 복구
+@router.get("/chart-data")
+async def get_chart_data(
+    token_payload: dict = Depends(get_current_user_token),
+    db: AsyncSession = Depends(get_db)
+):
+    user_id = await get_current_user_id(token_payload, db)
+    
+    result = await db.execute(
+        select(UserMemory)
+        .where(UserMemory.user_id == user_id)
+        .where(UserMemory.status == "COMPLETED")
+        .where(UserMemory.taste_rating != None)
+        .order_by(UserMemory.created_at.asc())
+        .limit(10)
+    )
+    memories = result.scalars().all()
+    
+    return [
+        {
+            "date": m.created_at.strftime("%m/%d") if m.created_at else "",
+            "rating": m.taste_rating,
+            "cocktail_name": m.prescribed_cocktail or "알 수 없음",
+            "issue": m.issue or "일상"
+        } for m in memories
+    ]
+
+# 🚀 누락되었던 주간 AI 리포트 API 복구
+@router.get("/report")
+async def get_weekly_ai_report(
+    token_payload: dict = Depends(get_current_user_token),
+    db: AsyncSession = Depends(get_db)
+):
+    user_id = await get_current_user_id(token_payload, db)
+    
+    health_rows = await get_recent_health_metrics(db, user_id, days=7)
+    metrics_result = calculate_mood_metrics(health_rows, period_days=1)
+    
+    html_report = await generate_dashboard_rag_report(db, user_id, metrics_result)
+    
+    return {"report": html_report}
