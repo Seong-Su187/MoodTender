@@ -3,12 +3,14 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 from backend.database import get_db
 from backend.models.domain import User, UserMemory
 from backend.models.schemas import LLMRequest, LLMResponse
 from backend.routers.auth import get_current_user_token
-from backend.services.rag_chain import rag_chat, save_receipt, CHAINS
+from backend.services.rag_chain import rag_chat, save_receipt, CHAINS, _make_llm
 from backend.services.analytics_service import analyze_cocktail_feedback
 
 router = APIRouter()
@@ -16,9 +18,7 @@ router = APIRouter()
 _user_session_data: dict[int, dict] = {}
 _user_cocktail_done: set[int] = set()
 _user_turn_counter: dict[int, int] = {}
-_user_session_start: dict[int, datetime] = {}  # 현재 세션 시작 시각
-
-# 🚀 기존에 있던 중복 일꾼(save_memory_task)은 rag_chain.py로 통합되어 삭제되었습니다!
+_user_session_start: dict[int, datetime] = {}  
 
 async def check_and_update_feedback_task(user_id: int, user_text: str):
     try:
@@ -87,10 +87,29 @@ async def respond(
             raise HTTPException(status_code=400, detail="메시지가 비어 있습니다.")
 
         if user_text.lower() in {"안녕", "안녕하세요", "하이", "ㅎㅇ", "hi", "hello"}:
-            return LLMResponse(
-                reply="어서 와요. 오늘은 어떤 기분으로 오셨어요?",
-                emotion="평온",
-            )
+            pending_stmt = select(UserMemory).where(
+                UserMemory.user_id == user_id,
+                UserMemory.status == "PENDING",
+                UserMemory.prescribed_cocktail != None
+            ).order_by(UserMemory.created_at.desc()).limit(1)
+            
+            pending_res = await db.execute(pending_stmt)
+            pending_m = pending_res.scalar_one_or_none()
+
+            if pending_m:
+                greeting_prompt = ChatPromptTemplate.from_messages([
+                    ("system", """당신은 따뜻한 AI 바텐더 MoodTender입니다.
+                    손님이 이전에 '{issue}' 문제로 '{cocktail}' 칵테일과 행동 지침을 처방받았습니다.
+                    오늘 다시 방문한 손님에게 "어서 오세요"로 시작해서, 지난번의 고민(issue)은 좀 어떠신지, 처방받은 행동은 도움이 되었는지 다정하게 묻는 첫 인사를 1~2문장으로 작성하세요.""")
+                ]) | _make_llm(0.7) | StrOutputParser()
+                
+                dynamic_greeting = await greeting_prompt.ainvoke({
+                    "issue": pending_m.issue,
+                    "cocktail": pending_m.prescribed_cocktail
+                })
+                return LLMResponse(reply=dynamic_greeting, emotion="평온")
+            else:
+                return LLMResponse(reply="어서 와요. 오늘은 어떤 기분으로 오셨어요?", emotion="평온")
         
         session_id = payload.session_id
         cocktail_done = user_id in _user_cocktail_done
@@ -116,7 +135,6 @@ async def respond(
             _user_cocktail_done.add(user_id)
             _user_session_data[user_id] = {"emotion": emotion, "cocktail": cocktail_line}
 
-        # 🚀 이제 DB 저장 로직이 하나로 통합되었으므로, 피드백 확인 일꾼만 보내면 됩니다!
         background_tasks.add_task(check_and_update_feedback_task, user_id, user_text)
 
         return LLMResponse(reply=reply, emotion=emotion)

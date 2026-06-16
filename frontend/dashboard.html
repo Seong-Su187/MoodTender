@@ -323,7 +323,6 @@
         }
     }
 
-    // 🚀 [수정됨] 칵테일 처방 여부에 따라 카드를 다르게 렌더링
     async function loadIssues() {
         const container = document.getElementById('issue-list-container');
         const actionCardText = document.getElementById('action-card-text');
@@ -345,27 +344,22 @@
             if (actionCardArrow) actionCardArrow.style.display = "block";
             if (actionCard) { actionCard.style.pointerEvents = "auto"; actionCard.style.opacity = "1"; }
 
-            container.innerHTML = issues.map(item => {
-                // 처방된 칵테일이 있으면 '리뷰 대기', 없으면 '처방 대기'
-                const isReviewWaiting = !!item.prescribed_cocktail;
-                const statusBadge = isReviewWaiting
-                    ? `<div class="review-tag">🍸 실천 후 리뷰 대기중</div>`
-                    : `<div class="emotion-tag">${item.emotion}</div>`;
-                const cocktailInfo = isReviewWaiting
-                    ? `<div style="font-size:13px; color:var(--text-main); margin-top:12px; padding-top:12px; border-top:1px dashed #333;">처방된 칵테일: <span style="color:var(--success)">${item.prescribed_cocktail}</span></div>`
-                    : ``;
+            const reviewIssues = issues.filter(item => item.prescribed_cocktail);
+            const prescribeIssues = issues.filter(item => !item.prescribed_cocktail);
 
-                return `
-                <div class="issue-card" onclick="handleIssueClick(${item.id}, '${item.prescribed_cocktail || ''}')">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span class="date">${item.record_date}</span>
-                        ${statusBadge}
-                    </div>
-                    <div class="issue-text">${item.issue}</div>
-                    ${cocktailInfo}
-                </div>
-                `;
-            }).join('');
+            let htmlString = '';
+
+            if (reviewIssues.length > 0) {
+                htmlString += `<h4 style="color:var(--success); margin-bottom:12px; margin-top:8px; font-size:14px;">🍸 실천 후 리뷰 대기중</h4>`;
+                htmlString += reviewIssues.map(item => createCardHTML(item, true)).join('');
+            }
+
+            if (prescribeIssues.length > 0) {
+                htmlString += `<h4 style="color:var(--text-sub); margin-bottom:12px; margin-top:24px; font-size:14px;">📝 칵테일 처방 대기중</h4>`;
+                htmlString += prescribeIssues.map(item => createCardHTML(item, false)).join('');
+            }
+
+            container.innerHTML = htmlString;
 
         } catch (error) {
             container.innerHTML = `<div class="empty-state" style="color:#ff6b6b;">데이터를 불러오는 중 오류가 발생했습니다.</div>`;
@@ -373,17 +367,34 @@
         }
     }
 
-    // 🚀 [추가됨] 카드 클릭 시 분기 처리 (새 처방 vs 리뷰 작성)
+    function createCardHTML(item, isReviewWaiting) {
+        const statusBadge = isReviewWaiting
+            ? `<div class="review-tag">🍸 실천 후 리뷰 대기중</div>`
+            : `<div class="emotion-tag">${item.emotion}</div>`;
+        const cocktailInfo = isReviewWaiting
+            ? `<div style="font-size:13px; color:var(--text-main); margin-top:12px; padding-top:12px; border-top:1px dashed #333;">처방된 칵테일: <span style="color:var(--success)">${item.prescribed_cocktail}</span></div>`
+            : ``;
+
+        return `
+        <div class="issue-card" onclick="handleIssueClick(${item.id}, '${item.prescribed_cocktail || ''}')">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span class="date">${item.record_date}</span>
+                ${statusBadge}
+            </div>
+            <div class="issue-text">${item.issue}</div>
+            ${cocktailInfo}
+        </div>
+        `;
+    }
+
     function handleIssueClick(id, prescribedCocktail) {
         currentIssueId = id;
         if (prescribedCocktail) {
-            // 이미 칵테일을 받았다면 Step 6(리뷰 전용 화면)으로!
             document.getElementById('review-cocktail-name-display').innerText = prescribedCocktail;
             setRating(0);
             document.getElementById('review-text-input').value = "";
             showStep(6);
         } else {
-            // 아직 칵테일이 없다면 Step 3(처방전 작성 화면)으로!
             selectIssue(id);
         }
     }
@@ -448,7 +459,6 @@
             document.getElementById('result-effect').innerText = data.expected_effect;
             document.getElementById('result-message').innerText = `"${data.message}"`;
 
-            // 🚀 칵테일 결과만 보여주는 Step 5로 이동!
             showStep(5); 
 
         } catch (error) {
@@ -469,9 +479,8 @@
         });
     }
 
-    // 🚀 [추가됨] 칵테일 결과 확인 후 돌아가기 누르면 데이터 갱신하고 메인으로
     function returnToDashboard() {
-        loadIssues(); // 목록 상태 갱신
+        loadIssues(); 
         showStep(1);
     }
 
@@ -493,7 +502,6 @@
                 })
             });
             
-            // 데이터 갱신 후 메인 대시보드로 완벽 복귀
             loadAIReport();
             loadChart();
             loadIssues();
