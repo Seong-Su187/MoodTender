@@ -9,8 +9,7 @@ from backend.models.domain import User, UserMemory
 from backend.models.schemas import LLMRequest, LLMResponse
 from backend.routers.auth import get_current_user_token
 from backend.services.rag_chain import rag_chat, save_receipt, CHAINS
-# 🚀 새로 추가한 analyze_cocktail_feedback 가져오기
-from backend.services.analytics_service import extract_memory_from_chat, analyze_cocktail_feedback
+from backend.services.analytics_service import analyze_cocktail_feedback
 
 router = APIRouter()
 
@@ -19,40 +18,12 @@ _user_cocktail_done: set[int] = set()
 _user_turn_counter: dict[int, int] = {}
 _user_session_start: dict[int, datetime] = {}  # 현재 세션 시작 시각
 
-# ---------------------------------------------------------
-# [기존] 백그라운드에서 조용히 실행될 기억 저장 일꾼
-# ---------------------------------------------------------
-async def save_memory_task(user_id: int, chat_history: str):
-    try:
-        extracted = await extract_memory_from_chat(chat_history)
-        
-        if extracted.get("issue") and extracted.get("issue") != "없음":
-            async for db in get_db():
-                try:
-                    new_memory = UserMemory(
-                        user_id=user_id,
-                        memory_text=chat_history, 
-                        issue=extracted["issue"],
-                        sub_category=extracted["emotion"], 
-                        source_type="chat_auto_extract"
-                    )
-                    db.add(new_memory)
-                    await db.commit()
-                except Exception as db_error:
-                    print(f"DB 저장 중 에러 발생: {db_error}")
-                    await db.rollback() 
-                break 
-    except Exception as e:
-        print(f"백그라운드 기억 저장 중 오류 발생: {e}")
+# 🚀 기존에 있던 중복 일꾼(save_memory_task)은 rag_chain.py로 통합되어 삭제되었습니다!
 
-# ---------------------------------------------------------
-# 🚀 [새로 추가됨] 사용자의 대답이 칵테일 피드백인지 확인하고 완료 처리하는 일꾼
-# ---------------------------------------------------------
 async def check_and_update_feedback_task(user_id: int, user_text: str):
     try:
         async for db in get_db():
             try:
-                # 1. 리뷰를 기다리고 있는 최신 PENDING 칵테일 처방 찾기
                 pending_stmt = select(UserMemory).where(
                     UserMemory.user_id == user_id,
                     UserMemory.status == "PENDING",
@@ -63,14 +34,12 @@ async def check_and_update_feedback_task(user_id: int, user_text: str):
                 pending_m = pending_res.scalar_one_or_none()
                 
                 if pending_m:
-                    # 2. LLM에게 피드백인지 물어보기
                     feedback_result = await analyze_cocktail_feedback(
                         user_input=user_text, 
                         cocktail_name=pending_m.prescribed_cocktail, 
                         issue=pending_m.issue
                     )
                     
-                    # 3. 피드백이 맞다면 상태를 COMPLETED로 변경!
                     if feedback_result.get("is_feedback") is True:
                         pending_m.status = "COMPLETED"
                         pending_m.taste_rating = feedback_result.get("taste_rating", 3)
@@ -147,13 +116,7 @@ async def respond(
             _user_cocktail_done.add(user_id)
             _user_session_data[user_id] = {"emotion": emotion, "cocktail": cocktail_line}
 
-        # ---------------------------------------------------------
-        # 🚀 [핵심] 백그라운드 일꾼 2명 동시 파견!
-        # 1. 새 사건을 감지해서 저장하는 일꾼
-        # 2. 바텐더의 질문에 피드백을 남겼는지 검사해서 PENDING을 닫는 일꾼
-        # ---------------------------------------------------------
-        current_chat_turn = f"사용자: {user_text}\n바텐더: {reply}"
-        background_tasks.add_task(save_memory_task, user_id, current_chat_turn)
+        # 🚀 이제 DB 저장 로직이 하나로 통합되었으므로, 피드백 확인 일꾼만 보내면 됩니다!
         background_tasks.add_task(check_and_update_feedback_task, user_id, user_text)
 
         return LLMResponse(reply=reply, emotion=emotion)
