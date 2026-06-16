@@ -43,15 +43,15 @@
         .chart-box { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 24px; border: 1px solid rgba(124, 77, 255, 0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         .chart-box h3 { font-size: 15px; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
 
-        /* 🚀 [추가됨] 고민 선택 화면으로 넘어가는 진입 버튼 카드 */
         .action-card { background: var(--card-bg); border-radius: 16px; padding: 20px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid rgba(124, 77, 255, 0.4); box-shadow: 0 4px 20px rgba(124, 77, 255, 0.1); margin-top: 10px; }
         .action-card:hover { transform: translateY(-2px); border: 1px solid var(--primary); }
 
         .issue-card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 16px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid transparent; }
         .issue-card:hover { transform: translateY(-2px); border: 1px solid var(--primary); }
-        .issue-card .date { font-size: 12px; color: var(--primary); font-weight: bold; margin-bottom: 8px; }
-        .issue-card .issue-text { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+        .issue-card .date { font-size: 12px; color: var(--text-sub); margin-bottom: 8px; }
+        .issue-card .issue-text { font-size: 18px; font-weight: 500; margin-bottom: 12px; line-height: 1.4; }
         .issue-card .emotion-tag { display: inline-block; background: rgba(124, 77, 255, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+        .issue-card .review-tag { display: inline-block; background: rgba(97, 211, 148, 0.1); color: var(--success); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid var(--success); }
 
         .empty-state { text-align: center; color: var(--text-sub); padding: 40px 0; }
 
@@ -75,12 +75,12 @@
         .expected-effect { font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
         .bartender-message { background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; font-size: 14px; font-style: italic; color: var(--text-sub); margin-bottom: 24px; }
 
-        .review-section { margin-top: 24px; text-align: left; border-top: 1px dashed #333; padding-top: 20px; }
-        .review-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; color: var(--text-main); }
+        .review-section { text-align: left; padding-top: 10px; }
+        .review-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; color: var(--text-main); text-align: center;}
         .rating-container { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; }
         .rating-glass { font-size: 28px; cursor: pointer; color: #444; transition: color 0.2s; }
         .rating-glass.active { color: var(--primary); }
-        .review-input { width: 100%; height: 70px; background: #252525; border: 1px solid #383838; border-radius: 10px; color: white; padding: 12px; font-size: 14px; resize: none; outline: none; }
+        .review-input { width: 100%; height: 80px; background: #252525; border: 1px solid #383838; border-radius: 10px; color: white; padding: 12px; font-size: 14px; resize: none; outline: none; margin-bottom: 24px;}
         .review-input:focus { border-color: var(--primary); }
 
         .btn-primary { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 24px; }
@@ -114,9 +114,9 @@
         <div class="action-card" id="issue-action-card" onclick="showStep(2)">
             <div style="display: flex; align-items: center; justify-content: space-between;">
                 <div>
-                    <h3 style="margin-bottom: 4px; font-size: 16px;">미해결 고민 처방받기</h3>
+                    <h3 style="margin-bottom: 4px; font-size: 16px;">해결 및 리뷰 대기함</h3>
                     <p id="action-card-text" style="color: var(--text-sub); font-size: 13px;">
-                        아직 비워내지 못한 조각이 <span id="issue-count" style="color: var(--primary); font-weight: bold;">0</span>개 있습니다.
+                        조각들이 <span id="issue-count" style="color: var(--primary); font-weight: bold;">0</span>개 모여있습니다.
                     </p>
                 </div>
                 <i class="ri-arrow-right-s-line" id="action-card-arrow" style="font-size: 24px; color: var(--primary);"></i>
@@ -127,11 +127,10 @@
     <div id="step-2" class="view-section">
         <div class="header">
             <i class="ri-arrow-left-s-line" onclick="showStep(1)"></i>
-            <h1>나만의 칵테일 처방</h1>
+            <h1>미해결 조각 보관함</h1>
             <div style="width: 24px;"></div>
         </div>
-        <h2 class="title">아직 비워내지 못한<br>마음의 조각들이 있네요.</h2>
-        <p class="subtitle">해결하고 싶은 고민을 하나 선택해 주세요.<br>MoodTender가 특별한 위로를 만들어 드릴게요.</p>
+        <p class="subtitle">새로운 칵테일을 처방받거나,<br>이전에 받은 처방의 실천 후기를 남겨주세요.</p>
         
         <div id="issue-list-container">
             <div class="empty-state">불러오는 중...</div>
@@ -164,7 +163,7 @@
 
     <div id="step-5" class="view-section">
         <div class="header">
-            <i class="ri-close-line" onclick="showStep(1)"></i>
+            <i class="ri-close-line" onclick="returnToDashboard()"></i>
             <h1>처방 완료</h1>
             <div style="width: 24px;"></div>
         </div>
@@ -174,9 +173,30 @@
             <div class="cocktail-name" id="result-cocktail-name">미드나잇 릴렉서</div>
             <div class="expected-effect" id="result-effect"></div>
             <div class="bartender-message" id="result-message"></div>
+            <p style="color: var(--success); font-size: 14px; margin-top: 16px; font-weight: bold;">
+                "약속한 행동을 실천한 후, 나중에 잊지 말고 리뷰를 남겨주세요!"
+            </p>
+        </div>
+
+        <button class="btn-primary" onclick="returnToDashboard()">
+            확인 (실천 후 다시 올게요)
+        </button>
+    </div>
+
+    <div id="step-6" class="view-section">
+        <div class="header">
+            <i class="ri-arrow-left-s-line" onclick="showStep(2)"></i>
+            <h1>실천 후기 남기기</h1>
+            <div style="width: 24px;"></div>
+        </div>
+
+        <div class="result-card">
+            <span class="cocktail-icon">🍸</span>
+            <div class="cocktail-name" id="review-cocktail-name-display" style="color: var(--success);"></div>
+            <p style="color:var(--text-sub); font-size:14px; margin-bottom:24px;">바텐더의 처방대로 행동해 보셨나요?<br>마음이 얼마나 가벼워졌는지 알려주세요.</p>
 
             <div class="review-section">
-                <div class="review-title">🍸 칵테일 맛은 어떠셨나요? (마음 회복도)</div>
+                <div class="review-title">마음 회복도 (1~5점)</div>
                 <div class="rating-container">
                     <span class="rating-glass" onclick="setRating(1)">🍸</span>
                     <span class="rating-glass" onclick="setRating(2)">🍸</span>
@@ -184,12 +204,12 @@
                     <span class="rating-glass" onclick="setRating(4)">🍸</span>
                     <span class="rating-glass" onclick="setRating(5)">🍸</span>
                 </div>
-                <textarea class="review-input" id="review-text-input" placeholder="칵테일을 마신 후 가벼워진 소감을 남겨주세요."></textarea>
+                <textarea class="review-input" id="review-text-input" placeholder="실천해 본 소감을 자유롭게 남겨주세요."></textarea>
             </div>
         </div>
 
         <button class="btn-primary" onclick="submitReviewAndReturn()">
-            평가 등록하고 처음으로 돌아가기
+            평가 등록하고 완료하기
         </button>
     </div>
 
@@ -292,15 +312,8 @@
                         }
                     },
                     scales: {
-                        y: { 
-                            min: 0, max: 5.5, 
-                            ticks: { stepSize: 1, color: '#666', font: { size: 11 } }, 
-                            grid: { color: '#222', drawBorder: false } 
-                        },
-                        x: { 
-                            ticks: { color: '#888', font: { size: 11 } }, 
-                            grid: { display: false } 
-                        }
+                        y: { min: 0, max: 5.5, ticks: { stepSize: 1, color: '#666', font: { size: 11 } }, grid: { color: '#222', drawBorder: false } },
+                        x: { ticks: { color: '#888', font: { size: 11 } }, grid: { display: false } }
                     },
                     interaction: { mode: 'index', intersect: false }
                 }
@@ -310,6 +323,7 @@
         }
     }
 
+    // 🚀 [수정됨] 칵테일 처방 여부에 따라 카드를 다르게 렌더링
     async function loadIssues() {
         const container = document.getElementById('issue-list-container');
         const countSpan = document.getElementById('issue-count');
@@ -320,32 +334,43 @@
         try {
             const issues = await fetchWithAuth(`${API_BASE}/issues`);
             
-            // 🚀 대기 중인 처방이 없을 때 버튼 처리
             if (issues.length === 0) {
                 countSpan.innerText = '0';
                 actionCardText.innerText = "오늘도 평온한 하루 되세요!";
                 actionCardArrow.style.display = "none";
                 actionCard.style.pointerEvents = "none";
                 actionCard.style.opacity = "0.7";
-                
-                container.innerHTML = `<div class="empty-state">아직 해결해야 할 고민이 없습니다.<br>오늘도 평온한 하루 되세요!</div>`;
+                container.innerHTML = `<div class="empty-state">모든 조각이 비워졌습니다.<br>수고하셨습니다!</div>`;
                 return;
             }
 
-            // 대기 중인 처방이 있을 때 버튼 활성화
             countSpan.innerText = issues.length;
-            actionCardText.innerHTML = `아직 비워내지 못한 조각이 <span id="issue-count" style="color: var(--primary); font-weight: bold;">${issues.length}</span>개 있습니다.`;
+            actionCardText.innerHTML = `확인이 필요한 조각이 <span style="color: var(--primary); font-weight: bold;">${issues.length}</span>개 있습니다.`;
             actionCardArrow.style.display = "block";
             actionCard.style.pointerEvents = "auto";
             actionCard.style.opacity = "1";
 
-            container.innerHTML = issues.map(item => `
-                <div class="issue-card" onclick="selectIssue(${item.id})">
-                    <div class="date">${item.record_date}</div>
+            container.innerHTML = issues.map(item => {
+                // 처방된 칵테일이 있으면 '리뷰 대기', 없으면 '처방 대기'
+                const isReviewWaiting = !!item.prescribed_cocktail;
+                const statusBadge = isReviewWaiting
+                    ? `<div class="review-tag">🍸 실천 후 리뷰 대기중</div>`
+                    : `<div class="emotion-tag">${item.emotion}</div>`;
+                const cocktailInfo = isReviewWaiting
+                    ? `<div style="font-size:13px; color:var(--text-main); margin-top:12px; padding-top:12px; border-top:1px dashed #333;">처방된 칵테일: <span style="color:var(--success)">${item.prescribed_cocktail}</span></div>`
+                    : ``;
+
+                return `
+                <div class="issue-card" onclick="handleIssueClick(${item.id}, '${item.prescribed_cocktail || ''}')">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span class="date">${item.record_date}</span>
+                        ${statusBadge}
+                    </div>
                     <div class="issue-text">${item.issue}</div>
-                    <div class="emotion-tag">${item.emotion}</div>
+                    ${cocktailInfo}
                 </div>
-            `).join('');
+                `;
+            }).join('');
 
         } catch (error) {
             container.innerHTML = `<div class="empty-state" style="color:#ff6b6b;">데이터를 불러오는 중 오류가 발생했습니다.</div>`;
@@ -353,10 +378,23 @@
         }
     }
 
+    // 🚀 [추가됨] 카드 클릭 시 분기 처리 (새 처방 vs 리뷰 작성)
+    function handleIssueClick(id, prescribedCocktail) {
+        currentIssueId = id;
+        if (prescribedCocktail) {
+            // 이미 칵테일을 받았다면 Step 6(리뷰 전용 화면)으로!
+            document.getElementById('review-cocktail-name-display').innerText = prescribedCocktail;
+            setRating(0);
+            document.getElementById('review-text-input').value = "";
+            showStep(6);
+        } else {
+            // 아직 칵테일이 없다면 Step 3(처방전 작성 화면)으로!
+            selectIssue(id);
+        }
+    }
+
     async function selectIssue(issueId) {
-        currentIssueId = issueId;
-        showStep(3); // 🚀 스텝 3으로 진입
-        
+        showStep(3); 
         const analysisBox = document.getElementById('emotion-analysis-text');
         const checklistBox = document.getElementById('checklist-container');
         const craftBtn = document.getElementById('btn-craft');
@@ -400,7 +438,7 @@
     }
 
     async function startCrafting() {
-        showStep(4); // 🚀 스텝 4 애니메이션으로 진입
+        showStep(4); 
 
         try {
             const [data] = await Promise.all([
@@ -415,10 +453,8 @@
             document.getElementById('result-effect').innerText = data.expected_effect;
             document.getElementById('result-message').innerText = `"${data.message}"`;
 
-            setRating(0);
-            document.getElementById('review-text-input').value = "";
-
-            showStep(5); // 🚀 스텝 5 결과/리뷰로 진입
+            // 🚀 칵테일 결과만 보여주는 Step 5로 이동!
+            showStep(5); 
 
         } catch (error) {
             alert('칵테일 제조 중 문제가 발생했습니다.');
@@ -438,13 +474,17 @@
         });
     }
 
-    // 🚀 [핵심 수정] 리뷰 제출 후 1단계 대시보드(차트 화면)로 복귀하고 데이터 갱신
+    // 🚀 [추가됨] 칵테일 결과 확인 후 돌아가기 누르면 데이터 갱신하고 메인으로
+    function returnToDashboard() {
+        loadIssues(); // 목록 상태 갱신
+        showStep(1);
+    }
+
     async function submitReviewAndReturn() {
         const comment = document.getElementById('review-text-input').value.trim();
         
         if (selectedRating === 0) {
-            // 평점을 매기지 않고 돌아가면 PENDING 유지한 채 첫 화면으로
-            showStep(1);
+            alert("마음 회복도(칵테일 잔)를 선택해 주세요!");
             return;
         }
 
@@ -458,7 +498,7 @@
                 })
             });
             
-            // 데이터 갱신 후 메인 대시보드로 돌아가기
+            // 데이터 갱신 후 메인 대시보드로 완벽 복귀
             loadAIReport();
             loadChart();
             loadIssues();

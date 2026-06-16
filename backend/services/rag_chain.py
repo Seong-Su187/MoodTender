@@ -196,8 +196,9 @@ def build_chains():
 {pending_cocktail_context}
 
 규칙:
-- 관련 기억이나 건강 데이터가 있으면 자연스럽게 대화에 녹여낸다. "기록에 따르면" 같은 말은 절대 쓰지 않는다.
+- 관련 기억이나 건강 데이터가 있으면 자연스럽게 대화에 녹여낸다. "기록에 따르면", "데이터상" 같은 말은 절대 쓰지 않는다.
 - [미완료된 칵테일 처방 및 고민]이 "없음"이 아니라면, 대화 초반에 지난번 처방받은 칵테일을 실천해 보았는지 다정하게 물어본다.
+- 🚀 손님이 예전 일이나 추천했던 칵테일을 "기억하냐"고 물어보면, 동문서답 하지 말고 [손님 관련 기억]과 [관련 과거 대화]를 바탕으로 구체적인 사실(당시의 사건, 감정, 추천했던 칵테일 이름 등)을 정확하게 언급하며 똑똑하게 대답한다.
 - 한 번에 너무 많은 것을 제안하지 않는다.
 """),
         MessagesPlaceholder(variable_name="history"),
@@ -358,10 +359,12 @@ async def rag_chat(
     ctx = await _build_context(db=db, user_id=user_id, query_embedding=query_embedding, emotion=emotion, session_id=session_id, session_start=session_start)
     ctx.pop("user_turn_count", None)
     
-    # 🚀 [버그 해결 1] 사용자가 칵테일을 달라고 '직접적으로' 요청했는지 체크합니다!
-    explicit_request = any(keyword in user_text for keyword in ["칵테일", "추천", "한잔", "한 잔", "메뉴", "술", "줘"])
+    # 🚀 [버그 해결 핵심] 사용자가 "기억"을 묻는 중인지 먼저 체크합니다!
+    is_asking_memory = any(k in user_text for k in ["기억", "저번", "지난번", "예전", "전에", "어제"])
     
-    # 🚀 3턴이 넘었거나 OR 사용자가 명시적으로 달라고 했으면 추천 모드로 돌입!
+    # "기억"을 묻는 게 아닐 때만 '칵테일', '추천' 등의 단어에 반응하도록 예외 처리
+    explicit_request = any(keyword in user_text for keyword in ["칵테일", "추천", "한잔", "한 잔", "메뉴", "술", "줘"]) and not is_asking_memory
+    
     should_recommend = (user_turn_count >= 3 or explicit_request) and not cocktail_done
 
     emotion_rows = ctx.pop("emotion_rows_raw", [])
@@ -377,7 +380,7 @@ async def rag_chat(
     speed_key = min(_SPEED_RANGE, key=lambda v: abs(v - speed))
     char_limit = _SPEED_RANGE[speed_key][1]
     
-    # 🚀 강력 지시어
+    # 강력 지시어
     cocktail_hint = "아직은 칵테일을 추천하지 말고 손님의 이야기를 더 들어준다." if not should_recommend else "손님의 이야기에 짧게 공감하고, 더 이상 질문하지 않는다."
 
     if should_recommend:

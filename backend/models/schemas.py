@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from datetime import date
 from typing import Dict, Optional
 
-# --- 기존 유저 및 인증 스키마 ---
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -18,7 +17,6 @@ class Token(BaseModel):
     token_type: str
     id: int
 
-# --- 기존 LLM 및 대화 스키마 ---
 class LLMRequest(BaseModel):
     text: str
     speed: float = 1.0
@@ -32,7 +30,6 @@ class ChatRequest(BaseModel):
     user_id: int
     text: str
 
-# --- 모바일 건강 데이터 스키마 ---
 class HealthDataCreate(BaseModel):
     record_date: date               
     step_count: int                 
@@ -40,7 +37,6 @@ class HealthDataCreate(BaseModel):
     screen_time_minutes: int        
     app_usage_json: Dict[str, int]
 
-# --- 장기 기억 스키마 ---
 class MemoryCreate(BaseModel):
     issue: str
     emotion: str
@@ -54,12 +50,13 @@ class MemoryResponse(MemoryCreate):
     class Config:
         from_attributes = True
 
-# --- 대시보드 칵테일 제조 API용 스키마 ---
 class IssueResponse(BaseModel):
     id: int
     issue: str
     emotion: str
     record_date: date
+    # 🚀 [추가됨] 이 고민이 처방을 받은 상태인지 확인하기 위한 필드
+    prescribed_cocktail: Optional[str] = None
 
 class SuggestionRequest(BaseModel):
     issue_id: int
@@ -77,7 +74,6 @@ class CraftCocktailResponse(BaseModel):
     cocktail_name: str
     message: str
 
-# 🚀 [추가됨] 칵테일 맛 평가(리뷰) 제출용 스키마
 class ReviewRequest(BaseModel):
     issue_id: int
     taste_rating: int
