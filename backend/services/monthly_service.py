@@ -27,6 +27,31 @@ def _make_llm(temperature: float = 0.7, model: str = "gpt-4.1") -> ChatOpenAI:
     )
 
 
+def aggregate_receipt_summary(receipts: list) -> dict | None:
+    """
+    특정 기간의 emotion_receipts 레코드를 집계해
+    주요 감정, 자주 추천된 칵테일, 최근 메모를 반환합니다.
+    """
+    if not receipts:
+        return None
+
+    sub_counts = Counter(r.dominant_sub_category or "평온" for r in receipts)
+    dominant_sub = sub_counts.most_common(1)[0][0]
+
+    cocktail_counts = Counter(r.recommended_cocktail for r in receipts if r.recommended_cocktail)
+    top_cocktail = cocktail_counts.most_common(1)[0][0] if cocktail_counts else None
+
+    notes = [r.summary_note for r in receipts if r.summary_note]
+
+    return {
+        "dominant_sub": dominant_sub,
+        "emotions": dict(sub_counts),
+        "top_cocktail": top_cocktail,
+        "notes": notes,
+        "receipt_count": len(receipts),
+    }
+
+
 def aggregate_weekly_emotions(receipts: list) -> list:
     """
     emotion_receipts 레코드를 1~4주차(7일 단위)로 묶어
