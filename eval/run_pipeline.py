@@ -33,14 +33,19 @@ sys.path.insert(1, str(BACKEND_DIR))
 # backend.config는 import 시 MuseTalk 디렉터리로 os.chdir() 한다.
 from backend.config import FFMPEG_PATH  # noqa: E402
 from backend.services import ml_manager  # noqa: E402
-from backend.services.rag_chain import CHAINS, _trim  # noqa: E402
+from backend.services.rag_chain import CHAINS, _trim, _classify_emotion, _build_cocktail_hint  # noqa: E402
 from backend.services.video_audio import tts, get_audio_duration  # noqa: E402
+from backend.database import AsyncSessionLocal  # noqa: E402
 
 from langchain_core.messages import HumanMessage, AIMessage  # noqa: E402
 
 AVATAR_NAME = "bartender_smile.mp4"
 VOICE = "onyx"
 SPEED = 1.0
+
+# rag_chain.rag_chat()의 칵테일 추천 판단 로직과 동일 (운영 코드와 평가 파이프라인의 분기 일치)
+PAST_KEYWORDS = ["기억", "저번", "지난번", "예전", "전에", "어제", "그저께", "언제"]
+COCKTAIL_KEYWORDS = ["칵테일", "추천", "한잔", "한 잔", "메뉴", "술", "줘"]
 
 BATCH_LINE_RE = re.compile(
     r"\[배치(\d+)\]\s+B=\s*(\d+)\s+UNet=\s*([\d.]+)ms\s+VAE=\s*([\d.]+)ms\s+합=\s*([\d.]+)ms"
@@ -84,40 +89,57 @@ def _parse_batch_log(log_text: str) -> dict:
     }
 
 
-async def _llm_reply(bartender_chain, user_input: str, history: list) -> tuple[str, float]:
+async def _llm_reply(
+    db, bartender_chain, user_input: str, history: list, turn_count: int, cocktail_done: bool,
+) -> tuple[str, float, bool]:
+    """rag_chat()과 동일한 turn_count 기반 칵테일 추천 판단을 적용해 cocktail_hint를 동적으로 생성한다.
+    (이전엔 cocktail_hint가 '추천하지 말 것'으로 고정되어 있어, 3턴째 추천을 기대하는
+    테스트 항목(testset.jsonl 35/36번)이 평가에서 항상 누락되는 문제가 있었음.)"""
+    is_asking_past = any(k in user_input for k in PAST_KEYWORDS)
+    cocktail_request = any(k in user_input for k in COCKTAIL_KEYWORDS)
+    should_recommend = (turn_count >= 3 or (cocktail_request and not is_asking_past)) and not cocktail_done
+
+    recent_user_msgs = " / ".join(m.content for m in history if isinstance(m, HumanMessage))
+    classify_input = f"{recent_user_msgs} / {user_input}".strip(" /")
+    emotion = await _classify_emotion(classify_input)
+    cocktail_hint = await _build_cocktail_hint(db, should_recommend, emotion)
+
     t0 = time.perf_counter()
     raw_reply = await bartender_chain.ainvoke({
         "memory_context": "관련 기억 없음",
         "past_chat_context": "관련 과거 대화 없음",
-        "health_context": "건강 데이터 없음",
-        "expert_knowledge": "",
-        "emotion_context": "감정 사전 없음",
         "history": history,
         "user_input": user_input,
-        "cocktail_hint": "아직은 칵테일을 추천하지 말고 손님의 이야기를 더 들어준다.",
+        "cocktail_hint": cocktail_hint,
     })
     latency = time.perf_counter() - t0
     reply = _trim(raw_reply, SPEED)
-    return reply, latency
+    return reply, latency, should_recommend
 
 
-async def run_item(item: dict, av, bartender_chain, item_dir: Path, full_decode: bool = False) -> dict:
+async def run_item(item: dict, av, bartender_chain, item_dir: Path, db, full_decode: bool = False) -> dict:
     item_id = item["id"]
     print(f"\n=== [{item_id}] {item.get('category')} | {item['input'][:40]!r} ===", flush=True)
 
     # 1. 멀티턴 history 구성 (turns[:-1]을 차례로 모델에 흘려보내 history를 쌓는다)
+    # turn_count/cocktail_done은 rag_chat()과 동일하게 추적해 동일한 시점에 칵테일을 추천하게 함.
     history: list = []
+    turn_count = 0
+    cocktail_done = False
     if "turns" in item:
         for turn_text in item["turns"][:-1]:
-            turn_reply, _ = await _llm_reply(bartender_chain, turn_text, history)
+            turn_count += 1
+            turn_reply, _, recommended = await _llm_reply(db, bartender_chain, turn_text, history, turn_count, cocktail_done)
+            cocktail_done = cocktail_done or recommended
             history.append(HumanMessage(content=turn_text))
             history.append(AIMessage(content=turn_reply))
 
     user_input = item["input"]
+    turn_count += 1
 
     # 2. 최종 턴 LLM 응답 (G-Eval 대상)
-    reply, llm_latency = await _llm_reply(bartender_chain, user_input, history)
-    print(f"[LLM] {llm_latency:.2f}초 → {reply}", flush=True)
+    reply, llm_latency, recommended = await _llm_reply(db, bartender_chain, user_input, history, turn_count, cocktail_done)
+    print(f"[LLM] {llm_latency:.2f}초 (turn={turn_count}, 칵테일추천={recommended}) → {reply}", flush=True)
     (item_dir / "reply.txt").write_text(reply, encoding="utf-8")
 
     # 3. TTS (CER/WER 대상)
@@ -189,6 +211,8 @@ async def run_item(item: dict, av, bartender_chain, item_dir: Path, full_decode:
         "realtime_ratio": round(realtime_ratio, 3) if realtime_ratio is not None else None,
         "completed": completed,
         "error": error,
+        "turn_count": turn_count,
+        "cocktail_recommended": recommended,
     }
     (item_dir / "metrics.json").write_text(
         json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -229,16 +253,17 @@ async def main():
         testset = testset[: args.limit]
 
     results = []
-    for item in testset:
-        item_dir = out_dir / f"{item['id']:02d}"
-        item_dir.mkdir(parents=True, exist_ok=True)
-        metrics_path = item_dir / "metrics.json"
-        if metrics_path.exists() and not args.force:
-            print(f"[SKIP] id={item['id']} (이미 완료)", flush=True)
-            results.append(json.loads(metrics_path.read_text(encoding="utf-8")))
-            continue
-        metrics = await run_item(item, av, bartender_chain, item_dir, full_decode=args.full_decode)
-        results.append(metrics)
+    async with AsyncSessionLocal() as db:
+        for item in testset:
+            item_dir = out_dir / f"{item['id']:02d}"
+            item_dir.mkdir(parents=True, exist_ok=True)
+            metrics_path = item_dir / "metrics.json"
+            if metrics_path.exists() and not args.force:
+                print(f"[SKIP] id={item['id']} (이미 완료)", flush=True)
+                results.append(json.loads(metrics_path.read_text(encoding="utf-8")))
+                continue
+            metrics = await run_item(item, av, bartender_chain, item_dir, db, full_decode=args.full_decode)
+            results.append(metrics)
 
     results_path = out_dir / "results.jsonl"
     with open(results_path, "w", encoding="utf-8") as f:

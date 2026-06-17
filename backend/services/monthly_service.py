@@ -181,16 +181,15 @@ async def generate_monthly_emotion_report(
 
 
 language_chain = ChatPromptTemplate.from_messages([
-    ("system", """
-당신은 심리언어학 전문가입니다.
+    ("system", """당신은 심리언어학 전문가입니다.
 사용자가 한 달간 AI 바텐더와 나눈 대화를 주차별로 읽고,
 말투와 감정 표현이 어떻게 변화했는지 분석해주세요.
 
-1주차~4주차 순서로 실제 표현 변화를 짚어주세요.
+주차별 변화를 각각 별도 단락으로 나눠서 작성하세요.
 예: "초반에는 '그냥 다 싫어', '모르겠어' 같은 표현이 많았지만, 후반엔 '해볼게요', '조금 나아진 것 같아요'로 바뀌었어요."
 
 변화가 없거나 데이터가 부족하면 "이달은 일관된 감정 상태를 유지하셨어요"라고 말하세요.
-1~2문단, <p> 태그 사용.
+각 단락은 반드시 <p>...</p>로 감싸고, 단락 사이는 한 줄 띄워주세요. 전체 2~3문단.
 """),
     ("human", "{weekly_notes_text}")
 ]) | _make_llm(0.5) | StrOutputParser()
@@ -212,6 +211,7 @@ async def generate_language_change_analysis(weekly_notes: dict) -> str:
 
     try:
         result = await language_chain.ainvoke({"weekly_notes_text": "\n".join(lines)})
-        return result.strip()
-    except Exception:
+        return str(result).strip()
+    except Exception as e:
+        print(f"Language analysis error: {e}")
         return ""

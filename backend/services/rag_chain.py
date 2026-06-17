@@ -304,22 +304,25 @@ async def save_memory_if_needed(db, user_id, user_text, assistant_reply, emotion
         print(f"Memory save error: {e}")
         await db.rollback()
 
-async def generate_dashboard_rag_report(db: AsyncSession, user_id: int, metrics_result: dict) -> str:
+async def generate_dashboard_rag_report(db: AsyncSession, user_id: int, metrics_result: dict) -> dict:
     if metrics_result.get("status") == "insufficient_data":
-        return "💡 <b>데이터 수집 중</b><br><br>정확한 패턴 분석을 위해서는 최소 3일 이상의 데이터가 필요합니다."
-    
+        return {
+            "status": "insufficient_data",
+            "html": "💡 <b>데이터 수집 중</b><br><br>정확한 패턴 분석을 위해서는 최소 3일 이상의 데이터가 필요합니다.",
+        }
+
     safe_context = DataAnonymizer.prepare_safe_context(user_id, metrics_result)
     emotion = safe_context['emotion']
     expert_knowledge = await get_expert_knowledge(db, emotion)
-    
+
     llm_report = await dashboard_report_chain.ainvoke({
-        "emotion": emotion, 
-        "deltas": safe_context['deltas'], 
-        "app_usage": safe_context['app_usage'], 
+        "emotion": emotion,
+        "deltas": safe_context['deltas'],
+        "app_usage": safe_context['app_usage'],
         "expert_knowledge": expert_knowledge
     })
-    
+
     llm_report = llm_report.strip()
     llm_report = re.sub(r'\s*<br\s*/?>\s*', '\n', llm_report, flags=re.IGNORECASE)
     llm_report = re.sub(r'\n+', '<br><br>', llm_report)
-    return llm_report
+    return {"status": "success", "html": llm_report}
