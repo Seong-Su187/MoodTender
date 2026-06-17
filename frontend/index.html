@@ -12,6 +12,27 @@
   <link rel="stylesheet" href="/css/menu.css" />
   <link rel="stylesheet" href="/css/music.css" />
   <link rel="stylesheet" href="/css/monthly.css" />
+  <style>
+    .review-chat-card {
+      background: rgba(20, 12, 4, 0.85);
+      border: 1px solid rgba(200, 144, 46, 0.4);
+      border-radius: 16px;
+      padding: 16px 20px;
+      max-width: 320px;
+      margin-top: 8px;
+    }
+    .review-chat-card p { font-size: 13px; color: #b3a48c; margin-bottom: 12px; line-height: 1.5; }
+    .review-chat-stars { display: flex; gap: 6px; margin-bottom: 12px; }
+    .review-chat-stars span { font-size: 24px; cursor: pointer; opacity: 0.3; transition: opacity 0.15s; }
+    .review-chat-stars span.active { opacity: 1; }
+    .review-chat-submit {
+      width: 100%; padding: 8px; background: #c8902e; color: #fff8ee;
+      border: none; border-radius: 10px; font-size: 13px; font-weight: bold;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .review-chat-submit:hover { background: #a87425; }
+    .review-chat-submit:disabled { background: #2a2018; color: #5a4e3a; cursor: not-allowed; }
+  </style>
 </head>
 <body>
   
@@ -443,48 +464,117 @@
       }
     });
 
-    // 🚀 [완벽 해결] 화면 로드 시 백엔드 API에서 능동적인 첫 인사를 가져옵니다.
+    let _chatReviewRating = 0;
+
     async function fetchInitialGreeting() {
       const chatLog = document.getElementById('chat-log');
       try {
         const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
         const response = await fetch('/api/llm/greeting', {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
-        
-        // chat.js 내부 함수를 쓸 수 있으면 호출하고, 혹시 모르니 직접 DOM에 박는 방어 코드도 넣었습니다.
+
         if (typeof appendMessage === 'function') {
           appendMessage('assistant', data.reply);
         } else {
           const msgRow = document.createElement('div');
           msgRow.className = 'message-row assistant';
-          msgRow.innerHTML = `
-            <div class="message-time">방금 전</div>
-            <div class="message-bubble">${data.reply}</div>
-          `;
+          msgRow.innerHTML = `<div class="message-time">방금 전</div><div class="message-bubble">${data.reply}</div>`;
           chatLog.appendChild(msgRow);
           chatLog.scrollTop = chatLog.scrollHeight;
         }
+
+        // PENDING 칵테일이 있으면 평점 카드 표시
+        if (data.pending_issue_id && data.pending_cocktail) {
+          appendChatReviewCard(data.pending_issue_id, data.pending_cocktail, chatLog);
+        }
       } catch (error) {
         console.error("첫인사 불러오기 실패:", error);
-        
-        // 서버 연결 실패 시 기존의 멘트를 띄워줍니다.
         if (typeof appendMessage === 'function') {
           appendMessage('assistant', "어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?");
         } else {
           const msgRow = document.createElement('div');
           msgRow.className = 'message-row assistant';
-          msgRow.innerHTML = `
-            <div class="message-time">방금 전</div>
-            <div class="message-bubble">어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?</div>
-          `;
+          msgRow.innerHTML = `<div class="message-time">방금 전</div><div class="message-bubble">어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?</div>`;
           chatLog.appendChild(msgRow);
           chatLog.scrollTop = chatLog.scrollHeight;
         }
+      }
+    }
+
+    function appendChatReviewCard(issueId, cocktailName, chatLog) {
+      _chatReviewRating = 0;
+      const row = document.createElement('div');
+      row.className = 'message-row assistant';
+      row.id = 'chat-review-card';
+      row.innerHTML = `
+        <div class="message-time">방금 전</div>
+        <div class="review-chat-card">
+          <p>지난번 처방 <b style="color:#c8902e">"${cocktailName}"</b>은 어떠셨나요?<br>마음이 얼마나 회복됐는지 알려주세요.</p>
+          <div class="review-chat-stars" id="chat-rating-stars">
+            <span onclick="setChatRating(1)">🍸</span>
+            <span onclick="setChatRating(2)">🍸</span>
+            <span onclick="setChatRating(3)">🍸</span>
+            <span onclick="setChatRating(4)">🍸</span>
+            <span onclick="setChatRating(5)">🍸</span>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:4px;">
+            <button class="review-chat-submit" id="chat-review-submit-btn" onclick="submitChatReview(${issueId})" disabled style="flex:2;">평가 등록</button>
+            <button class="review-chat-submit" onclick="dismissChatReview()" style="flex:1; background:#2a2018; color:#b3a48c;">나중에</button>
+          </div>
+        </div>
+      `;
+      chatLog.appendChild(row);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function dismissChatReview() {
+      const card = document.getElementById('chat-review-card');
+      if (card) card.remove();
+      appendChatMessage('assistant', '천천히 실천해보시고, 다음에 다시 이야기 나눠요 🍸');
+    }
+
+    function setChatRating(n) {
+      _chatReviewRating = n;
+      const stars = document.querySelectorAll('#chat-rating-stars span');
+      stars.forEach((s, i) => s.classList.toggle('active', i < n));
+      const btn = document.getElementById('chat-review-submit-btn');
+      if (btn) btn.disabled = false;
+    }
+
+    async function submitChatReview(issueId) {
+      const btn = document.getElementById('chat-review-submit-btn');
+      if (btn) btn.disabled = true;
+      const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+
+      try {
+        const res = await fetch('/api/llm/chat-review', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ issue_id: issueId, taste_rating: _chatReviewRating, user_review: '' })
+        });
+        const data = await res.json();
+
+        // 카드 제거
+        const card = document.getElementById('chat-review-card');
+        if (card) card.remove();
+
+        if (data.low_rating) {
+          // 평점 2점 이하 → 새 처방 자동 요청
+          appendChatMessage('assistant', '아, 이런… 지난번 처방이 맞지 않으셨군요. 이번엔 다른 걸로 새로 처방해드릴게요.');
+          const input = document.getElementById('text-input');
+          if (input) {
+            input.value = '이번엔 다른 칵테일을 새로 추천해줘요.';
+            generateChat();
+          }
+        } else {
+          appendChatMessage('assistant', '소중한 평가 감사해요. 오늘도 잘 부탁드립니다 🍸');
+        }
+      } catch (e) {
+        console.error('리뷰 제출 오류:', e);
+        if (btn) btn.disabled = false;
       }
     }
 
