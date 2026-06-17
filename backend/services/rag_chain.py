@@ -1,5 +1,5 @@
 """
-rag_chain.py - MoodTender RAG 서비스 전체 코드 (생략 없음)
+rag_chain.py - MoodTender RAG 서비스 전체 코드 (생략 없음, 칵테일 추천 끊김 및 증발 완벽 해결본)
 """
 import os
 import re
@@ -124,7 +124,7 @@ async def _build_cocktail_hint(db: AsyncSession, recommend: bool, emotion: str =
     return (
         f"추천 - 손님의 감정({emotion})과 상황을 참고해 아래 [감정-칵테일 DB]에서 "
         "가장 어울리는 방향성과 색상을 반드시 반영해 창의적인 칵테일 이름을 지어 추천하라. "
-        "응답 마지막 줄에 반드시 [칵테일: 이름] 형식으로 이름을 명시하라.\n"
+        "응답 마지막 줄이나 중간에 반드시 [칵테일: 이름] 형식으로 이름을 명시하라.\n"
         f"[감정-칵테일 DB ({emotion})]\n{db_lines}"
     )
 
@@ -135,11 +135,11 @@ bartender_prompt = ChatPromptTemplate.from_messages([
     [손님 관련 기억] {memory_context}
     [관련 과거 대화] {past_chat_context}
     
-    [규칙]
+    [rules]
     1. 손님이 "기억나?", "그때 어땠어?", "무슨 일 있었지?" 등 과거를 물어보는데 날짜나 시간대가 명시되지 않았다면, 
        절대 추측하지 마라. 대신 "언제 있었던 일을 말씀하시는 건가요? 오늘, 어제, 아니면 다른 날인가요?"라고 친절하게 되물어라.
     2. 손님이 날짜를 말하면 [손님 관련 기억]에서 해당 날짜를 찾아 사건과 감정을 상세히 말하며 공감해라.
-    3. [지시]가 '추천'일 때만 칵테일을 추천하라. [지시]가 '대화'이면 손님이 직접 요청해도 칵테일 이름을 절대 언급하거나 추천하지 말고 대화를 이어가라.
+    3. [지시] 문장에 '추천'이라는 단어가 포함되어 있다면 무조건 칵테일을 지어내어 추천하라. [지시]가 '대화'인 경우에만 칵테일 언급을 피하고 일반 대화를 이어가라.
     4. "기록에 따르면" 같은 기계적인 표현은 쓰지 않는다.
     5. 한 번에 하나의 질문만 한다.
     6. 답변은 2~3문장, 150자 이내로 간결하게 한다. 불필요한 부연 설명을 넣지 마라.
@@ -229,7 +229,8 @@ async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float 
         cocktail_match = re.search(r'\[칵테일:\s*([^\]]+)\]', raw_reply)
         if cocktail_match:
             extracted_cocktail = cocktail_match.group(1).strip()
-            raw_reply = raw_reply[:cocktail_match.start()].strip()
+            # 🚀 [버그 해결] 뒷문장을 다 자르는 슬라이싱 대신, 해당 태그 껍데기만 쏙 치환하여 문장의 앞뒤를 온전히 지켜냅니다.
+            raw_reply = raw_reply.replace(cocktail_match.group(0), "").strip()
 
     reply = _trim(raw_reply, speed)
 
