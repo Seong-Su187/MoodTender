@@ -310,34 +310,25 @@ async def save_memory_if_needed(db, user_id, user_text, assistant_reply, emotion
         print(f"Memory save error: {e}")
         await db.rollback()
 
-# 🚀 프론트엔드가 컴포넌트 단위로 가공할 수 있도록 Dict 객체 타입을 반환하도록 변환
 async def generate_dashboard_rag_report(db: AsyncSession, user_id: int, metrics_result: dict) -> dict:
     if metrics_result.get("status") == "insufficient_data":
-        return {"status": "insufficient_data"}
-    
+        return {
+            "status": "insufficient_data",
+            "html": "💡 <b>데이터 수집 중</b><br><br>정확한 패턴 분석을 위해서는 최소 3일 이상의 데이터가 필요합니다.",
+        }
+
     safe_context = DataAnonymizer.prepare_safe_context(user_id, metrics_result)
     emotion = safe_context['emotion']
     expert_knowledge = await get_expert_knowledge(db, emotion)
-    
+
     llm_report = await dashboard_report_chain.ainvoke({
-        "emotion": emotion, 
-        "deltas": safe_context['deltas'], 
-        "app_usage": safe_context['app_usage'], 
+        "emotion": emotion,
+        "deltas": safe_context['deltas'],
+        "app_usage": safe_context['app_usage'],
         "expert_knowledge": expert_knowledge
     })
-    
-    try:
-        cleaned_json = llm_report.strip("` \n")
-        if cleaned_json.startswith("json"):
-            cleaned_json = cleaned_json[4:]
-        return json.loads(cleaned_json.strip())
-    except Exception as e:
-        print(f"Dashboard Report JSON Parsing Failure: {e}")
-        return {
-            "primary_emotion": emotion,
-            "summary_tags": ["분석 오류"],
-            "diagnosis": "데이터 파싱 과정에서 사소한 에러가 발생했습니다.",
-            "suggestion": "서버 콘솔의 예외 처리를 다시 한번 체크해 주세요.",
-            "cocktail_name": "시스템 리부트",
-            "cocktail_desc": "언제나 한결같은 안정감을 선사하는 처방입니다."
-        }
+
+    llm_report = llm_report.strip()
+    llm_report = re.sub(r'\s*<br\s*/?>\s*', '\n', llm_report, flags=re.IGNORECASE)
+    llm_report = re.sub(r'\n+', '<br><br>', llm_report)
+    return {"status": "success", "html": llm_report}

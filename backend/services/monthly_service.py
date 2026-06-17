@@ -182,24 +182,18 @@ async def generate_monthly_emotion_report(
 
 # 🚀 주차별 감정 변화를 직관적인 채팅 말풍선 컴포넌트로 전환하기 위해 JSON 출력 체인 구성
 language_chain = ChatPromptTemplate.from_messages([
-    ("system", """
-당신은 심리언어학 전문가입니다.
-사용자가 한 달간 AI 바텐더와 나눈 대화를 주차별로 읽고, 손님의 말투와 감정 표현 변화를 추적하여 보고서를 만들어 주세요.
+    ("system", """당신은 심리언어학 전문가입니다.
+사용자가 한 달간 AI 바텐더와 나눈 대화를 주차별로 읽고,
+말투와 감정 표현이 어떻게 변화했는지 분석해주세요.
 
-반드시 아래에 명시된 JSON 포맷 구조체 형식으로만 출력해야 합니다. Markdown 백틱이나 다른 부연 텍스트는 완전히 생략하세요.
-{{
-    "weeks": [
-        {{
-            "week_label": "1주차",
-            "theme": "해당 주차의 감정 기류 핵심 테마명 (예: 응축된 부정적 감정)",
-            "icon": "그 주차 분위기에 맞는 날씨/감정 이모지 1개 (예: 🌧️, ☀️, 🌪️)",
-            "quotes": ["실제 손님이 뱉었을 법한 그 주의 대표적인 말투 표현 1줄 요약", "두 번째 한 문장 요약"]
-        }}
-    ]
-}}
-기록이 있는 주차는 최대 4주차까지 모두 생성해 배열에 담아 리턴하세요.
-""")
-]) | _make_llm(0.5, "gpt-4.1") | StrOutputParser()
+주차별 변화를 각각 별도 단락으로 나눠서 작성하세요.
+예: "초반에는 '그냥 다 싫어', '모르겠어' 같은 표현이 많았지만, 후반엔 '해볼게요', '조금 나아진 것 같아요'로 바뀌었어요."
+
+변화가 없거나 데이터가 부족하면 "이달은 일관된 감정 상태를 유지하셨어요"라고 말하세요.
+각 단락은 반드시 <p>...</p>로 감싸고, 단락 사이는 한 줄 띄워주세요. 전체 2~3문단.
+"""),
+    ("human", "{weekly_notes_text}")
+]) | _make_llm(0.5) | StrOutputParser()
 
 
 async def generate_language_change_analysis(weekly_notes: dict) -> dict:
@@ -218,12 +212,7 @@ async def generate_language_change_analysis(weekly_notes: dict) -> dict:
 
     try:
         result = await language_chain.ainvoke({"weekly_notes_text": "\n".join(lines)})
-        
-        cleaned_json = result.strip("` \n")
-        if cleaned_json.startswith("json"):
-            cleaned_json = cleaned_json[4:]
-            
-        return json.loads(cleaned_json.strip())
+        return str(result).strip()
     except Exception as e:
-        print(f"Language analysis JSON parsing error: {e}")
-        return {}
+        print(f"Language analysis error: {e}")
+        return ""

@@ -512,7 +512,7 @@
       row.innerHTML = `
         <div class="message-time">방금 전</div>
         <div class="review-chat-card">
-          <p>지난번 처방 <b style="color:#c8902e">"${cocktailName}"</b>은 어떠셨나요?<br>마음이 얼마나 회복됐는지 알려주세요.</p>
+          <p>지난번 추천 <b style="color:#c8902e">"${cocktailName}"</b>은 어떠셨나요?<br>마음이 얼마나 회복됐는지 알려주세요.</p>
           <div class="review-chat-stars" id="chat-rating-stars">
             <span onclick="setChatRating(1)">🍸</span>
             <span onclick="setChatRating(2)">🍸</span>
@@ -563,7 +563,7 @@
 
         if (data.low_rating) {
           // 평점 2점 이하 → 새 처방 자동 요청
-          appendChatMessage('assistant', '아, 이런… 지난번 처방이 맞지 않으셨군요. 이번엔 다른 걸로 새로 처방해드릴게요.');
+          appendChatMessage('assistant', '아, 이런… 지난번 추천이 맞지 않으셨군요. 이번엔 다른 걸로 새로 추천해드릴게요.');
           const input = document.getElementById('text-input');
           if (input) {
             input.value = '이번엔 다른 칵테일을 새로 추천해줘요.';

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MoodTender - 나만의 칵테일 처방</title>
+    <title>MoodTender - 나만의 칵테일 추천</title>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -67,6 +67,30 @@
         .read-more-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(transparent, rgba(20, 12, 4, 0.95)); transition: opacity 0.3s; pointer-events: none;}
         .read-more-content.expanded + .read-more-fade { opacity: 0; }
         
+        .read-more-btn { width: 100%; background: rgba(200, 144, 46, 0.08); border: 1px solid rgba(200, 144, 46, 0.3); color: var(--text-main); padding: 16px; border-radius: 16px; margin-top: 20px; cursor: pointer; transition: all 0.2s; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .read-more-btn:hover { background: rgba(200, 144, 46, 0.2); color: #fff; }
+
+        /* 🚀 새로 디자인된 시각화 UI 컴포넌트 클래스 */
+        .summary-badges { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+        .badge { background: rgba(200, 144, 46, 0.12); color: var(--text-main); padding: 8px 16px; border-radius: 12px; border: 1px solid rgba(200, 144, 46, 0.25); font-size: 16px; }
+        .badge-emotion { background: rgba(200, 144, 46, 0.28); font-weight: bold; border-color: var(--primary); color: #fff8ee; }
+
+        .report-card { background: rgba(10, 6, 2, 0.4); border-radius: 16px; padding: 24px; margin-bottom: 16px; border: 1px solid var(--border); font-size: 18px; line-height: 1.7; color: #e8dcc8; }
+        .report-card-title { font-size: 19px; font-weight: 600; color: #d9b65a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+        /* 🚀 주차별 말풍선 아키텍처 */
+        .chat-container { display: flex; flex-direction: column; gap: 20px; margin-top: 16px; }
+        .lang-week { display: flex; flex-direction: column; gap: 10px; background: rgba(0, 0, 0, 0.2); padding: 20px; border-radius: 16px; border: 1px solid rgba(200,160,90,0.1); }
+        .chat-bubble { background: var(--card-bg); border-radius: 20px 20px 20px 4px; padding: 14px 20px; display: inline-block; font-size: 17px; border: 1px solid var(--border); width: fit-content; max-width: 90%; color: var(--text-main); font-style: italic; }
+        .arrow-down { text-align: center; color: var(--primary); font-size: 24px; margin: 2px 0; }
+
+        /* 🚀 접고 펼치기 (아코디언 및 페이드아웃) */
+        .read-more-wrapper { position: relative; }
+        .read-more-content { max-height: 290px; overflow: hidden; transition: max-height 0.5s ease-in-out; position: relative; }
+        .read-more-content.expanded { max-height: 3000px; }
+        .read-more-fade { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(transparent, rgba(20, 12, 4, 0.95)); transition: opacity 0.3s; pointer-events: none;}
+        .read-more-content.expanded + .read-more-fade { opacity: 0; }
+
         .read-more-btn { width: 100%; background: rgba(200, 144, 46, 0.08); border: 1px solid rgba(200, 144, 46, 0.3); color: var(--text-main); padding: 16px; border-radius: 16px; margin-top: 20px; cursor: pointer; transition: all 0.2s; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .read-more-btn:hover { background: rgba(200, 144, 46, 0.2); color: #fff; }
 
@@ -155,13 +179,17 @@
 
         <div class="report-box" id="ai-report-section" style="display: none; margin-top: 36px;">
             <h3><i class="ri-magic-line" style="color: #d9b65a;"></i> MoodTender AI 리포트</h3>
-            <div id="ai-report-dynamic-container">리포트를 불러오는 중입니다...</div>
-            
+            <div class="report-content" id="ai-report-text">리포트를 불러오는 중입니다...</div>
+
             <div id="language-change-section" style="display: none; margin-top: 32px; padding-top: 32px; border-top: 1px solid rgba(200, 144, 46, 0.2);">
                 <h3 style="font-size: 24px; margin-bottom: 24px; color: #d9b65a; display: flex; align-items: center; gap: 8px;">
                     <i class="ri-chat-quote-line"></i> 이달의 말투 변화
                 </h3>
-                <div id="language-change-text"></div>
+                <div class="report-content" id="language-change-text"></div>
+                <style>
+                    #language-change-text p { margin-bottom: 18px; }
+                    #language-change-text p:last-child { margin-bottom: 0; }
+                </style>
             </div>
         </div>
 
@@ -179,7 +207,7 @@
             <h1>미해결 조각 보관함</h1>
             <div style="width: 24px;"></div>
         </div>
-        <p class="subtitle">새로운 칵테일을 처방받거나,<br>이전에 받은 처방의 실천 후기를 남겨주세요.</p>
+        <p class="subtitle">새로운 칵테일을 추천받거나,<br>이전에 추천받은 칵테일의 실천 후기를 남겨주세요.</p>
         
         <div id="issue-list-container">
             <div class="empty-state">불러오는 중...</div>
@@ -189,7 +217,7 @@
     <div id="step-3" class="view-section">
         <div class="header">
             <i class="ri-arrow-left-s-line" onclick="showStep(2)"></i>
-            <h1>처방전 작성 중</h1>
+            <h1>칵테일 고르는 중</h1>
             <div style="width: 24px;"></div>
         </div>
         
@@ -213,7 +241,7 @@
     <div id="step-5" class="view-section">
         <div class="header">
             <i class="ri-close-line" onclick="returnToDashboard()"></i>
-            <h1>처방 완료</h1>
+            <h1>추천 완료</h1>
             <div style="width: 24px;"></div>
         </div>
 
@@ -242,7 +270,7 @@
         <div class="result-card">
             <span class="cocktail-icon">🍸</span>
             <div class="cocktail-name" id="review-cocktail-name-display" style="color: var(--success);"></div>
-            <p style="color:var(--text-sub); font-size:14px; margin-bottom:24px;">바텐더의 처방대로 행동해 보셨나요?<br>마음이 얼마나 가벼워졌는지 알려주세요.</p>
+            <p style="color:var(--text-sub); font-size:14px; margin-bottom:24px;">바텐더의 추천대로 행동해 보셨나요?<br>마음이 얼마나 가벼워졌는지 알려주세요.</p>
 
             <div class="review-section">
                 <div class="review-title">마음 회복도 (1~5점)</div>
@@ -299,7 +327,7 @@
     function toggleReport() {
         const content = document.getElementById('read-more-content');
         const btn = document.getElementById('read-more-btn');
-        
+
         if (content.classList.contains('expanded')) {
             content.classList.remove('expanded');
             btn.innerHTML = '전체 분석 결과 읽기 <i class="ri-arrow-down-s-line"></i>';
@@ -316,63 +344,11 @@
         try {
             reportSection.style.display = 'block';
             const data = await fetchWithAuth(`${API_BASE}/report`);
-            
-            // 1. 주간 데이터 구조화 렌더링
-            if (data.report && data.report.status !== "insufficient_data") {
-                const rep = data.report;
-                let badgesHtml = (rep.summary_tags || []).map(tag => `<span class="badge">${tag}</span>`).join('');
-                
-                reportContainer.innerHTML = `
-                    <div class="summary-badges">
-                        <span class="badge badge-emotion">주된 감정: ${rep.primary_emotion || '평온'}</span>
-                        ${badgesHtml}
-                    </div>
-                    
-                    <div class="read-more-wrapper">
-                        <div class="read-more-content" id="read-more-content">
-                            <div class="report-card">
-                                <div class="report-card-title">🧠 마음 진단</div>
-                                <div>${rep.diagnosis || ''}</div>
-                            </div>
-                            <div class="report-card">
-                                <div class="report-card-title">💡 바텐더의 제안</div>
-                                <div>${rep.suggestion || ''}</div>
-                            </div>
-                            <div class="report-card">
-                                <div class="report-card-title">🍸 추천 처방: ${rep.cocktail_name || ''}</div>
-                                <div>${rep.cocktail_desc || ''}</div>
-                            </div>
-                        </div>
-                        <div class="read-more-fade"></div>
-                    </div>
-                    <button class="read-more-btn" id="read-more-btn" onclick="toggleReport()">
-                        전체 분석 결과 읽기 <i class="ri-arrow-down-s-line"></i>
-                    </button>
-                `;
-            } else {
-                reportContainer.innerHTML = `<div class="empty-state">💡 <b>데이터 수집 중</b><br><br>정확한 패턴 분석을 위해서는 최소 3일 이상의 데이터가 필요합니다.</div>`;
-            }
+            reportText.innerHTML = data.report;
 
-            // 2. 이달의 말투 변화 말풍선 시각화 처리
-            if (data.language_change && data.language_change.weeks) {
+            if (data.language_change && typeof data.language_change === 'string' && data.language_change.trim()) {
                 document.getElementById('language-change-section').style.display = 'block';
-                const lcText = document.getElementById('language-change-text');
-                
-                let lcHtml = '<div class="chat-container">';
-                data.language_change.weeks.forEach((week, idx) => {
-                    let bubblesHtml = week.quotes.map(q => `<div class="chat-bubble">💬 "${q}"</div>`).join('');
-                    lcHtml += `
-                        <div class="lang-week">
-                            <div style="color: #d9b65a; font-weight: bold; margin-bottom: 12px; font-size: 18px;">${week.icon} ${week.week_label} (${week.theme})</div>
-                            <div style="display:flex; flex-direction:column; gap:8px;">${bubblesHtml}</div>
-                        </div>
-                    `;
-                    if (idx < data.language_change.weeks.length - 1) {
-                        lcHtml += `<div class="arrow-down"><i class="ri-arrow-down-line"></i></div>`;
-                    }
-                });
-                lcHtml += '</div>';
-                lcText.innerHTML = lcHtml;
+                document.getElementById('language-change-text').innerHTML = data.language_change;
             } else {
                 document.getElementById('language-change-section').style.display = 'none';
             }
@@ -430,7 +406,7 @@
                                 title: function(context) { return data[context[0].dataIndex].date + " 기록"; },
                                 label: function(context) {
                                     let item = data[context.dataIndex];
-                                    return [` 평점: ${item.rating}잔`, ` 처방: ${item.cocktail_name}`, ` 고민: ${item.issue}`];
+                                    return [` 평점: ${item.rating}잔`, ` 추천: ${item.cocktail_name}`, ` 고민: ${item.issue}`];
                                 }
                             }
                         }
@@ -477,7 +453,7 @@
 
             const prescribeCol = prescribeIssues.length > 0
                 ? prescribeIssues.map(item => createCardHTML(item, false)).join('')
-                : `<div class="issue-col-empty">처방 대기 항목이 없습니다.</div>`;
+                : `<div class="issue-col-empty">추천 대기 항목이 없습니다.</div>`;
 
             container.innerHTML = `
                 <div class="issue-columns">
@@ -486,7 +462,7 @@
                         ${reviewCol}
                     </div>
                     <div>
-                        <h4 class="issue-col-title" style="color:var(--text-sub);">📝 칵테일 처방 대기중</h4>
+                        <h4 class="issue-col-title" style="color:var(--text-sub);">📝 칵테일 추천 대기중</h4>
                         ${prescribeCol}
                     </div>
                 </div>
@@ -503,8 +479,8 @@
             ? `<div class="review-tag">🍸 실천 후 리뷰 대기중</div>`
             : `<div class="emotion-tag">${item.emotion}</div>`;
         const cardBottom = isReviewWaiting
-            ? `<div class="card-bottom" style="color:var(--text-main);">처방된 칵테일: <span style="color:var(--success); font-weight:600;">${item.prescribed_cocktail}</span></div>`
-            : `<div class="card-bottom" style="color:var(--text-sub);">칵테일 처방받기 →</div>`;
+            ? `<div class="card-bottom" style="color:var(--text-main);">추천받은 칵테일: <span style="color:var(--success); font-weight:600;">${item.prescribed_cocktail}</span></div>`
+            : `<div class="card-bottom" style="color:var(--text-sub);">칵테일 추천받기 →</div>`;
 
         return `
         <div class="issue-card" onclick="handleIssueClick(${item.id}, '${item.prescribed_cocktail || ''}')">
