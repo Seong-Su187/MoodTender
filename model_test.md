@@ -661,3 +661,221 @@ function playIdle(url = VIDEO_IDLE) {
 유지. 응답 영상이 끝나고 idle로 돌아갈 때 그 응답의 MediaSource 참조가
 해제되어 다음 GC에서 해당 영상 버퍼가 회수됨 — 대화가 길어져도 탭 메모리가
 무한히 누적되지 않음.
+
+---
+
+## 배경 있는 영상의 "우글우글" 아티팩트 개선 시도
+
+### 근본 원인
+
+MuseTalk는 매 프레임마다 face parsing(BiSeNet)으로 마스크를 독립적으로 생성하고 알파블렌딩으로 합성하는 구조. 이 마스크의 경계 위치가 프레임마다 1~3px씩 달라지는 jitter가 발생하며, 단색 배경에서는 거의 보이지 않지만 복잡한 배경 텍스처 위에서는 shimmer/flickering으로 육안에 띔.
+
+```
+프레임 N:   마스크 경계가 픽셀 (100, 50)에 있음 → 배경 텍스처와 혼합
+프레임 N+1: 마스크 경계가 픽셀 (102, 50)으로 이동 → 배경 픽셀 갑자기 노출 → 우글거림
+```
+
+---
+
+### 시도 목록
+
+#### 1. extra_margin 조정 (10 → 20 → 30 → 15)
+
+`ml_manager.py`의 아바타 전처리 여백 픽셀.
+
+| 값 | 결과 |
+|---|---|
+| 10 (기본) | 기준점 |
+| 20 | "좀 덜해진 것 같다" — 약간 개선 |
+| 30 | 합성 영역이 넓어져 목까지 포함 → 오히려 부자연스러움 |
+| **15 (유지)** | 20과 기본 사이 균형점 |
+
+---
+
+#### 2. 키프레임 temporal smoothing (유지)
+
+`stream_inference.py` `_decode_fast` 내 키프레임 간 가중 평균.
+
+```python
+# 0.15·prev + 0.70·curr + 0.15·next
+prev_k = torch.cat([key_decoded[:1], key_decoded[:-1]])
+next_k = torch.cat([key_decoded[1:], key_decoded[-1:]])
+key_decoded = 0.15 * prev_k + 0.70 * key_decoded + 0.15 * next_k
+```
+
+VAE 추가 호출 없이 보간 프레임과의 경계 노이즈 감소. 효과 있어 유지.
+
+---
+
+#### 3. bbox 스무딩 window 7 → 13
+
+`_smooth_avatar_coords`의 이동 평균 윈도우 확대. bbox 위치 지연이 오히려 더 눈에 띔 → 7로 복원.
+
+---
+
+#### 4. 마스크 Gaussian blur (31×31 / 51×51 / 21×21)
+
+`_blend_fast`에서 mask_array에 GaussianBlur 추가 적용 시도. `parsing_mode="jaw"` 마스크가 좁아서 blur 적용 시 중심값까지 낮아져 **입 움직임이 사라지는** 부작용 → 완전 제거.
+
+---
+
+#### 5. parsing_mode "raw" 전환
+
+`"jaw"` (입+턱 영역) → `"raw"` (얼굴 전체 피부 영역)으로 변경. 경계 위치가 얼굴 외곽선으로 이동하지만, MuseTalk가 입/턱만 학습된 모델이라 이마·눈 영역까지 VAE 재구성값으로 교체되어 품질 저하. jaw가 더 나음 → 원복.
+
+---
+
+#### 6. Poisson seamless cloning (cv2.seamlessClone)
+
+`_blend_fast`의 알파블렌딩을 `cv2.seamlessClone`으로 교체. crop_box 전체 영역에서 색상이 조정되면서 마스크 외부(눈/이마)까지 영향 → 얼굴 상단에 직사각형 경계선 발생. 알파블렌딩보다 나빠짐 → 원복.
+
+---
+
+#### 7. distanceTransform 테두리 페더링 (8px)
+
+마스크 중심은 1.0 유지하고 테두리 8px만 거리 기반 0→1 그라디언트 적용.
+
+```python
+dist = cv2.distanceTransform(m, cv2.DIST_L2, 5)
+alpha = np.clip(dist / 8.0, 0.0, 1.0)
+```
+
+전처리 마스크에 이미 ~15px Gaussian blur가 적용돼 있어서(get_image_prepare_material) 이진화 없이 거리 변환 적용 시 효과 미미. 우글거림 지속 → 원복.
+
+---
+
+#### 8. 마스크 temporal smoothing (window=7)
+
+`mask_list_cycle`을 인접 프레임 마스크 평균으로 교체 (`_smooth_avatar_masks`). bbox 스무딩과 달리 마스크는 서로 다른 얼굴 위치에서 계산된 값을 평균 내므로, 마스크 경계가 방향성 있는 상하 이동 패턴으로 바뀜 → "우글우글" 대신 "덜덜 떨리는" 현상으로 변형. 더 나빠짐 → 원복.
+
+---
+
+#### 9. 배경 고정 레이어 (static_bg)
+
+아바타 프레임들의 평균값을 정적 배경으로 저장하고, `_blend_fast`의 비-face 영역에 animated frame 대신 static_bg 사용. 아바타 영상이 동적(바텐더 움직임)이라 30프레임 평균이 완전히 흐릿한 유령 이미지가 됨 → 원복.
+
+---
+
+#### 10. 마스크 erode(3px) + 재블러(15×15)
+
+마스크 이진화 후 침식으로 경계를 배경 텍스처가 아닌 얼굴 안쪽으로 이동. Gemini 제안 방식.
+
+```python
+binary = (m > 20).astype(np.uint8) * 255
+eroded  = cv2.erode(binary, kernel_7x7, iterations=1)
+blurred = cv2.GaussianBlur(eroded, (15, 15), 0)
+```
+
+경계 위치 자체는 약간 이동하지만 마스크 jitter(프레임마다 다른 위치)는 해결 안 됨. 우글거림 지속 → 원복.
+
+---
+
+#### 11. 출력 프레임 temporal 블렌딩 (0.85 / 0.15)
+
+`_cpu_blend_write`에서 최종 출력 프레임에 이전 프레임 15% 혼합.
+
+```python
+frame = frame * 0.85 + prev_frame * 0.15
+```
+
+flickering 진폭을 약간 줄이지만 경계 위치 자체의 변동은 그대로라 효과 미미. 우글거림 지속 → 원복.
+
+---
+
+### 원인 분석 결론
+
+| 구분 | 원인 |
+|---|---|
+| 단색 배경 영상 (test.mp4) | 1~3px 경계 변동이 균일한 색상 위에서 눈에 안 띔 → 부드러움 |
+| 원본 배경 포함 영상 (bartender_cocktail 등) | 배경과 캐릭터가 하나의 렌더링으로 통합 → face parsing 안정 → 부드러움 |
+| CapCut AI 합성 영상 | CapCut AI 배경 삭제도 프레임 독립 추론 → 엣지 픽셀이 프레임마다 달라짐 → MuseTalk face parsing jitter와 이중으로 겹쳐 우글거림 심화 |
+
+**최종 결론**: 소프트웨어 파이프라인 수정으로는 구조적 한계 이상 개선 어려움.
+추천 방향: 원본 배경 포함 영상 또는 단색 배경 영상 + 프론트엔드 배경 합성.
+
+---
+
+## 후속 조치 — 영상 교체 및 안정화
+
+### 1. 아바타 영상 교체 (원본 배경 포함 영상)
+
+위 결론에 따라 CapCut AI 합성 영상 대신 **처음부터 배경이 포함된 영상** 8개로 교체.
+
+| 항목 | 이전 | 이후 |
+|------|------|------|
+| 파일명 | 한글 (예: `바텐더_칵테일_...mp4`) | 영어 (예: `bartender_smile.mp4`) |
+| 배경 | CapCut AI 배경 제거 후 합성 | 원본 배경 포함 (3D 렌더링) |
+| 우글거림 | 심함 (이중 jitter) | 거의 없음 |
+
+**한글 파일명 문제**: Python `re.sub(r"[^\w]", "_", stem)`이 한글을 `\w`로 포함시켜 `avatar_id`에 한글이 들어가 내부 파일 처리 실패. 파일명을 영어로 변경하여 해결.
+
+---
+
+### 2. 프론트엔드 영상 파일 용량 최적화
+
+`loop_bg.mp4`가 192MB (비트레이트 25Mbps CBR)로 브라우저 Range Request 시 소켓 연결이 중간에 끊겨 서버 로그에 `socket.send() raised exception`이 대량 발생.
+
+**원인**: 25Mbps CBR로 내보낸 192MB 파일 → 브라우저가 조각(Range Request)으로 가져오다가 연결 끊김 → uvicorn이 이미 닫힌 소켓에 데이터 전송 시도 → 예외 로그 폭발.
+
+**압축 결과** (FFmpeg CRF 26, preset slow, 25fps):
+
+| 파일 | 원본 | 압축 후 |
+|------|------|---------|
+| loop_bg.mp4 | 192MB | 7.3MB |
+| loading_start.mp4 | 30MB | 753KB |
+| loading_finish.mp4 | 12MB | 415KB |
+
+**CapCut 내보내기 권장 설정** (이후 영상 제작 기준):
+
+| 항목 | 권장값 |
+|------|--------|
+| 해상도 | 1080P (1920×1080, 16:9) |
+| 비트 전송률 | 4000~5000 Kbps VBR |
+| 코덱 | H.264 / mp4 |
+| 프레임 속도 | 25fps (MuseTalk 출력과 동일) |
+
+---
+
+### 3. 영상 표시 비율 통일 (object-fit: contain)
+
+모든 영상(아바타 응답 영상, loop_bg, loading_start/finish)을 16:9로 통일하고 CSS를 `object-fit: contain`으로 변경. 영상과 컨테이너 비율이 일치하면 여백 없이 꽉 차게 표시됨.
+
+```css
+/* stage.css */
+#video-output       { object-fit: contain; }
+#video-output.idle  { object-fit: contain; }
+#loading-video      { object-fit: contain; }
+```
+
+---
+
+### 4. bbox 스무딩 — 이동 평균 → EMA 전환
+
+배경 포함 영상에서 우글거림은 해소됐지만 **상하 미세 떨림(bbox Y좌표 jitter)** 이 남아있어 스무딩 방식을 개선.
+
+#### 이동 평균 window 조정 시도
+
+| window | 결과 |
+|--------|------|
+| 7 (기존) | 잔여 jitter 있음 |
+| 15 | jitter 감소, 고개 추적 약간 느려짐 |
+| 19 | 입 위치 벗어나는 현상 발생 |
+| 23 | 입 위치 많이 벗어남 |
+
+**한계**: 이동 평균은 window 크기와 무관하게 과거 프레임을 동일하게 가중 → window가 커질수록 실제 머리 움직임을 느리게 따라가 합성 위치가 벗어남.
+
+#### EMA(지수 이동 평균) 전환 — 채택
+
+```python
+def _smooth_avatar_coords(av, alpha: float = 0.35):
+    # alpha: 최신 프레임 가중치 (낮을수록 강한 스무딩, 높을수록 빠른 추적)
+    # 루프 영상 경계 처리: 1차 패스 워밍업 후 2차 패스 실제 적용
+    _, warm_state = run_ema(coords, init)
+    smoothed, _ = run_ema(coords, warm_state)
+```
+
+최근 프레임에 35%, 이전 값에 65% 가중치 → 실제 머리 움직임은 빠르게 추적하면서 1~2px 랜덤 jitter는 필터링. 이동 평균 대비 추적 지연 없이 스무딩 효과 유지.
+
+**조정 기준**:
+- 떨림이 남으면 alpha를 낮춤 (예: 0.25)
+- 입 위치가 벗어나면 alpha를 높임 (예: 0.5)

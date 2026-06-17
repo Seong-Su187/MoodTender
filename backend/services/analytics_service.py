@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 # ---------------------------------------------------------
 # 🚀 [순환 참조 해결] rag_chain.py에서 가져오지 않고 독립적으로 LLM 생성 함수 정의
 # ---------------------------------------------------------
-def _make_llm(temperature: float = 0.7, model: str = "gpt-4o-mini") -> ChatOpenAI:
+def _make_llm(temperature: float = 0.7, model: str = "gpt-4.1-mini") -> ChatOpenAI:
     return ChatOpenAI(
         model=model,
         temperature=temperature,
@@ -100,7 +100,7 @@ extract_prompt = ChatPromptTemplate.from_messages([
     """),
     ("human", "{chat_history}")
 ])
-extract_chain = extract_prompt | _make_llm(temperature=0.0, model="gpt-4o-mini") | StrOutputParser()
+extract_chain = extract_prompt | _make_llm(temperature=0.0, model="gpt-4.1-mini") | StrOutputParser()
 
 
 prescription_prompt = ChatPromptTemplate.from_messages([
@@ -113,7 +113,7 @@ prescription_prompt = ChatPromptTemplate.from_messages([
     {{"emotion_analysis": "위로의 문장", "checklist": ["행동1", "행동2", "행동3"]}}
     """)
 ])
-prescription_chain = prescription_prompt | _make_llm(temperature=0.7, model="gpt-4o-mini") | StrOutputParser()
+prescription_chain = prescription_prompt | _make_llm(temperature=0.7, model="gpt-4.1-mini") | StrOutputParser()
 
 
 result_prompt = ChatPromptTemplate.from_messages([
@@ -127,7 +127,7 @@ result_prompt = ChatPromptTemplate.from_messages([
     {{"expected_effect": "기대 효과", "cocktail_name": "칵테일 이름", "message": "응원 메시지"}}
     """)
 ])
-result_chain = result_prompt | _make_llm(temperature=0.7, model="gpt-4o-mini") | StrOutputParser()
+result_chain = result_prompt | _make_llm(temperature=0.7, model="gpt-4.1-mini") | StrOutputParser()
 
 
 # 🚀 [버그 해결] LLM이 사용자의 입력을 읽도록 수정하고, 피드백 판단 기준을 극도로 깐깐하게 강화했습니다.
@@ -149,7 +149,7 @@ feedback_prompt = ChatPromptTemplate.from_messages([
     """),
     ("human", "사용자 발화: {user_input}")
 ])
-feedback_chain = feedback_prompt | _make_llm(temperature=0.0, model="gpt-4o-mini") | StrOutputParser()
+feedback_chain = feedback_prompt | _make_llm(temperature=0.0, model="gpt-4.1-mini") | StrOutputParser()
 
 
 # ---------------------------------------------------------

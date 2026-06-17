@@ -38,7 +38,7 @@ from backend.services.video_audio import tts, get_audio_duration  # noqa: E402
 
 from langchain_core.messages import HumanMessage, AIMessage  # noqa: E402
 
-AVATAR_NAME = "1_towel_wine.mp4"
+AVATAR_NAME = "bartender_smile.mp4"
 VOICE = "onyx"
 SPEED = 1.0
 

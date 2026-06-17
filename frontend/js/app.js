@@ -14,9 +14,9 @@
 let isModelReady = false;
 
 // ── 영상 상태 관리 ────────────────────────────────────────────
-const VIDEO_IDLE           = '/assets/loop_bg.mp4';
-const VIDEO_LOADING_START  = '/assets/loading_start.mp4';
-const VIDEO_LOADING_FINISH = '/assets/loading_finish.mp4';
+const VIDEO_IDLE           = '/assets/loop_bg.mp4?v=3';
+const VIDEO_LOADING_START  = '/assets/loading_start.mp4?v=3';
+const VIDEO_LOADING_FINISH = '/assets/loading_finish.mp4?v=3';
 const IDLE_RETURN_DELAY_MS = 700; // 응답 영상 종료 후 idle 루프 전환까지 여백
 
 function playIdle(url = VIDEO_IDLE) {
@@ -32,6 +32,7 @@ function playIdle(url = VIDEO_IDLE) {
   if (loadingEl) { loadingEl.pause(); loadingEl.style.display = 'none'; }
 
   videoEl.classList.remove('luma-key');
+  videoEl.classList.add('idle');
   videoEl.removeAttribute('controls');
   videoEl.muted         = true;
   videoEl.loop          = true;
@@ -408,6 +409,7 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl, onEnd
   const mediaSource = new MediaSource();
   const objectURL   = URL.createObjectURL(mediaSource);
 
+  videoEl.classList.remove('idle');
   videoEl.src               = objectURL;
   videoEl.style.display     = 'block';
   placeholder.style.display = 'none';
@@ -624,6 +626,19 @@ async function initAvatarVideo() {
     } else {
       mediaRecorder.stop();
       recording = false;
+    }
+  });
+})();
+
+// ── 세로 영상 비율 자동 감지 ─────────────────────────────────
+(function setupVideoAspect() {
+  const videoEl = document.getElementById('video-output');
+  if (!videoEl) return;
+  videoEl.addEventListener('loadedmetadata', () => {
+    if (videoEl.videoHeight > videoEl.videoWidth) {
+      videoEl.classList.add('portrait');
+    } else {
+      videoEl.classList.remove('portrait');
     }
   });
 })();

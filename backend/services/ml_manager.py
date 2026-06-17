@@ -14,7 +14,7 @@ from musetalk.utils.face_parsing import FaceParsing
 from transformers import WhisperModel
 
 args = Namespace(
-    version="v15", extra_margin=10, parsing_mode="jaw",
+    version="v15", extra_margin=15, parsing_mode="jaw",
     left_cheek_width=40, right_cheek_width=40, batch_size=16, fps=25,
     audio_padding_length_left=1, audio_padding_length_right=6,
     skip_save_images=False, result_dir="./results",
@@ -90,25 +90,69 @@ def load_models(full_decode=False):
     finally:
         loading_in_progress = False
 
-def _smooth_avatar_coords(av, window: int = 7):
-    """coord_list_cycle을 이동 평균으로 스무딩해 bbox 지터 제거."""
+def _smooth_avatar_coords(av, alpha: float = 0.35):
+    """coord_list_cycle을 EMA(지수 이동 평균)로 스무딩해 bbox 지터 제거.
+    alpha: 최신 프레임 가중치 (낮을수록 강한 스무딩, 높을수록 빠른 추적)."""
     coords = av.coord_list_cycle
     n = len(coords)
     if n == 0:
         return
+
+    init = next((c for c in reversed(coords) if c is not None), None)
+    if init is None:
+        return
+
+    def run_ema(sequence, init_val):
+        result = []
+        prev = init_val
+        for c in sequence:
+            if c is None:
+                result.append(None)
+                continue
+            ema = tuple(int(alpha * c[k] + (1 - alpha) * prev[k]) for k in range(4))
+            result.append(ema)
+            prev = ema
+        return result, prev
+
+    # 루프 영상 경계 처리: 1차 패스로 워밍업 후 2차 패스로 실제 적용
+    _, warm_state = run_ema(coords, init)
+    smoothed, _ = run_ema(coords, warm_state)
+    av.coord_list_cycle = smoothed
+
+def _erode_avatar_masks(av, erode_px: int = 3, blur_ksize: int = 15):
+    """마스크 침식 후 재블러링.
+    경계를 배경 텍스처에서 얼굴 안쪽으로 이동시켜 shimmer 완화.
+    erode_px: 침식 픽셀 수 / blur_ksize: 재블러 커널 크기"""
+    import cv2, numpy as np
+    masks = av.mask_list_cycle
+    if not masks:
+        return
+    kernel = np.ones((erode_px * 2 + 1, erode_px * 2 + 1), np.uint8)
+    bk = blur_ksize if blur_ksize % 2 == 1 else blur_ksize + 1
+    result = []
+    for m in masks:
+        binary = (m > 20).astype(np.uint8) * 255   # 이진화
+        eroded = cv2.erode(binary, kernel, iterations=1)  # 침식
+        blurred = cv2.GaussianBlur(eroded, (bk, bk), 0)   # 재블러
+        result.append(blurred)
+    av.mask_list_cycle = result
+    print(f"[서버] mask erode+blur 적용 (erode={erode_px}px, blur={bk}x{bk})")
+
+def _smooth_avatar_masks(av, window: int = 7):
+    """mask_list_cycle을 이동 평균으로 스무딩해 마스크 경계 흔들림 제거.
+    bbox 좌표 평활화(_smooth_avatar_coords)와 동일한 원리를 마스크에 적용."""
+    import numpy as np
+    masks = av.mask_list_cycle
+    n = len(masks)
+    if n == 0:
+        return
     half = window // 2
     smoothed = []
-    for i, c in enumerate(coords):
-        if c is None:
-            smoothed.append(None)
-            continue
-        neighbors = [
-            coords[j] for j in range(max(0, i - half), min(n, i + half + 1))
-            if coords[j] is not None
-        ]
-        avg = tuple(int(sum(x[k] for x in neighbors) / len(neighbors)) for k in range(4))
-        smoothed.append(avg)
-    av.coord_list_cycle = smoothed
+    for i in range(n):
+        neighbors = [masks[(i + j) % n].astype(np.float32)
+                     for j in range(-half, half + 1)]
+        smoothed.append(np.mean(neighbors, axis=0).astype(np.uint8))
+    av.mask_list_cycle = smoothed
 
 def _load_video_avatars():
     """backend/video/ 폴더의 MP4를 모두 Avatar로 로드해 video_avatars에 저장."""

@@ -27,7 +27,7 @@ load_dotenv()
 # OpenAI 설정
 _embeddings = OpenAIEmbeddings(model="text-embedding-3-small", openai_api_key=os.getenv("OPENAI_API_KEY"))
 
-def _make_llm(temperature=0.7, model="gpt-4.1-mini"):
+def _make_llm(temperature: float = 0.7, model: str = "gpt-4.1-mini") -> ChatOpenAI:
     return ChatOpenAI(model=model, temperature=temperature, openai_api_key=os.getenv("OPENAI_API_KEY"))
 
 async def _embed(text: str) -> list[float]:

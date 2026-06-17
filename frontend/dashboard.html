@@ -8,84 +8,103 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-color: #121212;
-            --card-bg: #1E1E1E;
-            --primary: #7C4DFF;
-            --primary-hover: #651FFF;
-            --text-main: #FFFFFF;
-            --text-sub: #A0A0A0;
-            --success: #61D394;
+            --bg-color: #140f0a;
+            --card-bg: #1f1813;
+            --card-bg2: #2a2018;
+            --primary: #c8902e;
+            --primary-hover: #a87425;
+            --text-main: #f4ecd9;
+            --text-sub: #b3a48c;
+            --border: rgba(200, 160, 90, 0.18);
+            --success: #9bbd6a;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', sans-serif; }
-        body { background-color: transparent; color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; }
-        
-        .container { width: 100%; max-width: 480px; padding: 24px; position: relative; overflow: hidden; background-color: var(--bg-color); border-radius: 16px; }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif; }
+        body {
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(rgba(10,6,2,0.70), rgba(10,6,2,0.70)), url('/assets/bar-background_16_9.jpeg') center / cover no-repeat fixed;
+        }
+
+        .container { width: 100%; max-width: 1200px; padding: 32px 40px; position: relative; overflow: hidden; background: transparent; }
+
         .view-section { display: none; animation: fadeIn 0.4s ease-out forwards; }
         .view-section.active { display: block; }
-        
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .header { display: flex; align-items: center; margin-bottom: 32px; }
-        .header i { font-size: 24px; cursor: pointer; color: var(--text-sub); transition: color 0.2s; }
+        .header { display: flex; align-items: center; margin-bottom: 48px; }
+        .header i { font-size: 36px; cursor: pointer; color: var(--text-sub); transition: color 0.2s; }
         .header i:hover { color: var(--text-main); }
-        .header h1 { flex: 1; text-align: center; font-size: 18px; font-weight: 600; }
-        
-        .title { font-size: 24px; font-weight: bold; margin-bottom: 8px; line-height: 1.4; }
-        .subtitle { color: var(--text-sub); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+        .header h1 { flex: 1; text-align: center; font-size: 27px; font-weight: 600; letter-spacing: 0.5px; }
 
-        .report-box { background: linear-gradient(145deg, #231B3A, #1A1A1A); border-radius: 20px; padding: 24px; margin-bottom: 24px; border: 1px solid rgba(124, 77, 255, 0.3); box-shadow: 0 8px 32px rgba(124, 77, 255, 0.15); }
-        .report-box h3 { font-size: 16px; margin-bottom: 14px; color: #D1C4E9; display: flex; align-items: center; gap: 8px; }
-        .report-content { font-size: 14px; line-height: 1.7; color: #E0E0E0; }
-        .report-content b { color: #B39DDB; font-weight: 600; }
+        .title { font-size: 36px; font-weight: bold; margin-bottom: 12px; line-height: 1.4; }
+        .subtitle { color: var(--text-sub); font-size: 21px; margin-bottom: 36px; line-height: 1.5; }
 
-        .chart-box { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 24px; border: 1px solid rgba(124, 77, 255, 0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-        .chart-box h3 { font-size: 15px; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+        .report-box { background: rgba(20, 12, 4, 0.75); backdrop-filter: blur(6px); border-radius: 24px; padding: 36px; margin-bottom: 36px; border: 1px solid rgba(200, 144, 46, 0.35); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); }
+        .report-box h3 { font-size: 24px; margin-bottom: 20px; color: #d9b65a; display: flex; align-items: center; gap: 10px; }
+        .report-content { font-size: 21px; line-height: 1.7; color: #e8dcc8; }
+        .report-content b { color: #c8902e; font-weight: 600; }
 
-        .action-card { background: var(--card-bg); border-radius: 16px; padding: 20px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid rgba(124, 77, 255, 0.4); box-shadow: 0 4px 20px rgba(124, 77, 255, 0.1); margin-top: 10px; }
+        .chart-box { background: rgba(20, 12, 4, 0.75); backdrop-filter: blur(6px); border-radius: 24px; padding: 30px; margin-bottom: 36px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .chart-box h3 { font-size: 22px; margin-bottom: 24px; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
+
+        .action-card { background: rgba(20, 12, 4, 0.75); backdrop-filter: blur(6px); border-radius: 24px; padding: 30px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid rgba(200, 144, 46, 0.4); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); margin-top: 0; }
         .action-card:hover { transform: translateY(-2px); border: 1px solid var(--primary); }
 
-        .issue-card { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 16px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid transparent; }
+        .issue-card { background: rgba(20, 12, 4, 0.75); backdrop-filter: blur(6px); border-radius: 24px; padding: 30px; margin-bottom: 24px; cursor: pointer; transition: transform 0.2s, border 0.2s; border: 1px solid var(--border); min-height: 220px; display: flex; flex-direction: column; justify-content: space-between; }
         .issue-card:hover { transform: translateY(-2px); border: 1px solid var(--primary); }
-        .issue-card .date { font-size: 12px; color: var(--text-sub); margin-bottom: 8px; }
-        .issue-card .issue-text { font-size: 18px; font-weight: 500; margin-bottom: 12px; line-height: 1.4; }
-        .issue-card .emotion-tag { display: inline-block; background: rgba(124, 77, 255, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 12px; }
-        .issue-card .review-tag { display: inline-block; background: rgba(97, 211, 148, 0.1); color: var(--success); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid var(--success); }
+        .issue-card .date { font-size: 18px; color: var(--text-sub); margin-bottom: 12px; }
+        .issue-card .issue-text { font-size: 27px; font-weight: 500; margin-bottom: 0; line-height: 1.4; }
+        .issue-card .card-bottom { padding-top: 16px; border-top: 1px solid rgba(200, 160, 90, 0.15); font-size: 15px; margin-top: 16px; }
+        .issue-card .emotion-tag { display: inline-block; background: rgba(200, 144, 46, 0.12); color: var(--primary); padding: 6px 16px; border-radius: 20px; font-size: 18px; border: 1px solid rgba(200, 144, 46, 0.25); }
+        .issue-card .review-tag { display: inline-block; background: rgba(155, 189, 106, 0.1); color: var(--success); padding: 6px 16px; border-radius: 20px; font-size: 18px; font-weight: bold; border: 1px solid var(--success); }
 
-        .empty-state { text-align: center; color: var(--text-sub); padding: 40px 0; }
+        .empty-state { text-align: center; color: var(--text-sub); padding: 60px 0; font-size: 18px; }
 
-        .analysis-box { background: rgba(124, 77, 255, 0.1); border-left: 4px solid var(--primary); padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 32px; font-size: 15px; line-height: 1.6; }
-        
-        .check-item { display: flex; align-items: center; background: var(--card-bg); padding: 16px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: background 0.2s; }
-        .check-item:hover { background: #2A2A2A; }
+        .issue-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+        .issue-col-title { font-size: 20px; margin-bottom: 16px; margin-top: 8px; }
+        .issue-col-empty { color: var(--text-sub); font-size: 16px; padding: 32px 0; text-align: center; }
+
+        .analysis-box { background: rgba(200, 144, 46, 0.08); border-left: 4px solid var(--primary); padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 32px; font-size: 15px; line-height: 1.6; color: var(--text-main); }
+
+        .check-item { display: flex; align-items: center; background: rgba(20, 12, 4, 0.7); backdrop-filter: blur(4px); padding: 16px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: background 0.2s; border: 1px solid var(--border); }
+        .check-item:hover { background: rgba(40, 25, 8, 0.8); }
         .check-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 16px; accent-color: var(--primary); cursor: pointer; }
-        .check-item label { flex: 1; font-size: 15px; cursor: pointer; }
+        .check-item label { flex: 1; font-size: 15px; cursor: pointer; color: var(--text-main); }
 
         .animation-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; text-align: center; }
-        .shaker-box { width: 100px; height: 120px; background: linear-gradient(135deg, #E0E0E0, #9E9E9E); border-radius: 10px 10px 30px 30px; position: relative; animation: shake 0.5s infinite alternate ease-in-out; margin-bottom: 32px; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.2); }
-        .shaker-cap { width: 80px; height: 40px; background: #BDBDBD; border-radius: 20px 20px 0 0; position: absolute; top: -40px; left: 10px; }
+        .shaker-box { width: 100px; height: 120px; background: linear-gradient(135deg, #c8902e, #8b6020); border-radius: 10px 10px 30px 30px; position: relative; animation: shake 0.5s infinite alternate ease-in-out; margin-bottom: 32px; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 30px rgba(200,144,46,0.2); }
+        .shaker-cap { width: 80px; height: 40px; background: #d9b65a; border-radius: 20px 20px 0 0; position: absolute; top: -40px; left: 10px; }
         @keyframes shake { 0% { transform: rotate(-15deg) translateY(0); } 100% { transform: rotate(15deg) translateY(-10px); } }
         .loading-text { font-size: 18px; font-weight: bold; color: var(--primary); letter-spacing: 2px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        .result-card { background: var(--card-bg); border-radius: 24px; padding: 32px 24px; text-align: center; border: 1px solid rgba(124, 77, 255, 0.3); box-shadow: 0 10px 30px rgba(124, 77, 255, 0.1); }
+        .result-card { background: rgba(20, 12, 4, 0.78); backdrop-filter: blur(8px); border-radius: 24px; padding: 32px 24px; text-align: center; border: 1px solid rgba(200, 144, 46, 0.35); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
         .cocktail-icon { font-size: 64px; margin-bottom: 16px; display: block; }
         .cocktail-name { font-size: 28px; font-weight: bold; color: var(--primary); margin-bottom: 16px; }
-        .expected-effect { font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
-        .bartender-message { background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; font-size: 14px; font-style: italic; color: var(--text-sub); margin-bottom: 24px; }
+        .expected-effect { font-size: 15px; line-height: 1.6; margin-bottom: 24px; color: var(--text-main); }
+        .bartender-message { background: rgba(200, 144, 46, 0.06); border: 1px solid var(--border); padding: 16px; border-radius: 12px; font-size: 14px; font-style: italic; color: var(--text-sub); margin-bottom: 24px; }
 
         .review-section { text-align: left; padding-top: 10px; }
         .review-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; color: var(--text-main); text-align: center;}
         .rating-container { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; }
-        .rating-glass { font-size: 28px; cursor: pointer; color: #444; transition: color 0.2s; }
+        .rating-glass { font-size: 28px; cursor: pointer; color: #3a2e20; transition: color 0.2s; }
         .rating-glass.active { color: var(--primary); }
-        .review-input { width: 100%; height: 80px; background: #252525; border: 1px solid #383838; border-radius: 10px; color: white; padding: 12px; font-size: 14px; resize: none; outline: none; margin-bottom: 24px;}
+        .review-input { width: 100%; height: 80px; background: #1a1108; border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); padding: 12px; font-size: 14px; resize: none; outline: none; margin-bottom: 24px;}
         .review-input:focus { border-color: var(--primary); }
 
-        .btn-primary { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 24px; }
+        .btn-primary { width: 100%; padding: 18px; background: var(--primary); color: #fff8ee; border: none; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 24px; }
         .btn-primary:hover { background: var(--primary-hover); }
-        .btn-primary:disabled { background: #444; color: #888; cursor: not-allowed; }
+        .btn-primary:disabled { background: #2a2018; color: #5a4e3a; cursor: not-allowed; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(10, 6, 2, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(200, 144, 46, 0.45); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(200, 144, 46, 0.75); }
+        * { scrollbar-width: thin; scrollbar-color: rgba(200, 144, 46, 0.45) rgba(10, 6, 2, 0.6); }
     </style>
 </head>
 <body>
@@ -99,27 +118,27 @@
             <div style="width: 24px;"></div>
         </div>
 
-        <div class="report-box" id="ai-report-section" style="display: none;">
-            <h3><i class="ri-magic-line" style="color: #BA68C8;"></i> MoodTender AI 리포트</h3>
+        <div class="action-card" id="issue-action-card" onclick="showStep(2)">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin-bottom: 6px; font-size: 24px;">해결 및 리뷰 대기함</h3>
+                    <p id="action-card-text" style="color: var(--text-sub); font-size: 20px;">
+                        조각들이 <span id="issue-count" style="color: var(--primary); font-weight: bold;">0</span>개 모여있습니다.
+                    </p>
+                </div>
+                <i class="ri-arrow-right-s-line" id="action-card-arrow" style="font-size: 36px; color: var(--primary);"></i>
+            </div>
+        </div>
+
+        <div class="report-box" id="ai-report-section" style="display: none; margin-top: 36px;">
+            <h3><i class="ri-magic-line" style="color: #d9b65a;"></i> MoodTender AI 리포트</h3>
             <div class="report-content" id="ai-report-text">리포트를 불러오는 중입니다...</div>
         </div>
 
         <div class="chart-box" id="chart-section" style="display: none;">
             <h3><i class="ri-line-chart-line" style="color: var(--success);"></i> 최근 마음 회복도</h3>
-            <div style="position: relative; height: 200px; width: 100%;">
+            <div style="position: relative; height: 330px; width: 100%;">
                 <canvas id="recoveryChart"></canvas>
-            </div>
-        </div>
-
-        <div class="action-card" id="issue-action-card" onclick="showStep(2)">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div>
-                    <h3 style="margin-bottom: 4px; font-size: 16px;">해결 및 리뷰 대기함</h3>
-                    <p id="action-card-text" style="color: var(--text-sub); font-size: 13px;">
-                        조각들이 <span id="issue-count" style="color: var(--primary); font-weight: bold;">0</span>개 모여있습니다.
-                    </p>
-                </div>
-                <i class="ri-arrow-right-s-line" id="action-card-arrow" style="font-size: 24px; color: var(--primary);"></i>
             </div>
         </div>
     </div>
@@ -268,8 +287,8 @@
             const ctx = document.getElementById('recoveryChart').getContext('2d');
             
             let gradient = ctx.createLinearGradient(0, 0, 0, 200);
-            gradient.addColorStop(0, 'rgba(124, 77, 255, 0.5)');
-            gradient.addColorStop(1, 'rgba(124, 77, 255, 0.0)');
+            gradient.addColorStop(0, 'rgba(200, 144, 46, 0.5)');
+            gradient.addColorStop(1, 'rgba(200, 144, 46, 0.0)');
 
             if (recoveryChartInstance) recoveryChartInstance.destroy();
 
@@ -280,11 +299,11 @@
                     datasets: [{
                         label: '마음 회복도 (별점)',
                         data: data.map(d => d.rating),
-                        borderColor: '#7C4DFF',
+                        borderColor: '#c8902e',
                         backgroundColor: gradient,
                         borderWidth: 3,
-                        pointBackgroundColor: '#61D394',
-                        pointBorderColor: '#121212',
+                        pointBackgroundColor: '#d9b65a',
+                        pointBorderColor: '#140f0a',
                         pointBorderWidth: 2,
                         pointRadius: 5,
                         pointHoverRadius: 7,
@@ -347,19 +366,26 @@
             const reviewIssues = issues.filter(item => item.prescribed_cocktail);
             const prescribeIssues = issues.filter(item => !item.prescribed_cocktail);
 
-            let htmlString = '';
+            const reviewCol = reviewIssues.length > 0
+                ? reviewIssues.map(item => createCardHTML(item, true)).join('')
+                : `<div class="issue-col-empty">리뷰 대기 항목이 없습니다.</div>`;
 
-            if (reviewIssues.length > 0) {
-                htmlString += `<h4 style="color:var(--success); margin-bottom:12px; margin-top:8px; font-size:14px;">🍸 실천 후 리뷰 대기중</h4>`;
-                htmlString += reviewIssues.map(item => createCardHTML(item, true)).join('');
-            }
+            const prescribeCol = prescribeIssues.length > 0
+                ? prescribeIssues.map(item => createCardHTML(item, false)).join('')
+                : `<div class="issue-col-empty">처방 대기 항목이 없습니다.</div>`;
 
-            if (prescribeIssues.length > 0) {
-                htmlString += `<h4 style="color:var(--text-sub); margin-bottom:12px; margin-top:24px; font-size:14px;">📝 칵테일 처방 대기중</h4>`;
-                htmlString += prescribeIssues.map(item => createCardHTML(item, false)).join('');
-            }
-
-            container.innerHTML = htmlString;
+            container.innerHTML = `
+                <div class="issue-columns">
+                    <div>
+                        <h4 class="issue-col-title" style="color:var(--success);">🍸 실천 후 리뷰 대기중</h4>
+                        ${reviewCol}
+                    </div>
+                    <div>
+                        <h4 class="issue-col-title" style="color:var(--text-sub);">📝 칵테일 처방 대기중</h4>
+                        ${prescribeCol}
+                    </div>
+                </div>
+            `;
 
         } catch (error) {
             container.innerHTML = `<div class="empty-state" style="color:#ff6b6b;">데이터를 불러오는 중 오류가 발생했습니다.</div>`;
@@ -371,18 +397,20 @@
         const statusBadge = isReviewWaiting
             ? `<div class="review-tag">🍸 실천 후 리뷰 대기중</div>`
             : `<div class="emotion-tag">${item.emotion}</div>`;
-        const cocktailInfo = isReviewWaiting
-            ? `<div style="font-size:13px; color:var(--text-main); margin-top:12px; padding-top:12px; border-top:1px dashed #333;">처방된 칵테일: <span style="color:var(--success)">${item.prescribed_cocktail}</span></div>`
-            : ``;
+        const cardBottom = isReviewWaiting
+            ? `<div class="card-bottom" style="color:var(--text-main);">처방된 칵테일: <span style="color:var(--success); font-weight:600;">${item.prescribed_cocktail}</span></div>`
+            : `<div class="card-bottom" style="color:var(--text-sub);">칵테일 처방받기 →</div>`;
 
         return `
         <div class="issue-card" onclick="handleIssueClick(${item.id}, '${item.prescribed_cocktail || ''}')">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span class="date">${item.record_date}</span>
-                ${statusBadge}
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span class="date">${item.record_date}</span>
+                    ${statusBadge}
+                </div>
+                <div class="issue-text">${item.issue}</div>
             </div>
-            <div class="issue-text">${item.issue}</div>
-            ${cocktailInfo}
+            ${cardBottom}
         </div>
         `;
     }
