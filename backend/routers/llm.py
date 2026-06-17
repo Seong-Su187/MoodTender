@@ -70,7 +70,6 @@ async def get_current_user_id(
 
     return user.id
 
-# 🚀 [누락 복구] 화면이 켜질 때 프론트엔드가 호출할 첫인사 전용 API
 @router.get("/llm/greeting")
 async def get_initial_greeting(
     token_payload: dict = Depends(get_current_user_token),
@@ -89,7 +88,6 @@ async def get_initial_greeting(
         pending_m = pending_res.scalar_one_or_none()
 
         if pending_m:
-            # 리뷰 대기 중인 건이 있다면 맞춤형 안부 묻기
             greeting_prompt = ChatPromptTemplate.from_messages([
                 ("system", """당신은 따뜻한 AI 바텐더 MoodTender입니다.
                 손님이 이전에 '{issue}' 문제로 '{cocktail}' 칵테일과 행동 지침을 처방받았습니다.
@@ -102,7 +100,6 @@ async def get_initial_greeting(
             })
             return {"reply": dynamic_greeting, "emotion": "평온"}
         else:
-            # 대기 중인 건이 없다면 기본 첫인사
             return {"reply": "어서오세요. 오늘 마음은 어떤 잔에 담아드릴까요?", "emotion": "평온"}
             
     except Exception as e:
@@ -169,7 +166,8 @@ async def respond(
             user_turn_count=turn_count,
         )
 
-        if cocktail_line and not cocktail_done:
+        # 🚀 [수정 완료] 다른 칵테일을 원해서 새로 추천받으면, 기존 추천 기록을 무시하고 새 칵테일로 덮어씁니다!
+        if cocktail_line:
             _user_cocktail_done.add(user_id)
             _user_session_data[user_id] = {"emotion": emotion, "cocktail": cocktail_line}
 
