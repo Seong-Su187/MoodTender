@@ -91,8 +91,9 @@
         .review-section { text-align: left; padding-top: 10px; }
         .review-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; color: var(--text-main); text-align: center;}
         .rating-container { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; }
-        .rating-glass { font-size: 28px; cursor: pointer; color: #3a2e20; transition: color 0.2s; }
-        .rating-glass.active { color: var(--primary); }
+        .rating-glass { font-size: 28px; cursor: pointer; filter: grayscale(1) brightness(0.4); transition: filter 0.15s, transform 0.15s; }
+        .rating-glass.active { filter: none; transform: scale(1.15); }
+        .rating-glass:hover { filter: grayscale(0.3) brightness(0.8); }
         .review-input { width: 100%; height: 80px; background: #1a1108; border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); padding: 12px; font-size: 14px; resize: none; outline: none; margin-bottom: 24px;}
         .review-input:focus { border-color: var(--primary); }
 
@@ -133,10 +134,16 @@
         <div class="report-box" id="ai-report-section" style="display: none; margin-top: 36px;">
             <h3><i class="ri-magic-line" style="color: #d9b65a;"></i> MoodTender AI 리포트</h3>
             <div class="report-content" id="ai-report-text">리포트를 불러오는 중입니다...</div>
+            <div id="language-change-section" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 1px solid rgba(200, 144, 46, 0.2);">
+                <h3 style="font-size: 20px; margin-bottom: 14px; color: #d9b65a; display: flex; align-items: center; gap: 8px;">
+                    <i class="ri-chat-quote-line"></i> 이달의 말투 변화
+                </h3>
+                <div class="report-content" id="language-change-text"></div>
+            </div>
         </div>
 
         <div class="chart-box" id="chart-section" style="display: none;">
-            <h3><i class="ri-line-chart-line" style="color: var(--success);"></i> 최근 마음 회복도</h3>
+            <h3><i class="ri-line-chart-line" style="color: var(--success);"></i> 지난 잔들의 평가</h3>
             <div style="position: relative; height: 330px; width: 100%;">
                 <canvas id="recoveryChart"></canvas>
             </div>
@@ -272,6 +279,10 @@
             reportSection.style.display = 'block';
             const data = await fetchWithAuth(`${API_BASE}/report`);
             reportText.innerHTML = data.report;
+            if (data.language_change) {
+                document.getElementById('language-change-section').style.display = 'block';
+                document.getElementById('language-change-text').innerHTML = data.language_change;
+            }
         } catch (error) {
             reportText.innerHTML = `<span style="color:#ff6b6b;">리포트를 생성하는 과정에서 에러가 발생했습니다. 기록이 충분한지 확인해 주세요.</span>`;
             console.error(error);
