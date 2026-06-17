@@ -180,16 +180,10 @@ dashboard_report_chain = ChatPromptTemplate.from_messages([
     {expert_knowledge}
     
     [작성 규칙]
-    반드시 아래 제공된 JSON 포맷과 Key값 명칭을 정확히 일치시켜 JSON 텍스트로만 출력하세요. 
-    마크다운 백틱(```json)이나 다른 설명글은 일절 섞지 마세요.
-    {{
-        "primary_emotion": "요약할 주된 핵심 감정 명칭",
-        "summary_tags": ["활동 패턴 요약 태그1", "수면 패턴 요약 태그2", "앱 사용 요약 태그3"],
-        "diagnosis": "심리학 지식을 결합한 정밀 상태 진단 내용 (2~3문장)",
-        "suggestion": "따뜻한 시선이 담긴 일상 속 행동 조치 처방 (2~3문장)",
-        "cocktail_name": "처방에 어울리는 추천 칵테일 이름",
-        "cocktail_desc": "해당 칵테일의 의미와 선정이유 설명 (1~2문장)"
-    }}
+    1. 따뜻하고 정중하며 통찰력 있는 톤을 유지하세요.
+    2. 전문 지식을 참고하여 일상에서 할 수 있는 작은 행동을 제안하세요.
+    3. 마지막엔 이 감정에 어울리는 가상의 칵테일 한 잔을 추천하세요.
+    4. <b>, <br> 등 HTML 태그를 적극 사용하여 3~4문단으로 작성하세요.
     """)
 ]) | _make_llm(temperature=0.5, model="gpt-4.1-mini") | StrOutputParser()
 
@@ -326,18 +320,7 @@ async def generate_dashboard_rag_report(db: AsyncSession, user_id: int, metrics_
         "expert_knowledge": expert_knowledge
     })
     
-    try:
-        cleaned_json = llm_report.strip("` \n")
-        if cleaned_json.startswith("json"):
-            cleaned_json = cleaned_json[4:]
-        return json.loads(cleaned_json.strip())
-    except Exception as e:
-        print(f"Dashboard Report JSON Parsing Failure: {e}")
-        return {
-            "primary_emotion": emotion,
-            "summary_tags": ["분석 오류"],
-            "diagnosis": "데이터 파싱 과정에서 사소한 에러가 발생했습니다.",
-            "suggestion": "서버 콘솔의 예외 처리를 다시 한번 체크해 주세요.",
-            "cocktail_name": "시스템 리부트",
-            "cocktail_desc": "언제나 한결같은 안정감을 선사하는 처방입니다."
-        }
+    llm_report = llm_report.strip()
+    llm_report = re.sub(r'\s*<br\s*/?>\s*', '\n', llm_report, flags=re.IGNORECASE)
+    llm_report = re.sub(r'\n+', '<br><br>', llm_report)
+    return llm_report

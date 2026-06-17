@@ -134,11 +134,11 @@ result_chain = result_prompt | _make_llm(temperature=0.7, model="gpt-4.1-mini") 
 feedback_prompt = ChatPromptTemplate.from_messages([
     ("system", """
     당신은 대화 맥락을 분석하는 AI입니다. 
-    바텐더가 이전에 '{cocktail_name}'(관련 고민: '{issue}')을 처방했습니다.
-    이제 사용자가 한 발화가 이 처방에 대한 '직접적인 피드백(해결됨, 실천 여부, 후기)'인지 엄격하게 판단하세요.
-    
+    바텐더가 이전에 '{cocktail_name}'(관련 고민: '{issue}')을 추천했습니다.
+    이제 사용자가 한 발화가 이 추천에 대한 '직접적인 피드백(해결됨, 실천 여부, 후기)'인지 엄격하게 판단하세요.
+
     [엄격한 판단 기준]
-    1. 사용자가 명시적으로 과거 고민('{issue}')이 나아졌다고 하거나, 처방받은 행동/칵테일('{cocktail_name}')을 언급하며 후기를 말할 때만 피드백으로 인정합니다.
+    1. 사용자가 명시적으로 과거 고민('{issue}')이 나아졌다고 하거나, 추천받은 행동/칵테일('{cocktail_name}')을 언급하며 후기를 말할 때만 피드백으로 인정합니다.
     2. 일상적인 인사, 전혀 다른 새로운 고민, 혹은 "기대되는 일이 있어요" 같은 다른 주제라면 절대 피드백이 아닙니다.
     3. 피드백이 확실한 경우에만 is_feedback을 true로 설정하고, 긍정적일수록 높은 평점(1~5점)을 매기세요.
     4. 조금이라도 다른 이야기라면 무조건 false로 반환하세요. 혼자서 추측하여 지어내지 마세요.
@@ -171,7 +171,7 @@ async def generate_cocktail_prescription(issue: str, emotion: str) -> dict:
         clean_json = raw_res.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         return json.loads(clean_json)
     except Exception as e:
-        print(f"[LLM 분석 오류] 칵테일 처방 실패: {e}")
+        print(f"[LLM 분석 오류] 칵테일 추천 실패: {e}")
         return {
             "emotion_analysis": f"'{issue}' 때문에 많이 힘드셨겠어요. 깊은 {emotion}이 느껴집니다. 제가 도와드릴게요.",
             "checklist": ["따뜻한 차 한 잔 마시며 심호흡하기", "오늘 있었던 일 일기에 적어보기", "가벼운 산책으로 기분 전환하기"]

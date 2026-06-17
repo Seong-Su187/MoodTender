@@ -56,8 +56,8 @@ async def get_initial_greeting(
         if pending_m:
             greeting_prompt = ChatPromptTemplate.from_messages([
                 ("system", """당신은 따뜻한 AI 바텐더 MoodTender입니다.
-                손님이 이전에 '{issue}' 문제로 '{cocktail}' 칵테일과 행동 지침을 처방받았습니다.
-                오늘 다시 방문한 손님에게 "어서 오세요"로 시작해서, 지난번의 고민(issue)은 좀 어떠신지, 처방받은 행동은 도움이 되었는지 다정하게 묻는 첫 인사를 1~2문장으로 작성하세요.""")
+                손님이 이전에 '{issue}' 문제로 '{cocktail}' 칵테일과 행동 지침을 추천받았습니다.
+                오늘 다시 방문한 손님에게 "어서 오세요"로 시작해서, 지난번의 고민(issue)은 좀 어떠신지, 추천받은 행동은 도움이 되었는지 다정하게 묻는 첫 인사를 1~2문장으로 작성하세요.""")
             ]) | _make_llm(0.7) | StrOutputParser()
 
             dynamic_greeting = await greeting_prompt.ainvoke({
@@ -104,8 +104,8 @@ async def respond(
             if pending_m:
                 greeting_prompt = ChatPromptTemplate.from_messages([
                     ("system", """당신은 따뜻한 AI 바텐더 MoodTender입니다.
-                    손님이 이전에 '{issue}' 문제로 '{cocktail}' 칵테일과 행동 지침을 처방받았습니다.
-                    오늘 다시 방문한 손님에게 "어서 오세요"로 시작해서, 지난번의 고민(issue)은 좀 어떠신지, 처방받은 행동은 도움이 되었는지 다정하게 묻는 첫 인사를 1~2문장으로 작성하세요.""")
+                    손님이 이전에 '{issue}' 문제로 '{cocktail}' 칵테일과 행동 지침을 추천받았습니다.
+                    오늘 다시 방문한 손님에게 "어서 오세요"로 시작해서, 지난번의 고민(issue)은 좀 어떠신지, 추천받은 행동은 도움이 되었는지 다정하게 묻는 첫 인사를 1~2문장으로 작성하세요.""")
                 ]) | _make_llm(0.7) | StrOutputParser()
 
                 dynamic_greeting = await greeting_prompt.ainvoke({

@@ -170,7 +170,7 @@ async def analyze_data(
         label_screen = f"{period_label} 평균 스마트폰 사용"
 
     final_report = (
-        f"🥃 <b>MoodTender 데이터 진단 및 처방</b><br><br>"
+        f"🥃 <b>MoodTender 데이터 진단 및 추천</b><br><br>"
         f"<div style='font-size: 0.9em; color: #b3a48c; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(200, 160, 90, 0.2);'>"
         f"<b>{label_steps}:</b> 👣 {today['steps']}보<br>"
         f"<b>{label_sleep}:</b> 🛏️ {today['sleep_minutes']//60}시간 {today['sleep_minutes']%60}분<br>"
