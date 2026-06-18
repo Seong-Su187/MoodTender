@@ -5,7 +5,9 @@ import os
 import re
 import json
 import asyncio
+from typing import Literal
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -90,12 +92,15 @@ def _build_history(chats: list[dict]) -> list:
 def _build_past_chat_context(chats: list[dict]) -> str:
     return "\n".join(f"- {c['content']}" for c in chats)
 
-_MAIN_EMOTIONS = frozenset({"기쁨", "우울", "불안", "분노", "지침", "외로움", "평온"})
+class _EmotionClassification(BaseModel):
+    emotion: Literal["기쁨", "우울", "불안", "분노", "지침", "외로움", "평온"] = Field(
+        description="발화에서 느껴지는 감정과 가장 가까운 하나"
+    )
 
 async def _classify_emotion(user_text: str) -> str:
     result = await classify_chain.ainvoke([
         HumanMessage(content=(
-            "다음 발화에서 사용자의 감정을 아래 7가지 중 하나만 골라 단어만 답해라.\n"
+            "다음 발화에서 사용자의 감정을 아래 7가지 중 가장 가까운 것 하나로 분류해라.\n"
             "- 기쁨: 설렘, 성취감, 즐거움\n"
             "- 우울: 무기력함, 슬픔, 의욕 없음, 기분 저조\n"
             "- 불안: 걱정, 두려움, 초조함\n"
@@ -106,8 +111,7 @@ async def _classify_emotion(user_text: str) -> str:
             f"발화: {user_text}"
         ))
     ])
-    emotion = result.content.strip()
-    return emotion if emotion in _MAIN_EMOTIONS else "평온"
+    return result.emotion
 
 async def _build_cocktail_hint(db: AsyncSession, recommend: bool, emotion: str = "평온") -> str:
     if not recommend:
@@ -149,7 +153,7 @@ bartender_prompt = ChatPromptTemplate.from_messages([
 ])
 
 bartender_chain = bartender_prompt | _make_llm(0.7, "gpt-4.1") | StrOutputParser()
-classify_chain = _make_llm(0.0)
+classify_chain = _make_llm(0.0).with_structured_output(_EmotionClassification)
 memory_summary_chain = ChatPromptTemplate.from_messages([("system", "대화 요약"), ("human", "{conversation_text}")]) | _make_llm(0.2) | StrOutputParser()
 
 receipt_chain = ChatPromptTemplate.from_messages([
