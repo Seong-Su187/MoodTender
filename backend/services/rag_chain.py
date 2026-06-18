@@ -187,6 +187,52 @@ dashboard_report_chain = ChatPromptTemplate.from_messages([
     """)
 ]) | _make_llm(temperature=0.5, model="gpt-4.1-mini") | StrOutputParser()
 
+weekly_receipt_report_chain = ChatPromptTemplate.from_messages([
+    ("system", """
+    당신은 10년 차 전문 바텐더 'MoodTender'입니다.
+    사용자가 최근 일주일간 작성한 감정 영수증과 생활 데이터를 바탕으로
+    웹 대시보드에 띄울 '주간 상태 분석 리포트'를 작성해 주세요.
+
+    [이번 주 감정 영수증 요약]
+    주요 감정: {emotion}
+    최근 영수증 메모: {notes}
+    가장 많이 추천된 칵테일: {top_cocktail}
+
+    [생활 데이터 — 보조 참고용, 감정 판단의 근거가 아니라 맥락으로만 가볍게 언급]
+    {health_context}
+
+    [전문 지식 및 근거 (RAG)]
+    {expert_knowledge}
+
+    [작성 규칙]
+    1. 따뜻하고 정중하며 통찰력 있는 톤을 유지하세요.
+    2. 감정 영수증 메모에 드러난 흐름을 중심으로 분석하고, 생활 데이터는 보조적인 맥락으로만 자연스럽게 녹여 언급하세요.
+    3. 전문 지식을 참고하여 일상에서 할 수 있는 작은 행동을 제안하세요.
+    4. 마지막엔 이 감정에 어울리는 가상의 칵테일 한 잔을 추천하세요.
+    5. <b>, <br> 등 HTML 태그를 적극 사용하여 3~4문단으로 작성하세요.
+    """)
+]) | _make_llm(temperature=0.5, model="gpt-4.1-mini") | StrOutputParser()
+
+async def generate_weekly_report_from_receipts(db: AsyncSession, receipt_summary: dict, health_context: str) -> dict:
+    from backend.services.monthly_service import _get_main_emotion
+
+    main_emotion = await _get_main_emotion(db, receipt_summary["dominant_sub"])
+    expert_knowledge = await get_expert_knowledge(db, main_emotion)
+    notes_text = " / ".join(receipt_summary["notes"][-5:]) if receipt_summary["notes"] else "기록된 메모 없음"
+
+    llm_report = await weekly_receipt_report_chain.ainvoke({
+        "emotion": main_emotion,
+        "notes": notes_text,
+        "top_cocktail": receipt_summary["top_cocktail"] or "아직 없음",
+        "health_context": health_context,
+        "expert_knowledge": expert_knowledge,
+    })
+
+    llm_report = llm_report.strip()
+    llm_report = re.sub(r'\s*<br\s*/?>\s*', '\n', llm_report, flags=re.IGNORECASE)
+    llm_report = re.sub(r'\n+', '<br><br>', llm_report)
+    return {"status": "success", "html": llm_report}
+
 async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float = 1.0, session_id: str = "", session_start=None, cocktail_done: bool = False, user_turn_count: int = 0) -> tuple[str, str, str]:
     user_text = _deidentify(user_text)
     

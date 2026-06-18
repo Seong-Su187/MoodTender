@@ -12,6 +12,7 @@
 
 // Redis 블랙리스트 연동 로그아웃
 let isModelReady = false;
+const DEFAULT_VOICE = 'onyx';
 
 // ── 영상 상태 관리 ────────────────────────────────────────────
 const VIDEO_IDLE           = '/assets/loop_bg.mp4?v=3';
@@ -88,83 +89,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-  await Promise.all([loadVoices(), loadAvatars()]);
   pollStatus();
   playIdle();
 });
-
-// ── 아바타 영상 목록 ─────────────────────────────────────────
-async function loadAvatars() {
-  const sel = document.getElementById('avatar-select');
-  if (!sel) return;
-  try {
-    const res = await fetch('/api/avatars');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const avatars = await res.json();
-    avatars.forEach(({ name, label }) => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = label;
-      sel.appendChild(opt);
-    });
-  } catch (e) {
-    console.error('아바타 목록 로드 실패:', e);
-  }
-
-  sel.addEventListener('change', () => applySelectedAvatar(sel));
-  applySelectedAvatar(sel);
-}
-
-function applySelectedAvatar(sel) {
-  const statusEl = document.getElementById('avatar-status');
-
-  if (!sel.value) {
-    if (statusEl) statusEl.textContent = '아바타를 선택해주세요.';
-    return;
-  }
-
-  if (statusEl) statusEl.textContent = '아바타 준비 중...';
-  const form = new FormData();
-  form.append('avatar_name', sel.value);
-  readSSE('/api/prepare_avatar', form, ({ status, error }) => {
-    if (status && statusEl) statusEl.textContent = status;
-    if (error && statusEl)  statusEl.textContent = `오류: ${error}`;
-  }).catch(() => {});
-}
-
-// ── 목소리 목록 ──────────────────────────────────────────────
-async function loadVoices() {
-  const sel = document.getElementById('voice-select');
-  try {
-    const token = localStorage.getItem('access_token');
-    const res = await fetch('/api/voices', {
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const voices = await res.json();
-    if (!Array.isArray(voices) || voices.length === 0) throw new Error('빈 응답');
-    voices.forEach(({ id, name }) => {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = name;
-      sel.appendChild(opt);
-    });
-  } catch (e) {
-    console.error('목소리 목록 로드 실패:', e);
-    // 폴백: 기본 목소리 하드코딩
-    [
-      { id: 'ko-KR-SunHiNeural',  name: '한국어 여성 (SunHi)' },
-      { id: 'ko-KR-InJoonNeural', name: '한국어 남성 (InJoon)' },
-      { id: 'en-US-JennyNeural',  name: '영어 여성 (Jenny)' },
-      { id: 'en-US-GuyNeural',    name: '영어 남성 (Guy)' },
-    ].forEach(({ id, name }) => {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = name;
-      sel.appendChild(opt);
-    });
-  }
-}
 
 // ── 모델 상태 폴링 (2초) ─────────────────────────────────────
 async function pollStatus() {
@@ -244,7 +171,7 @@ async function generate() {
 
   const form = new FormData();
   form.append('text',  text);
-  form.append('voice', document.getElementById('voice-select').value);
+  form.append('voice', DEFAULT_VOICE);
 
   const MIME   = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
   const useMSE = 'MediaSource' in window && MediaSource.isTypeSupported(MIME);
@@ -306,18 +233,15 @@ async function generateChat() {
 
   try {
     statusEl.textContent = 'AI 답변 생성 중...';
-    const speedSel = document.getElementById('speed-select');
-    const speed = speedSel ? speedSel.value : '1.0';
+    const speed = '1.0';
     const reply = await generateLLMReply(userText, speed);
     appendChatMessage('assistant', reply);
 
     statusEl.textContent = '아바타 영상 생성 중...';
     const form = new FormData();
     form.append('text', reply);
-    form.append('voice', document.getElementById('voice-select').value);
+    form.append('voice', DEFAULT_VOICE);
     form.append('speed', speed);
-    const avatarSel = document.getElementById('avatar-select');
-    if (avatarSel && avatarSel.value) form.append('avatar_name', avatarSel.value);
 
     // MP4 (H264) 스트리밍: 배경이 베이크된 아바타 영상 재생
     videoEl.muted = false;
@@ -527,36 +451,6 @@ async function _generateStream(form, mime, videoEl, placeholder, statusEl, onEnd
       statusEl.textContent = '완료!';
     }
   }
-}
-
-// ── 아바타 탭 전환 ───────────────────────────────────────────
-function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('tab-photo').style.display = tab === 'photo' ? 'flex' : 'none';
-  document.getElementById('tab-video').style.display = tab === 'video' ? 'flex' : 'none';
-}
-
-// ── 아바타 초기화 (영상 직접) ────────────────────────────────
-async function initAvatarVideo() {
-  const fileInput = document.getElementById('avatar-video-file');
-  if (!fileInput.files.length) { alert('영상을 선택해주세요.'); return; }
-
-  const btn      = document.getElementById('init-avatar-video-btn');
-  const statusEl = document.getElementById('avatar-status');
-
-  btn.disabled = true;
-
-  const form = new FormData();
-  form.append('file',       fileInput.files[0]);
-  form.append('bbox_shift', document.getElementById('bbox-shift-v').value);
-
-  await readSSE('/api/init_avatar_video', form, ({ status, error }) => {
-    if (status) statusEl.textContent = status;
-    if (error)  statusEl.textContent = `오류: ${error}`;
-  });
-
-  btn.disabled = false;
 }
 
 // ── 마이크 STT ───────────────────────────────────────────────

@@ -172,9 +172,9 @@
   </div>
 
   <div id="dashboard-modal" class="dashboard-modal" aria-hidden="true">
-    <div class="dashboard-modal-panel" role="dialog" aria-modal="true" aria-label="건강 분석 대시보드">
+    <div class="dashboard-modal-panel" role="dialog" aria-modal="true" aria-label="상태 분석 리포트">
       <div class="dashboard-modal-header">
-        <h2>건강 & 분석</h2>
+        <h2>상태 분석 리포트</h2>
         <button type="button" onclick="closeDashboardModal()" aria-label="닫기">✕</button>
       </div>
       <iframe id="dashboard-frame" title="MoodTender Health Dashboard" data-src="/dashboard"></iframe>
@@ -204,7 +204,7 @@
 
         <button class="nav-link" type="button" onclick="openDashboardModal()">
           <span class="nav-icon icon-health" aria-hidden="true"></span>
-          <span>건강 & 분석</span>
+          <span>상태 분석 리포트</span>
         </button>
 
         <button class="nav-link" type="button" onclick="openHistoryModal()">
@@ -218,37 +218,6 @@
         </button>
 
         <div class="nav-section-label">설정</div>
-
-        <details class="nav-group">
-          <summary class="nav-link">
-            <span class="nav-icon icon-avatar" aria-hidden="true"></span>
-            <span>아바타 설정</span>
-          </summary>
-          <div class="nav-controls">
-            <p id="avatar-status" class="status-text"></p>
-            <label class="field-label" for="avatar-select">영상 선택</label>
-            <select id="avatar-select"></select>
-          </div>
-        </details>
-
-        <details class="nav-group">
-          <summary class="nav-link">
-            <span class="nav-icon icon-voice" aria-hidden="true"></span>
-            <span>목소리</span>
-          </summary>
-          <div class="nav-controls">
-            <label class="field-label" for="voice-select">응답 음성</label>
-            <select id="voice-select"></select>
-            <label class="field-label" for="speed-select">말하기 속도</label>
-            <select id="speed-select">
-              <option value="0.8">0.8배속 (느리게)</option>
-              <option value="1.0" selected>1.0배속 (기본)</option>
-              <option value="1.2">1.2배속 (빠르게)</option>
-            </select>
-          </div>
-        </details>
-
-        <div class="nav-section-label">OTHERS</div>
 
         <button class="nav-link" type="button" onclick="startPairing()">
           <span class="nav-icon icon-member" aria-hidden="true"></span>

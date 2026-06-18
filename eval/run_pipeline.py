@@ -113,6 +113,12 @@ async def _llm_reply(
         "cocktail_hint": cocktail_hint,
     })
     latency = time.perf_counter() - t0
+
+    # rag_chat()과 동일하게, TTS/표시 전에 [칵테일: 이름] 시스템 태그를 제거한다.
+    # (이 제거가 빠지면 태그 문자열이 그대로 TTS로 읽혀 CER이 부풀려짐)
+    if should_recommend:
+        raw_reply = re.sub(r'\[칵테일:\s*[^\]]+\]', '', raw_reply).strip()
+
     reply = _trim(raw_reply, SPEED)
     return reply, latency, should_recommend
 
