@@ -164,7 +164,6 @@ deidentify_chain = _make_llm(0.0)
 # CHAINS 정의
 CHAINS = (classify_chain, bartender_chain, memory_summary_chain, _make_llm(0.0), receipt_chain, cocktail_chain, sub_classify_chain, deidentify_chain)
 
-# 🚀 프론트엔드 UI 컴포넌트화를 위해 응답 결과 구조를 JSON 포맷으로 강제 규정
 dashboard_report_chain = ChatPromptTemplate.from_messages([
     ("system", """
     당신은 10년 차 전문 바텐더 'MoodTender'입니다.
@@ -255,6 +254,7 @@ async def rag_chat(db: AsyncSession, user_id: int, user_text: str, speed: float 
     
     cocktail_request = any(k in clean_user_text for k in ["칵테일", "추천", "한잔", "한 잔", "메뉴", "술", "줘"])
     
+    # 🚀 [버그 해결] 이미 추천을 받았어도 "다른", "다시" 등의 키워드로 재요청하면 칵테일 추천 모드를 다시 켭니다!
     re_request_keywords = ["다른", "다시", "바꿔", "별로", "새로운", "딴거", "딴 거", "아닌", "다르게"]
     is_re_request = cocktail_request and any(k in clean_user_text for k in re_request_keywords)
     
