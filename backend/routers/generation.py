@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import re
 import time
@@ -48,6 +50,15 @@ def _get_video_avatar(avatar_name: str) -> Avatar:
         av.input_latent_list_cycle = [t.to(ml_manager.device) for t in av.input_latent_list_cycle]
         ml_manager.video_avatars[avatar_name] = av
         return av
+
+
+def _get_default_avatar() -> Avatar | None:
+    """avatar_name이 없을 때 사용할 기본 아바타. (backend/video/에 영상이 하나뿐이라는 전제)"""
+    if ml_manager.custom_avatar is not None:
+        return ml_manager.custom_avatar
+    if ml_manager.video_avatars:
+        return next(iter(ml_manager.video_avatars.values()))
+    return None
 
 def sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -123,11 +134,8 @@ async def generate(text: str = Form(...), voice: str = Form("onyx"), avatar_name
             duration = get_audio_duration(audio_path)
             print(f"[시간] TTS:      {time.time()-t0:.1f}초 (음성 {duration:.1f}초)")
 
-            if avatar_name:
-                av = _get_video_avatar(avatar_name)
-            elif ml_manager.custom_avatar is not None:
-                av = ml_manager.custom_avatar
-            else:
+            av = _get_video_avatar(avatar_name) if avatar_name else _get_default_avatar()
+            if av is None:
                 push({"error": "아바타를 선택해주세요.", "done": True})
                 return
             push({"status": f"영상 생성 중... (음성 {duration:.1f}초)"})
@@ -225,7 +233,7 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
     if not ml_manager.models_ready:
         return JSONResponse({"error": "모델이 로드되지 않았습니다."}, status_code=400)
 
-    if not avatar_name and ml_manager.custom_avatar is None:
+    if not avatar_name and _get_default_avatar() is None:
         return JSONResponse({"error": "아바타를 선택해주세요."}, status_code=400)
 
     from stream_inference import inference_stream as _infer_stream
@@ -247,10 +255,7 @@ async def generate_stream(text: str = Form(...), voice: str = Form("onyx"), avat
             tts(text, audio_path, voice, speed)
             print(f"[Stream] TTS: {time.time()-t0:.1f}초")
 
-            if avatar_name:
-                av = _get_video_avatar(avatar_name)
-            else:
-                av = ml_manager.custom_avatar
+            av = _get_video_avatar(avatar_name) if avatar_name else _get_default_avatar()
             first = True
             for chunk in _infer_stream(
                 av, audio_path, ml_manager.args.fps, FFMPEG_PATH,
