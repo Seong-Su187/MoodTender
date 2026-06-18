@@ -142,11 +142,12 @@ async def analyze_data(
     metrics_result = calculate_mood_metrics(record_dicts, period_days=len(period_records))
 
     # 🚀 Step 2 ~ 4: RAG 파이프라인 실행 (비식별화 -> 지식 검색 -> LLM)
-    llm_html_report = await generate_dashboard_rag_report(
+    report_data = await generate_dashboard_rag_report(
         db=db,
         user_id=current_user.id,
         metrics_result=metrics_result
     )
+    llm_html_report = report_data["html"]
 
     # 데이터가 부족해서 분석이 안 돌아갔을 경우 LLM 응답이 아닌 자체 메시지 출력
     if metrics_result.get("status") == "insufficient_data":

@@ -208,7 +208,8 @@ async def get_weekly_ai_report(
                 "baseline": {}, "today": {}
             }
 
-    html_report = await generate_dashboard_rag_report(db, user_id, metrics_result)
+    report_data = await generate_dashboard_rag_report(db, user_id, metrics_result)
+    html_report = report_data["html"]
 
     # 이번 달 사용자 채팅 메시지를 주차별로 수집
     now = datetime.utcnow()
